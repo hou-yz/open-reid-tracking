@@ -2,9 +2,11 @@ from __future__ import absolute_import
 
 from .inception import *
 from .resnet import *
+from .PCB_model import *
 
 
 __factory = {
+    'pcb': PCBModel,
     'inception': inception,
     'resnet18': resnet18,
     'resnet34': resnet34,

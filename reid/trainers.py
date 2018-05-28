@@ -4,6 +4,8 @@ import time
 import torch
 from torch.autograd import Variable
 
+
+from .models import PCBModel
 from .evaluation_metrics import accuracy
 from .loss import OIMLoss, TripletLoss
 from .utils.meters import AverageMeter
@@ -68,16 +70,26 @@ class Trainer(BaseTrainer):
 
     def _forward(self, inputs, targets):
         outputs = self.model(*inputs)
-        if isinstance(self.criterion, torch.nn.CrossEntropyLoss):
-            loss = self.criterion(outputs, targets)
-            prec, = accuracy(outputs.data, targets.data)
-            prec = prec[0]
-        elif isinstance(self.criterion, OIMLoss):
-            loss, outputs = self.criterion(outputs, targets)
-            prec, = accuracy(outputs.data, targets.data)
-            prec = prec[0]
-        elif isinstance(self.criterion, TripletLoss):
-            loss, prec = self.criterion(outputs, targets)
+        if isinstance(self.model.module, PCBModel):
+            h_s=outputs[0]
+            prediction_s=outputs[1]
+            loss = 0
+            for pred in prediction_s:
+                loss+=self.criterion(pred, targets)
+            pass
+            # TODO: prec, = accuracy(outputs.data, targets.data)
+
         else:
-            raise ValueError("Unsupported loss:", self.criterion)
+            if isinstance(self.criterion, torch.nn.CrossEntropyLoss):
+                loss = self.criterion(outputs, targets)
+                prec, = accuracy(outputs.data, targets.data)
+                prec = prec[0]
+            elif isinstance(self.criterion, OIMLoss):
+                loss, outputs = self.criterion(outputs, targets)
+                prec, = accuracy(outputs.data, targets.data)
+                prec = prec[0]
+            elif isinstance(self.criterion, TripletLoss):
+                loss, prec = self.criterion(outputs, targets)
+            else:
+                raise ValueError("Unsupported loss:", self.criterion)
         return loss, prec

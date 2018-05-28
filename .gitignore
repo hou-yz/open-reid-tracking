@@ -227,3 +227,4 @@ ENV/
 examples/data
 examples/logs
 
+logs/
