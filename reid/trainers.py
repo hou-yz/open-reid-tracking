@@ -2,6 +2,7 @@ from __future__ import print_function, absolute_import
 import time
 
 import torch
+import torch.nn.functional as F
 from torch.autograd import Variable
 
 
@@ -77,7 +78,7 @@ class Trainer(BaseTrainer):
             for pred in prediction_s:
                 loss+=self.criterion(pred, targets)
             pass
-            # TODO: prec, = accuracy(outputs.data, targets.data)
+            # TODO: prec = accuracy(outputs.data, targets.data)
 
         else:
             if isinstance(self.criterion, torch.nn.CrossEntropyLoss):

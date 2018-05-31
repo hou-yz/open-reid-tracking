@@ -1,5 +1,6 @@
 from __future__ import print_function, absolute_import
 import argparse
+import os
 import os.path as osp
 
 import numpy as np
@@ -18,6 +19,15 @@ from reid.utils.data import transforms as T
 from reid.utils.data.preprocessor import Preprocessor
 from reid.utils.logging import Logger
 from reid.utils.serialization import load_checkpoint, save_checkpoint
+
+if os.name == 'nt':  # windows
+    num_workers = 0
+    batch_size = 32
+    pass
+else:  # linux
+    num_workers = 8
+    batch_size = 128
+    os.environ["CUDA_VISIBLE_DEVICES"] = '0, 1'
 
 
 def get_data(name, split_id, data_dir, height, width, batch_size, workers,
@@ -81,7 +91,7 @@ def main(args):
         args.height, args.width = (384, 128)
     dataset, num_classes, train_loader, val_loader, test_loader = \
         get_data(args.dataset, args.split, args.data_dir, args.height,
-                 args.width, args.batch_size, args.workers,
+                 args.width, batch_size, num_workers,
                  args.combine_trainval)
 
     # Create model
@@ -172,8 +182,6 @@ if __name__ == '__main__':
     # data
     parser.add_argument('-d', '--dataset', type=str, default='cuhk03',
                         choices=datasets.names())
-    parser.add_argument('-b', '--batch-size', type=int, default=256)
-    parser.add_argument('-j', '--workers', type=int, default=4)
     parser.add_argument('--split', type=int, default=0)
     parser.add_argument('--height', type=int,
                         help="input height, default: 256 for resnet*, "
