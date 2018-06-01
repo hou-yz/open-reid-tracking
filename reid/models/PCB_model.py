@@ -11,6 +11,7 @@ class PCBModel(nn.Module):
         super(PCBModel, self).__init__()
         self.num_parts = num_parts
         self.num_features = num_features
+        self.num_classes = num_classes
 
         # ResNet50: from 384*128*3 -> 24*8*2048 (Tensor T; of column vector f's)
         self.base = nn.Sequential(
@@ -36,10 +37,10 @@ class PCBModel(nn.Module):
             ))
 
         # 6 branches of fc's:
-        if num_classes > 0:
+        if self.num_classes > 0:
             self.fc_s = nn.ModuleList()
             for _ in range(self.num_parts):
-                fc = nn.Linear(self.num_features, num_classes)
+                fc = nn.Linear(self.num_features, self.num_classes)
                 init.normal(fc.weight, std=0.001)
                 init.constant(fc.bias, 0)
                 self.fc_s.append(fc)

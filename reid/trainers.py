@@ -3,7 +3,6 @@ import time
 
 import torch
 import numpy as np
-import torch.nn.functional as F
 from torch.autograd import Variable
 
 from .models import PCBModel
@@ -77,9 +76,8 @@ class Trainer(BaseTrainer):
             loss = 0
             for pred in prediction_s:
                 loss += self.criterion(pred, targets)
-
-            # TODO: prec = accuracy(outputs.data, targets.data)
-            prediction_sum = torch.from_numpy(np.sum(prediction_s[i].cpu().data.numpy() for i in range(len(prediction_s)))).cuda()
+            # use the sum of 6 id-predictions as the input for accuracy(_, _)
+            prediction_sum = Variable(torch.from_numpy(np.sum(prediction_s[i].cpu().data.numpy() for i in range(len(prediction_s)))).cuda())
             prec, = accuracy(prediction_sum.data, targets.data)
             prec = prec[0]
             pass

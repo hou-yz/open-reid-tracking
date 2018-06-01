@@ -1,6 +1,7 @@
 from __future__ import print_function, absolute_import
 import argparse
 import os.path as osp
+import os
 
 import numpy as np
 import sys
@@ -18,6 +19,14 @@ from reid.utils.data import transforms as T
 from reid.utils.data.preprocessor import Preprocessor
 from reid.utils.logging import Logger
 from reid.utils.serialization import load_checkpoint, save_checkpoint
+
+
+if os.name == 'nt':  # windows
+    num_workers = 0
+    batch_size = 64
+    pass
+else:  # linux
+    os.environ["CUDA_VISIBLE_DEVICES"] = '0, 1'
 
 
 def get_data(name, split_id, data_dir, height, width, batch_size, workers,

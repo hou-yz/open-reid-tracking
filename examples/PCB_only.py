@@ -22,7 +22,7 @@ from reid.utils.serialization import load_checkpoint, save_checkpoint
 
 if os.name == 'nt':  # windows
     num_workers = 0
-    batch_size = 32
+    batch_size = 64
     pass
 else:  # linux
     num_workers = 8
@@ -143,6 +143,13 @@ def main(args):
     # Trainer
     trainer = Trainer(model, criterion)
 
+    # # test0
+    # print('Test with best model:')
+    # checkpoint = load_checkpoint(osp.join(args.logs_dir, 'model_best.pth.tar'))
+    # model.module.load_state_dict(checkpoint['state_dict'])
+    # metric.train(model, train_loader)
+    # evaluator.evaluate(test_loader, dataset.query, dataset.gallery, metric)
+
     # Schedule learning rate
     def adjust_lr(epoch):
         step_size = 60 if args.arch == 'inception' else 40
@@ -156,6 +163,7 @@ def main(args):
         trainer.train(epoch, train_loader, optimizer)
         if epoch < args.start_save:
             continue
+        # TODO: eval
         top1 = evaluator.evaluate(val_loader, dataset.val, dataset.val)
 
         is_best = top1 > best_top1
@@ -180,7 +188,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Softmax loss classification")
     # data
-    parser.add_argument('-d', '--dataset', type=str, default='cuhk03',
+    parser.add_argument('-d', '--dataset', type=str, default='market1501',
                         choices=datasets.names())
     parser.add_argument('--split', type=int, default=0)
     parser.add_argument('--height', type=int,
@@ -195,7 +203,7 @@ if __name__ == '__main__':
     # model
     parser.add_argument('-a', '--arch', type=str, default='resnet50',
                         choices=models.names())
-    parser.add_argument('--features', type=int, default=128)
+    # parser.add_argument('--features', type=int, default=128)
     parser.add_argument('--dropout', type=float, default=0.5)
     # optimizer
     parser.add_argument('--lr', type=float, default=0.1,
@@ -207,7 +215,7 @@ if __name__ == '__main__':
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
     parser.add_argument('--evaluate', action='store_true',
                         help="evaluation only")
-    parser.add_argument('--epochs', type=int, default=50)
+    parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--start_save', type=int, default=0,
                         help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)
