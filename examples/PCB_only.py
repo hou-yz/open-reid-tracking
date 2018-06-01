@@ -4,6 +4,7 @@ import os
 import os.path as osp
 
 import numpy as np
+import random
 import sys
 import torch
 from torch import nn
@@ -25,9 +26,9 @@ if os.name == 'nt':  # windows
     batch_size = 64
     pass
 else:  # linux
-    num_workers = 8
+    num_workers = 0
     batch_size = 128
-    os.environ["CUDA_VISIBLE_DEVICES"] = '0, 1'
+    os.environ["CUDA_VISIBLE_DEVICES"] = '1, 3'
 
 
 def get_data(name, split_id, data_dir, height, width, batch_size, workers,
@@ -68,13 +69,17 @@ def get_data(name, split_id, data_dir, height, width, batch_size, workers,
         batch_size=batch_size, num_workers=workers,
         shuffle=False, pin_memory=True)
 
+    # slimmer & faster query
+    indices_eval_query = random.sample(range(len(dataset.query)), int(len(dataset.query) / 5))
+    eval_set_query = list(dataset.query[i] for i in indices_eval_query)
+
     test_loader = DataLoader(
-        Preprocessor(list(set(dataset.query) | set(dataset.gallery)),
+        Preprocessor(list(set(eval_set_query) | set(dataset.gallery)),
                      root=dataset.images_dir, transform=test_transformer),
         batch_size=batch_size, num_workers=workers,
         shuffle=False, pin_memory=True)
 
-    return dataset, num_classes, train_loader, val_loader, test_loader
+    return dataset, num_classes, train_loader, val_loader, test_loader, eval_set_query,
 
 
 def main(args):
@@ -89,7 +94,7 @@ def main(args):
     # Create data loaders
     if args.height is None or args.width is None:
         args.height, args.width = (384, 128)
-    dataset, num_classes, train_loader, val_loader, test_loader = \
+    dataset, num_classes, train_loader, val_loader, test_loader, eval_set_query = \
         get_data(args.dataset, args.split, args.data_dir, args.height,
                  args.width, batch_size, num_workers,
                  args.combine_trainval)
@@ -119,14 +124,14 @@ def main(args):
         print("Validation:")
         evaluator.evaluate(val_loader, dataset.val, dataset.val, metric)
         print("Test:")
-        evaluator.evaluate(test_loader, dataset.query, dataset.gallery, metric)
+        evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)
         return
 
     # Criterion
     criterion = nn.CrossEntropyLoss().cuda()
 
     # Optimizer
-    if hasattr(model.module, 'base'): # low learning_rate the base network (aka. ResNet-50)
+    if hasattr(model.module, 'base'):  # low learning_rate the base network (aka. ResNet-50)
         base_param_ids = set(map(id, model.module.base.parameters()))
         new_params = [p for p in model.parameters() if
                       id(p) not in base_param_ids]
@@ -143,19 +148,12 @@ def main(args):
     # Trainer
     trainer = Trainer(model, criterion)
 
-    # # test0
-    # print('Test with best model:')
-    # checkpoint = load_checkpoint(osp.join(args.logs_dir, 'model_best.pth.tar'))
-    # model.module.load_state_dict(checkpoint['state_dict'])
-    # metric.train(model, train_loader)
-    # evaluator.evaluate(test_loader, dataset.query, dataset.gallery, metric)
-
     # Schedule learning rate
     def adjust_lr(epoch):
-        step_size = 60 if args.arch == 'inception' else 40
-        lr = args.lr * (0.1 ** (epoch // step_size))
-        for g in optimizer.param_groups:
-            g['lr'] = lr * g.get('lr_mult', 1)
+        if epoch == min(args.epochs - 20, 1):
+            for g in optimizer.param_groups:
+                # set lr=0.01 after 40/60 epochs
+                g['lr'] = 0.01
 
     # Start training
     for epoch in range(start_epoch, args.epochs):
@@ -163,7 +161,6 @@ def main(args):
         trainer.train(epoch, train_loader, optimizer)
         if epoch < args.start_save:
             continue
-        # TODO: eval
         top1 = evaluator.evaluate(val_loader, dataset.val, dataset.val)
 
         is_best = top1 > best_top1
@@ -182,7 +179,7 @@ def main(args):
     checkpoint = load_checkpoint(osp.join(args.logs_dir, 'model_best.pth.tar'))
     model.module.load_state_dict(checkpoint['state_dict'])
     metric.train(model, train_loader)
-    evaluator.evaluate(test_loader, dataset.query, dataset.gallery, metric)
+    evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)
 
 
 if __name__ == '__main__':
@@ -215,7 +212,7 @@ if __name__ == '__main__':
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
     parser.add_argument('--evaluate', action='store_true',
                         help="evaluation only")
-    parser.add_argument('--epochs', type=int, default=10)
+    parser.add_argument('--epochs', type=int, default=60)
     parser.add_argument('--start_save', type=int, default=0,
                         help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)
