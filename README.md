@@ -5,6 +5,12 @@ purpose. It aims to provide a uniform interface for different datasets, a full
 set of models and evaluation metrics, as well as examples to reproduce (near)
 state-of-the-art results.
 
+## PCB Model
+
+Added PCB model support with faster evaluation.
+
+See `/examples/PCBonly.py` and `/reid/models/PCB_model.py`. also modified `/reid/trainers.py` for PCB training and  `/reid/feature_extraction/cnn.py` for PCB evaluating.
+
 ## Installation
 
 Install [PyTorch](http://pytorch.org/) (version >= 0.2.0). Although we support
