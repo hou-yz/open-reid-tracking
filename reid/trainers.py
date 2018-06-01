@@ -2,9 +2,9 @@ from __future__ import print_function, absolute_import
 import time
 
 import torch
+import numpy as np
 import torch.nn.functional as F
 from torch.autograd import Variable
-
 
 from .models import PCBModel
 from .evaluation_metrics import accuracy
@@ -72,19 +72,24 @@ class Trainer(BaseTrainer):
     def _forward(self, inputs, targets):
         outputs = self.model(*inputs)
         if isinstance(self.model.module, PCBModel):
-            h_s=outputs[0]
-            prediction_s=outputs[1]
+            h_s = outputs[0]
+            prediction_s = outputs[1]
             loss = 0
             for pred in prediction_s:
-                loss+=self.criterion(pred, targets)
-            pass
+                loss += self.criterion(pred, targets)
+
             # TODO: prec = accuracy(outputs.data, targets.data)
+            prediction_sum = torch.from_numpy(np.sum(prediction_s[i].cpu().data.numpy() for i in range(len(prediction_s)))).cuda()
+            prec, = accuracy(prediction_sum.data, targets.data)
+            prec = prec[0]
+            pass
 
         else:
             if isinstance(self.criterion, torch.nn.CrossEntropyLoss):
                 loss = self.criterion(outputs, targets)
                 prec, = accuracy(outputs.data, targets.data)
                 prec = prec[0]
+                pass
             elif isinstance(self.criterion, OIMLoss):
                 loss, outputs = self.criterion(outputs, targets)
                 prec, = accuracy(outputs.data, targets.data)
