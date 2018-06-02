@@ -154,7 +154,7 @@ def main(args):
 
         # Schedule learning rate
         def adjust_lr(epoch):
-            if epoch == min(args.epochs - 20, 1):
+            if epoch == 40:
                 for g in optimizer.param_groups:
                     # set lr=0.01 after 40/60 epochs
                     g['lr'] = 0.01
@@ -182,14 +182,15 @@ def main(args):
     print('Test with best model:')
     checkpoint = load_checkpoint(osp.join(args.logs_dir, 'model_best.pth.tar'))
     model.module.load_state_dict(checkpoint['state_dict'])
-    metric.train(model, train_loader)
-    evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)
+    # metric.train(model, train_loader)
+    # evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)
 
     ####################################################################################################################
     # step-2: add RPP
     ####################################################################################################################
     if args.train_RPP:
-        model.add_RPP()
+        model.module.enable_RPP()
+    pass
 
     ####################################################################################################################
     # step-3: train the Refined pooling layer(weights)

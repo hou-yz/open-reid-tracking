@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+import torch
 from torch import nn
 from torch.nn import init
 from .resnet import *
@@ -24,9 +25,18 @@ class PCB_model(nn.Module):
         # change the downsampling layer in self.layer4 to stride=1
         self.base[7][0].downsample[0].stride = (1, 1)
 
-        # Average Pooling: 24*8*2048 -> 6*1*2048 (f -> g)
+        ################################################################################################################
+        '''Average Pooling: 24*8*2048 -> 6*1*2048 (f -> g)'''
         # Tensor T [N, 2048, 24, 8]
         self.avg_pool = nn.AdaptiveMaxPool2d((6, 1))
+
+        ''' RPP: Refined part pooling'''
+        # get sampling weights from f [1*1*2048]
+        self.sampling_weight_layer = nn.Sequential(
+            nn.Conv2d(self.base[7][2].conv3.out_channels, self.num_parts, kernel_size=(1, 1)),
+            nn.Softmax(dim=1))
+        # return a [N,6,24,8] tensor
+        ################################################################################################################
 
         # 1*1 Conv: 6*1*2048 -> 6*1*256 (g -> h)
         # 6 separate convs
@@ -49,10 +59,9 @@ class PCB_model(nn.Module):
 
         pass
 
-    def add_RPP(self):
+    def enable_RPP(self):
         self.rpp = True
-        # get sampling weights
-        self.sampling_weight_layer = nn.Conv2d(self.base[7][2].conv3.out_channels, self.num_parts, kernel_size=(1, 1))
+        pass
 
     def forward(self, x):
         """
@@ -67,11 +76,15 @@ class PCB_model(nn.Module):
             g_s = self.avg_pool(x)
         else:
             weights = self.sampling_weight_layer(x)
+            f_shape = x.data.shape
             g_s = []
-            for i in range(self.num_parts):
-                g_s[i] = 0
+            # TODO: faster implementation for [N,2048,24,8] @ [N,6,24,8] => [N,2048,6]
+            for i in range(f_shape[0]):
+                f = x[i, :, :, :].view(f_shape[1], f_shape[2] * f_shape[3])
+                weight = torch.t(weights[i, :, :, :].view(self.num_parts, f_shape[2] * f_shape[3]))
+                g_s.append((f @ weight).view(f_shape[1], self.num_parts, 1))
+            g_s = torch.stack(g_s)
             pass
-
 
         assert g_s.size(2) % self.num_parts == 0
 
