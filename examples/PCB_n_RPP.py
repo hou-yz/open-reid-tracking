@@ -26,9 +26,9 @@ if os.name == 'nt':  # windows
     batch_size = 64
     pass
 else:  # linux
-    num_workers = 0
-    batch_size = 128
-    os.environ["CUDA_VISIBLE_DEVICES"] = '1, 3'
+    num_workers = 8
+    batch_size = 192
+    os.environ["CUDA_VISIBLE_DEVICES"] = '1, 2, 3'
 
 
 def get_data(name, split_id, data_dir, height, width, batch_size, workers,
@@ -107,8 +107,16 @@ def main(args):
     start_epoch = best_top1 = 0
     if args.resume:
         checkpoint = load_checkpoint(args.resume)
-        model.load_state_dict(checkpoint['state_dict'])
-        start_epoch = checkpoint['epoch']
+        pretrained_dict = checkpoint['state_dict']
+        model_dict = model.state_dict()
+        # 1. filter out unnecessary keys
+        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+        # 2. overwrite entries in the existing state dict
+        model_dict.update(pretrained_dict)
+        # 3. load the new state dict
+        model.load_state_dict(model_dict)
+
+        start_epoch = checkpoint['epoch'] + 1
         best_top1 = checkpoint['best_top1']
         print("=> Start epoch {}  best top1 {:.1%}"
               .format(start_epoch, best_top1))
@@ -164,7 +172,7 @@ def main(args):
                     g['lr'] = 0.01
 
         # Start training
-        for epoch in range(start_epoch, args.epochs):
+        for epoch in range(start_epoch, start_epoch + args.epochs):
             adjust_lr(epoch)
             trainer.train(epoch, train_loader, optimizer)
             if epoch < args.start_save:
@@ -182,12 +190,20 @@ def main(args):
             print('\n * Finished epoch {:3d}  top1: {:5.1%}  best: {:5.1%}{}\n'.
                   format(epoch, top1, best_top1, ' *' if is_best else ''))
 
-    # Final test
-    print('Test with best model:')
-    checkpoint = load_checkpoint(osp.join(args.logs_dir, 'model_best.pth.tar'))
-    model.module.load_state_dict(checkpoint['state_dict'])
-    # metric.train(model, train_loader)
-    # evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)
+        # Final test
+        print('Test with best model:')
+        checkpoint = load_checkpoint(osp.join(args.logs_dir, 'model_best.pth.tar'))
+        pretrained_dict = checkpoint['state_dict']
+        model_dict = model.state_dict()
+        # 1. filter out unnecessary keys
+        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+        # 2. overwrite entries in the existing state dict
+        model_dict.update(pretrained_dict)
+        # 3. load the new state dict
+        model.load_state_dict(model_dict)
+
+        metric.train(model, train_loader)
+        evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)
 
     if args.train_RPP:
         '''
@@ -270,12 +286,20 @@ def main(args):
             print('\n * Finished epoch {:3d}  top1: {:5.1%}  best: {:5.1%}{}\n'.
                   format(epoch, top1, best_top1, ' *' if is_best else ''))
 
-    # Final test
-    print('Test with best model:')
-    checkpoint = load_checkpoint(osp.join(args.logs_dir, 'model_best.pth.tar'))
-    model.module.load_state_dict(checkpoint['state_dict'])
-    metric.train(model, train_loader)
-    evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)
+        # Final test
+        print('Test with best model:')
+        checkpoint = load_checkpoint(osp.join(args.logs_dir, 'model_best.pth.tar'))
+        pretrained_dict = checkpoint['state_dict']
+        model_dict = model.state_dict()
+        # 1. filter out unnecessary keys
+        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+        # 2. overwrite entries in the existing state dict
+        model_dict.update(pretrained_dict)
+        # 3. load the new state dict
+        model.load_state_dict(model_dict)
+
+        metric.train(model, train_loader)
+        evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)
 
     pass
 
