@@ -130,10 +130,14 @@ def main(args):
     # Criterion
     criterion = nn.CrossEntropyLoss().cuda()
 
-    ####################################################################################################################
+    '''
     # step-1: train PCB
-    ####################################################################################################################
+    '''
     if args.train_PCB:
+        # # Freeze the RPP part
+        # for param in model.module.sampling_weight_layer.parameters():
+        #     param.requires_grad = False
+
         # Optimizer
         if hasattr(model.module, 'base'):  # low learning_rate the base network (aka. ResNet-50)
             base_param_ids = set(map(id, model.module.base.parameters()))
@@ -182,37 +186,98 @@ def main(args):
     print('Test with best model:')
     checkpoint = load_checkpoint(osp.join(args.logs_dir, 'model_best.pth.tar'))
     model.module.load_state_dict(checkpoint['state_dict'])
+    # metric.train(model, train_loader)
+    # evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)
+
+    if args.train_RPP:
+        '''
+        step-2: add RPP
+        '''
+        model.module.enable_RPP()
+
+        '''
+        step-3: train the Refined pooling layer(weights)
+        '''
+        # Freeze the whole model but the RPP part
+        for param in model.module.parameters():
+            param.requires_grad = False
+        for param in model.module.sampling_weight_layer.parameters():
+            param.requires_grad = True
+
+        # Optimizer
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.01,
+                                    momentum=args.momentum,
+                                    weight_decay=args.weight_decay,
+                                    nesterov=True)
+
+        # Trainer
+        trainer = Trainer(model, criterion)
+
+        # Start training
+        if args.train_PCB:
+            start_epoch = epoch + 1
+        else:
+            start_epoch = 0
+        for epoch in range(start_epoch, start_epoch + 10):
+            trainer.train(epoch, train_loader, optimizer)
+            if epoch < args.start_save:
+                continue
+            top1 = evaluator.evaluate(val_loader, dataset.val, dataset.val)
+
+            is_best = top1 > best_top1
+            best_top1 = max(top1, best_top1)
+            save_checkpoint({
+                'state_dict': model.module.state_dict(),
+                'epoch': epoch + 1,
+                'best_top1': best_top1,
+            }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
+
+            print('\n * Finished epoch {:3d}  top1: {:5.1%}  best: {:5.1%}{}\n'.
+                  format(epoch, top1, best_top1, ' *' if is_best else ''))
+
+        '''
+        step-4: fine-tune the whole net
+        '''
+        # UnFreeze the whole model
+        for param in model.module.parameters():
+            param.requires_grad = True
+
+        # Optimizer
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.01,
+                                    momentum=args.momentum,
+                                    weight_decay=args.weight_decay,
+                                    nesterov=True)
+
+        # Trainer
+        trainer = Trainer(model, criterion)
+
+        # Start training
+        start_epoch = epoch + 1
+        for epoch in range(start_epoch, start_epoch + 10):
+            trainer.train(epoch, train_loader, optimizer)
+            if epoch < args.start_save:
+                continue
+            top1 = evaluator.evaluate(val_loader, dataset.val, dataset.val)
+
+            is_best = top1 > best_top1
+            best_top1 = max(top1, best_top1)
+            save_checkpoint({
+                'state_dict': model.module.state_dict(),
+                'epoch': epoch + 1,
+                'best_top1': best_top1,
+            }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
+
+            print('\n * Finished epoch {:3d}  top1: {:5.1%}  best: {:5.1%}{}\n'.
+                  format(epoch, top1, best_top1, ' *' if is_best else ''))
+
+    # Final test
+    print('Test with best model:')
+    checkpoint = load_checkpoint(osp.join(args.logs_dir, 'model_best.pth.tar'))
+    model.module.load_state_dict(checkpoint['state_dict'])
     metric.train(model, train_loader)
     evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)
 
-    ####################################################################################################################
-    # step-2: add RPP
-    ####################################################################################################################
-    if args.train_RPP:
-        model.module.enable_RPP()
     pass
-
-    ####################################################################################################################
-    # step-3: train the Refined pooling layer(weights)
-    ####################################################################################################################
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 if __name__ == '__main__':
