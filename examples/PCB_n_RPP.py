@@ -26,7 +26,7 @@ if os.name == 'nt':  # windows
     batch_size = 64
     pass
 else:  # linux
-    num_workers = 8
+    num_workers = 0
     batch_size = 192
     os.environ["CUDA_VISIBLE_DEVICES"] = '1, 2, 3'
 
@@ -221,7 +221,7 @@ def main(args):
             param.requires_grad = True
 
         # Optimizer
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.01,
+        optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=0.01,
                                     momentum=args.momentum,
                                     weight_decay=args.weight_decay,
                                     nesterov=True)
@@ -259,7 +259,7 @@ def main(args):
             param.requires_grad = True
 
         # Optimizer
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.01,
+        optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=0.01,
                                     momentum=args.momentum,
                                     weight_decay=args.weight_decay,
                                     nesterov=True)
