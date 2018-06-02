@@ -72,7 +72,7 @@ class PCB_model(nn.Module):
         # Tensor T [N, 2048, 24, 8]
         x = self.base(x)
         # g [N, 2048, 6, 1]
-        if self.rpp == False:
+        if not self.rpp:
             g_s = self.avg_pool(x)
         else:
             f_shape = x.size()
