@@ -88,7 +88,10 @@ def checkpoint_loader(model, path):
     if 'rpp' in checkpoint:
         has_rpp = checkpoint['rpp']
         if has_rpp:
-            model.enable_RPP()
+            if isinstance(model,nn.DataParallel):
+                model.module.enable_RPP()
+            else:
+                model.enable_RPP()
 
     if 'sampling_weight_layer.0.weight' in pretrained_dict:
         pass
@@ -266,7 +269,16 @@ def main(args):
             param.requires_grad = True
 
         # Optimizer
-        optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=0.001,
+        if hasattr(model.module, 'base'):  # low learning_rate the base network (aka. ResNet-50)
+            base_param_ids = set(map(id, model.module.base.parameters()))
+            new_params = [p for p in model.parameters() if
+                          id(p) not in base_param_ids]
+            param_groups = [
+                {'params': model.module.base.parameters(), 'lr_mult': 0.1},
+                {'params': new_params, 'lr_mult': 1.0}]
+        else:
+            param_groups = model.parameters()
+        optimizer = torch.optim.SGD(param_groups, lr=0.01,
                                     momentum=args.momentum,
                                     weight_decay=args.weight_decay,
                                     nesterov=True)
@@ -276,7 +288,7 @@ def main(args):
 
         # Start training
         start_epoch = epoch + 1
-        for epoch in range(start_epoch, start_epoch + 5):
+        for epoch in range(start_epoch, start_epoch + 10):
             trainer.train(epoch, train_loader, optimizer)
             if epoch < args.start_save:
                 continue
