@@ -24,8 +24,8 @@ python3 ./examples/PCB_n_RPP.py --train-RPP -d market1501 --resume logs/pcb/mark
 
 testing & evaluating
 ```angular2html
-python3 ./examples/PCB_n_RPP.py --evaluate -d market1501 --resume logs/pcb/market1501/model_best.pth.tar --combine-trainval --logs-dir logs/pcb/market1501
-python3 ./examples/PCB_n_RPP.py --evaluate -d market1501 --resume logs/pcb_n_rpp/market1501/model_best.pth.tar --combine-trainval --logs-dir logs/pcb_n_rpp/market1501
+python3 ./examples/PCB_n_RPP.py --evaluate -d market1501 --resume logs/pcb/market1501/model_best.pth.tar --combine-trainval
+python3 ./examples/PCB_n_RPP.py --evaluate -d market1501 --resume logs/pcb_n_rpp/market1501/model_best.pth.tar --combine-trainval
 ```
 
 
