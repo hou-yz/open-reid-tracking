@@ -182,8 +182,8 @@ def main(args):
     print('Test with best model:')
     checkpoint = load_checkpoint(osp.join(args.logs_dir, 'model_best.pth.tar'))
     model.module.load_state_dict(checkpoint['state_dict'])
-    # metric.train(model, train_loader)
-    # evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)
+    metric.train(model, train_loader)
+    evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)
 
     ####################################################################################################################
     # step-2: add RPP

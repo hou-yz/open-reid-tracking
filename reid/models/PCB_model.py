@@ -3,6 +3,7 @@ from __future__ import absolute_import
 import torch
 from torch import nn
 from torch.nn import init
+from torch.autograd import Variable
 from .resnet import *
 import torchvision
 
@@ -75,15 +76,10 @@ class PCB_model(nn.Module):
         if self.rpp == False:
             g_s = self.avg_pool(x)
         else:
-            weights = self.sampling_weight_layer(x)
-            f_shape = x.data.shape
-            g_s = []
-            # TODO: faster implementation for [N,2048,24,8] @ [N,6,24,8] => [N,2048,6]
-            for i in range(f_shape[0]):
-                f = x[i, :, :, :].view(f_shape[1], f_shape[2] * f_shape[3])
-                weight = torch.t(weights[i, :, :, :].view(self.num_parts, f_shape[2] * f_shape[3]))
-                g_s.append((f @ weight).view(f_shape[1], self.num_parts, 1))
-            g_s = torch.stack(g_s)
+            f_shape = x.size()
+            f_s = x.view(f_shape[0], f_shape[1], f_shape[2] * f_shape[3])
+            weight_s = self.sampling_weight_layer(x).view(f_shape[0], self.num_parts, f_shape[2] * f_shape[3]).permute(0,2,1)
+            g_s = torch.matmul(f_s, weight_s)
             pass
 
         assert g_s.size(2) % self.num_parts == 0
