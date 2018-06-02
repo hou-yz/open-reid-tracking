@@ -5,7 +5,7 @@ import torch
 import numpy as np
 from torch.autograd import Variable
 
-from .models import PCBModel
+from .models import PCB_model
 from .evaluation_metrics import accuracy
 from .loss import OIMLoss, TripletLoss
 from .utils.meters import AverageMeter
@@ -70,7 +70,7 @@ class Trainer(BaseTrainer):
 
     def _forward(self, inputs, targets):
         outputs = self.model(*inputs)
-        if isinstance(self.model.module, PCBModel):
+        if isinstance(self.model.module, PCB_model):
             h_s = outputs[0]
             prediction_s = outputs[1]
             loss = 0

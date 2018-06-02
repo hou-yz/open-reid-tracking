@@ -130,49 +130,53 @@ def main(args):
     # Criterion
     criterion = nn.CrossEntropyLoss().cuda()
 
-    # Optimizer
-    if hasattr(model.module, 'base'):  # low learning_rate the base network (aka. ResNet-50)
-        base_param_ids = set(map(id, model.module.base.parameters()))
-        new_params = [p for p in model.parameters() if
-                      id(p) not in base_param_ids]
-        param_groups = [
-            {'params': model.module.base.parameters(), 'lr_mult': 0.1},
-            {'params': new_params, 'lr_mult': 1.0}]
-    else:
-        param_groups = model.parameters()
-    optimizer = torch.optim.SGD(param_groups, lr=args.lr,
-                                momentum=args.momentum,
-                                weight_decay=args.weight_decay,
-                                nesterov=True)
+    ####################################################################################################################
+    # step-1: train PCB
+    ####################################################################################################################
+    if args.train_PCB:
+        # Optimizer
+        if hasattr(model.module, 'base'):  # low learning_rate the base network (aka. ResNet-50)
+            base_param_ids = set(map(id, model.module.base.parameters()))
+            new_params = [p for p in model.parameters() if
+                          id(p) not in base_param_ids]
+            param_groups = [
+                {'params': model.module.base.parameters(), 'lr_mult': 0.1},
+                {'params': new_params, 'lr_mult': 1.0}]
+        else:
+            param_groups = model.parameters()
+        optimizer = torch.optim.SGD(param_groups, lr=args.lr,
+                                    momentum=args.momentum,
+                                    weight_decay=args.weight_decay,
+                                    nesterov=True)
 
-    # Trainer
-    trainer = Trainer(model, criterion)
+        # Trainer
+        trainer = Trainer(model, criterion)
 
-    # Schedule learning rate
-    def adjust_lr(epoch):
-        if epoch == min(args.epochs - 20, 1):
-            for g in optimizer.param_groups:
-                # set lr=0.01 after 40/60 epochs
-                g['lr'] = 0.01
+        # Schedule learning rate
+        def adjust_lr(epoch):
+            if epoch == min(args.epochs - 20, 1):
+                for g in optimizer.param_groups:
+                    # set lr=0.01 after 40/60 epochs
+                    g['lr'] = 0.01
 
-    # Start training
-    for epoch in range(start_epoch, args.epochs):
-        adjust_lr(epoch)
-        trainer.train(epoch, train_loader, optimizer)
-        if epoch < args.start_save:
-            continue
-        top1 = evaluator.evaluate(val_loader, dataset.val, dataset.val)
+        # Start training
+        for epoch in range(start_epoch, args.epochs):
+            adjust_lr(epoch)
+            trainer.train(epoch, train_loader, optimizer)
+            if epoch < args.start_save:
+                continue
+            top1 = evaluator.evaluate(val_loader, dataset.val, dataset.val)
 
-        is_best = top1 > best_top1
-        best_top1 = max(top1, best_top1)
-        save_checkpoint({
-            'state_dict': model.module.state_dict(),
-            'epoch': epoch + 1,
-            'best_top1': best_top1,
-        }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
+            is_best = top1 > best_top1
+            best_top1 = max(top1, best_top1)
+            save_checkpoint({
+                'state_dict': model.module.state_dict(),
+                'epoch': epoch + 1,
+                'best_top1': best_top1,
+            }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
 
-        print('\n * Finished epoch {:3d}  top1: {:5.1%}  best: {:5.1%}{}\n'.
-              format(epoch, top1, best_top1, ' *' if is_best else ''))
+            print('\n * Finished epoch {:3d}  top1: {:5.1%}  best: {:5.1%}{}\n'.
+                  format(epoch, top1, best_top1, ' *' if is_best else ''))
 
     # Final test
     print('Test with best model:')
@@ -180,6 +184,34 @@ def main(args):
     model.module.load_state_dict(checkpoint['state_dict'])
     metric.train(model, train_loader)
     evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)
+
+    ####################################################################################################################
+    # step-2: add RPP
+    ####################################################################################################################
+    if args.train_RPP:
+        model.add_RPP()
+
+    ####################################################################################################################
+    # step-3: train the Refined pooling layer(weights)
+    ####################################################################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 if __name__ == '__main__':
@@ -209,6 +241,10 @@ if __name__ == '__main__':
     parser.add_argument('--momentum', type=float, default=0.9)
     parser.add_argument('--weight-decay', type=float, default=5e-4)
     # training configs
+    parser.add_argument('--train_PCB', action='store_true',
+                        help="train PCB model from start")
+    parser.add_argument('--train_RPP', action='store_true',
+                        help="train PCB model with RPP")
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
     parser.add_argument('--evaluate', action='store_true',
                         help="evaluation only")

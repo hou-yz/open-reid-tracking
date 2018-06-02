@@ -6,7 +6,7 @@ from .PCB_model import *
 
 
 __factory = {
-    'pcb': PCBModel,
+    'pcb': PCB_model,
     'inception': inception,
     'resnet18': resnet18,
     'resnet34': resnet34,

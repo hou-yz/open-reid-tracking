@@ -6,12 +6,14 @@ from .resnet import *
 import torchvision
 
 
-class PCBModel(nn.Module):
-    def __init__(self, num_parts=6, num_features=256, num_classes=0, norm=False, dropout=0, ):
-        super(PCBModel, self).__init__()
+class PCB_model(nn.Module):
+    def __init__(self, num_parts=6, num_features=256, num_classes=0, norm=False, dropout=0):
+        super(PCB_model, self).__init__()
+        # Create PCB_only model
         self.num_parts = num_parts
         self.num_features = num_features
         self.num_classes = num_classes
+        self.rpp = False
 
         # ResNet50: from 384*128*3 -> 24*8*2048 (Tensor T; of column vector f's)
         self.base = nn.Sequential(
@@ -31,7 +33,7 @@ class PCBModel(nn.Module):
         self.one_one_conv_s = nn.ModuleList()
         for _ in range(self.num_parts):
             self.one_one_conv_s.append(nn.Sequential(
-                nn.Conv2d(2048, self.num_features, 1),
+                nn.Conv2d(self.base[7][2].conv3.out_channels, self.num_features, 1),
                 nn.BatchNorm2d(self.num_features),
                 nn.ReLU(inplace=True)
             ))
@@ -47,6 +49,11 @@ class PCBModel(nn.Module):
 
         pass
 
+    def add_RPP(self):
+        self.rpp = True
+        # get sampling weights
+        self.sampling_weight_layer = nn.Conv2d(self.base[7][2].conv3.out_channels, self.num_parts, kernel_size=(1, 1))
+
     def forward(self, x):
         """
         Returns:
@@ -56,7 +63,15 @@ class PCBModel(nn.Module):
         # Tensor T [N, 2048, 24, 8]
         x = self.base(x)
         # g [N, 2048, 6, 1]
-        g_s = self.avg_pool(x)
+        if self.rpp == False:
+            g_s = self.avg_pool(x)
+        else:
+            weights = self.sampling_weight_layer(x)
+            g_s = []
+            for i in range(self.num_parts):
+                g_s[i] = 0
+            pass
+
 
         assert g_s.size(2) % self.num_parts == 0
 

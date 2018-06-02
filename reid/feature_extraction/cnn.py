@@ -3,7 +3,7 @@ from collections import OrderedDict
 import torch
 import numpy as np
 
-from ..models import PCBModel
+from ..models import PCB_model
 from torch.autograd import Variable
 
 from ..utils import to_torch
@@ -15,7 +15,7 @@ def extract_cnn_feature(model, inputs, modules=None):
     inputs = Variable(inputs, volatile=True)
     if modules is None:
         outputs = model(inputs)
-        if isinstance(model.module, PCBModel):
+        if isinstance(model.module, PCB_model):
             # set the feature as 6 h's, which has a total dimension of 6*256=1536
             outputs = torch.cat(tuple(outputs[0]),1)
         outputs = outputs.data.cpu()
