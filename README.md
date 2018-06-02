@@ -9,7 +9,25 @@ state-of-the-art results.
 
 Added PCB model support with faster evaluation.
 
-See `/examples/PCBonly.py` and `/reid/models/PCB_model.py`. also modified `/reid/trainers.py` for PCB training and  `/reid/feature_extraction/cnn.py` for PCB evaluating.
+See `/examples/PCB_n_RPP.py` and `/reid/models/PCB_model.py`. also modified `/reid/trainers.py` for PCB training and  `/reid/feature_extraction/cnn.py` for PCB evaluating.
+
+training PCB from scratch
+```angular2html
+cd open-reid
+python3 ./examples/PCB_n_RPP.py --train-PCB -d market1501  --combine-trainval --logs-dir logs/pcb/market1501
+```
+
+training RPP based on trained PCB model
+```angular2html
+python3 ./examples/PCB_n_RPP.py --train-RPP -d market1501 --resume logs/pcb/market1501/model_best.pth.tar --combine-trainval --logs-dir logs/pcb_n_rpp/market1501
+```
+
+testing & evaluating
+```angular2html
+python3 ./examples/PCB_n_RPP.py --evaluate -d market1501 --resume logs/pcb/market1501/model_best.pth.tar --combine-trainval
+python3 ./examples/PCB_n_RPP.py --evaluate -d market1501 --resume logs/pcb_n_rpp/market1501/model_best.pth.tar --combine-trainval
+```
+
 
 ## Installation
 
