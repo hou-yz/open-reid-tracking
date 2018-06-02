@@ -82,6 +82,31 @@ def get_data(name, split_id, data_dir, height, width, batch_size, workers,
     return dataset, num_classes, train_loader, val_loader, test_loader, eval_set_query,
 
 
+def checkpoint_loader(model, path):
+    checkpoint = load_checkpoint(path)
+    pretrained_dict = checkpoint['state_dict']
+    if 'rpp' in checkpoint:
+        has_rpp = checkpoint['rpp']
+        if has_rpp:
+            model.enable_RPP()
+
+    if 'sampling_weight_layer.0.weight' in pretrained_dict:
+        pass
+
+    model_dict = model.state_dict()
+    # 1. filter out unnecessary keys
+    pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+    # 2. overwrite entries in the existing state dict
+    model_dict.update(pretrained_dict)
+    # 3. load the new state dict
+    model.load_state_dict(model_dict)
+
+    start_epoch = checkpoint['epoch'] + 1
+    best_top1 = checkpoint['best_top1']
+
+    return model, start_epoch, best_top1
+
+
 def main(args):
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -106,18 +131,7 @@ def main(args):
     # Load from checkpoint
     start_epoch = best_top1 = 0
     if args.resume:
-        checkpoint = load_checkpoint(args.resume)
-        pretrained_dict = checkpoint['state_dict']
-        model_dict = model.state_dict()
-        # 1. filter out unnecessary keys
-        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
-        # 2. overwrite entries in the existing state dict
-        model_dict.update(pretrained_dict)
-        # 3. load the new state dict
-        model.load_state_dict(model_dict)
-
-        start_epoch = checkpoint['epoch'] + 1
-        best_top1 = checkpoint['best_top1']
+        model, start_epoch, best_top1 = checkpoint_loader(model, args.resume)
         print("=> Start epoch {}  best top1 {:.1%}"
               .format(start_epoch, best_top1))
     model = nn.DataParallel(model).cuda()
@@ -185,6 +199,7 @@ def main(args):
                 'state_dict': model.module.state_dict(),
                 'epoch': epoch + 1,
                 'best_top1': best_top1,
+                'rpp': False,
             }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
 
             print('\n * Finished epoch {:3d}  top1: {:5.1%}  best: {:5.1%}{}\n'.
@@ -192,15 +207,7 @@ def main(args):
 
         # Final test
         print('Test with best model:')
-        checkpoint = load_checkpoint(osp.join(args.logs_dir, 'model_best.pth.tar'))
-        pretrained_dict = checkpoint['state_dict']
-        model_dict = model.state_dict()
-        # 1. filter out unnecessary keys
-        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
-        # 2. overwrite entries in the existing state dict
-        model_dict.update(pretrained_dict)
-        # 3. load the new state dict
-        model.load_state_dict(model_dict)
+        model, _, _ = checkpoint_loader(model, osp.join(args.logs_dir, 'model_best.pth.tar'))
 
         metric.train(model, train_loader)
         evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)
@@ -245,6 +252,7 @@ def main(args):
                 'state_dict': model.module.state_dict(),
                 'epoch': epoch + 1,
                 'best_top1': best_top1,
+                'rpp': True,
             }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
 
             print('\n * Finished epoch {:3d}  top1: {:5.1%}  best: {:5.1%}{}\n'.
@@ -280,6 +288,7 @@ def main(args):
                 'state_dict': model.module.state_dict(),
                 'epoch': epoch + 1,
                 'best_top1': best_top1,
+                'rpp': True,
             }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
 
             print('\n * Finished epoch {:3d}  top1: {:5.1%}  best: {:5.1%}{}\n'.
@@ -287,15 +296,7 @@ def main(args):
 
         # Final test
         print('Test with best model:')
-        checkpoint = load_checkpoint(osp.join(args.logs_dir, 'model_best.pth.tar'))
-        pretrained_dict = checkpoint['state_dict']
-        model_dict = model.state_dict()
-        # 1. filter out unnecessary keys
-        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
-        # 2. overwrite entries in the existing state dict
-        model_dict.update(pretrained_dict)
-        # 3. load the new state dict
-        model.load_state_dict(model_dict)
+        model, _, _ = checkpoint_loader(model, osp.join(args.logs_dir, 'model_best.pth.tar'))
 
         metric.train(model, train_loader)
         evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)
