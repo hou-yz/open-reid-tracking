@@ -242,9 +242,9 @@ if __name__ == '__main__':
     parser.add_argument('--momentum', type=float, default=0.9)
     parser.add_argument('--weight-decay', type=float, default=5e-4)
     # training configs
-    parser.add_argument('--train_PCB', action='store_true',
+    parser.add_argument('--train-PCB', action='store_true',
                         help="train PCB model from start")
-    parser.add_argument('--train_RPP', action='store_true',
+    parser.add_argument('--train-RPP', action='store_true',
                         help="train PCB model with RPP")
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
     parser.add_argument('--evaluate', action='store_true',
