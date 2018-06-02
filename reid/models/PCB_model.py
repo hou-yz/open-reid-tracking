@@ -78,8 +78,9 @@ class PCB_model(nn.Module):
         else:
             f_shape = x.size()
             f_s = x.view(f_shape[0], f_shape[1], f_shape[2] * f_shape[3])
-            weight_s = self.sampling_weight_layer(x).view(f_shape[0], self.num_parts, f_shape[2] * f_shape[3]).permute(0,2,1)
-            g_s = torch.matmul(f_s, weight_s)
+            weight_s = self.sampling_weight_layer(x).view(f_shape[0], self.num_parts, f_shape[2] * f_shape[3]).permute(
+                0, 2, 1)
+            g_s = torch.matmul(f_s, weight_s).view(f_shape[0], f_shape[1], self.num_parts, 1)
             pass
 
         assert g_s.size(2) % self.num_parts == 0
