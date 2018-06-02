@@ -62,7 +62,6 @@ class PCB_model(nn.Module):
 
     def enable_RPP(self):
         self.rpp = True
-        pass
 
     def forward(self, x):
         """

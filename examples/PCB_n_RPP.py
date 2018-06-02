@@ -232,9 +232,8 @@ def main(args):
         # Start training
         if args.train_PCB:
             start_epoch = epoch + 1
-        else:
-            start_epoch = 0
-        for epoch in range(start_epoch, start_epoch + 10):
+        best_top1 = 0
+        for epoch in range(start_epoch, start_epoch + 5):
             trainer.train(epoch, train_loader, optimizer)
             if epoch < args.start_save:
                 continue
@@ -259,7 +258,7 @@ def main(args):
             param.requires_grad = True
 
         # Optimizer
-        optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=0.01,
+        optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=0.001,
                                     momentum=args.momentum,
                                     weight_decay=args.weight_decay,
                                     nesterov=True)
@@ -269,7 +268,7 @@ def main(args):
 
         # Start training
         start_epoch = epoch + 1
-        for epoch in range(start_epoch, start_epoch + 10):
+        for epoch in range(start_epoch, start_epoch + 5):
             trainer.train(epoch, train_loader, optimizer)
             if epoch < args.start_save:
                 continue
