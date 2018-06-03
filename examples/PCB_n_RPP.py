@@ -26,9 +26,9 @@ if os.name == 'nt':  # windows
     batch_size = 64
     pass
 else:  # linux
-    num_workers = 0
-    batch_size = 192
-    os.environ["CUDA_VISIBLE_DEVICES"] = '1, 2, 3'
+    num_workers = 8
+    batch_size = 64
+    os.environ["CUDA_VISIBLE_DEVICES"] = '2, 3'
 
 
 def get_data(name, split_id, data_dir, height, width, batch_size, workers,
@@ -45,7 +45,8 @@ def get_data(name, split_id, data_dir, height, width, batch_size, workers,
                    else dataset.num_train_ids)
 
     train_transformer = T.Compose([
-        T.RandomSizedRectCrop(height, width),
+        # T.RandomSizedRectCrop(height, width),
+        T.RectScale(height, width),
         T.RandomHorizontalFlip(),
         T.ToTensor(),
         normalizer,
@@ -88,7 +89,7 @@ def checkpoint_loader(model, path):
     if 'rpp' in checkpoint:
         has_rpp = checkpoint['rpp']
         if has_rpp:
-            if isinstance(model,nn.DataParallel):
+            if isinstance(model, nn.DataParallel):
                 model.module.enable_RPP()
             else:
                 model.enable_RPP()
@@ -159,10 +160,6 @@ def main(args):
     # step-1: train PCB
     '''
     if args.train_PCB:
-        # # Freeze the RPP part
-        # for param in model.module.sampling_weight_layer.parameters():
-        #     param.requires_grad = False
-
         # Optimizer
         if hasattr(model.module, 'base'):  # low learning_rate the base network (aka. ResNet-50)
             base_param_ids = set(map(id, model.module.base.parameters()))
@@ -187,9 +184,13 @@ def main(args):
                 for g in optimizer.param_groups:
                     # set lr=0.01 after 40/60 epochs
                     g['lr'] = 0.01
+            if epoch > 50:
+                for g in optimizer.param_groups:
+                    # set lr=0.01 after 40/60 epochs
+                    g['lr'] = 0.001
 
         # Start training
-        for epoch in range(start_epoch, start_epoch + args.epochs):
+        for epoch in range(start_epoch, args.epochs):
             adjust_lr(epoch)
             trainer.train(epoch, train_loader, optimizer)
             if epoch < args.start_save:
@@ -215,6 +216,15 @@ def main(args):
         metric.train(model, train_loader)
         evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)
 
+    '''
+    ideas for better training from Dr. Yifan Sun
+    
+    batch_size = 64                                         check
+    dropout -- possible at layer: pool5
+    skip step-3 in RPP training                             check
+    RPP classifier -- 2048 -> 256 -> 6 (average pooling)    
+        
+    '''
     if args.train_RPP:
         '''
         step-2: add RPP
@@ -224,42 +234,49 @@ def main(args):
         '''
         step-3: train the Refined pooling layer(weights)
         '''
-        # Freeze the whole model but the RPP part
-        for param in model.module.parameters():
-            param.requires_grad = False
-        for param in model.module.sampling_weight_layer.parameters():
-            param.requires_grad = True
-
-        # Optimizer
-        optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=0.01,
-                                    momentum=args.momentum,
-                                    weight_decay=args.weight_decay,
-                                    nesterov=True)
-
-        # Trainer
-        trainer = Trainer(model, criterion)
-
-        # Start training
-        if args.train_PCB:
-            start_epoch = epoch + 1
-        best_top1 = 0
-        for epoch in range(start_epoch, start_epoch + 5):
-            trainer.train(epoch, train_loader, optimizer)
-            if epoch < args.start_save:
-                continue
-            top1 = evaluator.evaluate(val_loader, dataset.val, dataset.val)
-
-            is_best = top1 > best_top1
-            best_top1 = max(top1, best_top1)
-            save_checkpoint({
-                'state_dict': model.module.state_dict(),
-                'epoch': epoch + 1,
-                'best_top1': best_top1,
-                'rpp': True,
-            }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
-
-            print('\n * Finished epoch {:3d}  top1: {:5.1%}  best: {:5.1%}{}\n'.
-                  format(epoch, top1, best_top1, ' *' if is_best else ''))
+        # # Freeze the whole model but the RPP part
+        # for param in model.module.parameters():
+        #     param.requires_grad = False
+        # for param in model.module.sampling_weight_layer.parameters():
+        #     param.requires_grad = True
+        #
+        # # Optimizer
+        # optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=0.01,
+        #                             momentum=args.momentum,
+        #                             weight_decay=args.weight_decay,
+        #                             nesterov=True)
+        #
+        # # Trainer
+        # trainer = Trainer(model, criterion)
+        #
+        # def adjust_lr(epoch):
+        #     if epoch > 65:
+        #         for g in optimizer.param_groups:
+        #             # set lr=0.01 after 40/60 epochs
+        #             g['lr'] = 0.001
+        #
+        # if args.train_PCB:  # if have just trained pcb model in the same run
+        #     start_epoch = epoch + 1
+        # best_top1 = 0  # save new models at logs/.../pcb_n_rpp/
+        # # Start training
+        # for epoch in range(start_epoch, args.epochs + 10):
+        #     adjust_lr(epoch)
+        #     trainer.train(epoch, train_loader, optimizer)
+        #     if epoch < args.start_save:
+        #         continue
+        #     top1 = evaluator.evaluate(val_loader, dataset.val, dataset.val)
+        #
+        #     is_best = top1 > best_top1
+        #     best_top1 = max(top1, best_top1)
+        #     save_checkpoint({
+        #         'state_dict': model.module.state_dict(),
+        #         'epoch': epoch + 1,
+        #         'best_top1': best_top1,
+        #         'rpp': True,
+        #     }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
+        #
+        #     print('\n * Finished epoch {:3d}  top1: {:5.1%}  best: {:5.1%}{}\n'.
+        #           format(epoch, top1, best_top1, ' *' if is_best else ''))
 
         '''
         step-4: fine-tune the whole net
@@ -286,9 +303,19 @@ def main(args):
         # Trainer
         trainer = Trainer(model, criterion)
 
+        def adjust_lr(epoch):
+            if epoch > 70:
+                for g in optimizer.param_groups:
+                    # set lr=0.01 after 40/60 epochs
+                    g['lr'] = 0.001
+
+        if args.train_PCB:  # if have just trained pcb model in the same run
+            start_epoch = epoch + 1
+        best_top1 = 0  # save new models at logs/.../pcb_n_rpp/
+
         # Start training
-        start_epoch = epoch + 1
-        for epoch in range(start_epoch, start_epoch + 10):
+        for epoch in range(start_epoch, args.epochs + 20):
+            adjust_lr(epoch)
             trainer.train(epoch, train_loader, optimizer)
             if epoch < args.start_save:
                 continue
