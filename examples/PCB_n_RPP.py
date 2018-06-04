@@ -30,6 +30,16 @@ else:  # linux
     batch_size = 64
     os.environ["CUDA_VISIBLE_DEVICES"] = '2, 3'
 
+    '''
+    ideas for better training from Dr. Yifan Sun
+
+    batch_size = 64                                         check
+    dropout -- possible at layer: pool5                     check
+    skip step-3 in RPP training                             check
+    RPP classifier -- 2048 -> 256 -> 6 (average pooling)    check
+
+    '''
+
 
 def get_data(name, split_id, data_dir, height, width, batch_size, workers,
              combine_trainval):
@@ -171,23 +181,22 @@ def main(args):
         else:
             param_groups = model.parameters()
         optimizer = torch.optim.SGD(param_groups, lr=args.lr,
-                                    momentum=args.momentum,
+                                    # momentum=args.momentum,
                                     weight_decay=args.weight_decay,
-                                    nesterov=True)
+                                    # nesterov=True
+                                    )
 
         # Trainer
         trainer = Trainer(model, criterion)
 
         # Schedule learning rate
         def adjust_lr(epoch):
-            if epoch == 40:
+            if epoch >= args.epochs - 20:
                 for g in optimizer.param_groups:
-                    # set lr=0.01 after 40/60 epochs
                     g['lr'] = 0.01
-            if epoch > 50:
-                for g in optimizer.param_groups:
-                    # set lr=0.01 after 40/60 epochs
-                    g['lr'] = 0.001
+            # if epoch >= args.epochs - 5:
+            #     for g in optimizer.param_groups:
+            #         g['lr'] = 0.001
 
         # Start training
         for epoch in range(start_epoch, args.epochs):
@@ -197,7 +206,7 @@ def main(args):
                 continue
             top1 = evaluator.evaluate(val_loader, dataset.val, dataset.val)
 
-            is_best = top1 > best_top1
+            is_best = top1 >= best_top1
             best_top1 = max(top1, best_top1)
             save_checkpoint({
                 'state_dict': model.module.state_dict(),
@@ -216,15 +225,6 @@ def main(args):
         metric.train(model, train_loader)
         evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)
 
-    '''
-    ideas for better training from Dr. Yifan Sun
-    
-    batch_size = 64                                         check
-    dropout -- possible at layer: pool5
-    skip step-3 in RPP training                             check
-    RPP classifier -- 2048 -> 256 -> 6 (average pooling)    
-        
-    '''
     if args.train_RPP:
         '''
         step-2: add RPP
@@ -234,49 +234,6 @@ def main(args):
         '''
         step-3: train the Refined pooling layer(weights)
         '''
-        # # Freeze the whole model but the RPP part
-        # for param in model.module.parameters():
-        #     param.requires_grad = False
-        # for param in model.module.sampling_weight_layer.parameters():
-        #     param.requires_grad = True
-        #
-        # # Optimizer
-        # optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=0.01,
-        #                             momentum=args.momentum,
-        #                             weight_decay=args.weight_decay,
-        #                             nesterov=True)
-        #
-        # # Trainer
-        # trainer = Trainer(model, criterion)
-        #
-        # def adjust_lr(epoch):
-        #     if epoch > 65:
-        #         for g in optimizer.param_groups:
-        #             # set lr=0.01 after 40/60 epochs
-        #             g['lr'] = 0.001
-        #
-        # if args.train_PCB:  # if have just trained pcb model in the same run
-        #     start_epoch = epoch + 1
-        # best_top1 = 0  # save new models at logs/.../pcb_n_rpp/
-        # # Start training
-        # for epoch in range(start_epoch, args.epochs + 10):
-        #     adjust_lr(epoch)
-        #     trainer.train(epoch, train_loader, optimizer)
-        #     if epoch < args.start_save:
-        #         continue
-        #     top1 = evaluator.evaluate(val_loader, dataset.val, dataset.val)
-        #
-        #     is_best = top1 > best_top1
-        #     best_top1 = max(top1, best_top1)
-        #     save_checkpoint({
-        #         'state_dict': model.module.state_dict(),
-        #         'epoch': epoch + 1,
-        #         'best_top1': best_top1,
-        #         'rpp': True,
-        #     }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
-        #
-        #     print('\n * Finished epoch {:3d}  top1: {:5.1%}  best: {:5.1%}{}\n'.
-        #           format(epoch, top1, best_top1, ' *' if is_best else ''))
 
         '''
         step-4: fine-tune the whole net
@@ -296,18 +253,19 @@ def main(args):
         else:
             param_groups = model.parameters()
         optimizer = torch.optim.SGD(param_groups, lr=0.01,
-                                    momentum=args.momentum,
+                                    # momentum=args.momentum,
                                     weight_decay=args.weight_decay,
-                                    nesterov=True)
+                                    # nesterov=True
+                                    )
 
         # Trainer
         trainer = Trainer(model, criterion)
 
         def adjust_lr(epoch):
-            if epoch > 70:
+            if epoch > args.epochs + 10:
                 for g in optimizer.param_groups:
-                    # set lr=0.01 after 40/60 epochs
                     g['lr'] = 0.001
+            pass
 
         if args.train_PCB:  # if have just trained pcb model in the same run
             start_epoch = epoch + 1
@@ -321,7 +279,7 @@ def main(args):
                 continue
             top1 = evaluator.evaluate(val_loader, dataset.val, dataset.val)
 
-            is_best = top1 > best_top1
+            is_best = top1 >= best_top1
             best_top1 = max(top1, best_top1)
             save_checkpoint({
                 'state_dict': model.module.state_dict(),
