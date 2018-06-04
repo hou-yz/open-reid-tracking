@@ -5,7 +5,7 @@ import torch
 import numpy as np
 from torch.autograd import Variable
 
-from .models import PCB_model
+from .models import PCB_model, IDE_model
 from .evaluation_metrics import accuracy
 from .loss import OIMLoss, TripletLoss
 from .utils.meters import AverageMeter
@@ -70,14 +70,15 @@ class Trainer(BaseTrainer):
 
     def _forward(self, inputs, targets):
         outputs = self.model(*inputs)
-        if isinstance(self.model.module, PCB_model):
+        if isinstance(self.model.module, PCB_model) or isinstance(self.model.module, IDE_model):
             h_s = outputs[0]
             prediction_s = outputs[1]
             loss = 0
             for pred in prediction_s:
                 loss += self.criterion(pred, targets)
             # use the sum of 6 id-predictions as the input for accuracy(_, _)
-            prediction_sum = Variable(torch.from_numpy(np.sum(prediction_s[i].cpu().data.numpy() for i in range(len(prediction_s)))).cuda())
+            prediction_sum = Variable(
+                torch.from_numpy(np.sum(prediction_s[i].cpu().data.numpy() for i in range(len(prediction_s)))).cuda())
             prec, = accuracy(prediction_sum.data, targets.data)
             prec = prec[0]
             pass

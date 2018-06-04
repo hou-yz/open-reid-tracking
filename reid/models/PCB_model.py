@@ -61,8 +61,8 @@ class PCB_model(nn.Module):
             self.fc_s = nn.ModuleList()
             for _ in range(self.num_parts):
                 fc = nn.Linear(self.num_features, self.num_classes)
-                init.normal(fc.weight, std=0.001)
-                init.constant(fc.bias, 0)
+                # init.normal(fc.weight, std=0.001)
+                # init.constant(fc.bias, 0)
                 self.fc_s.append(fc)
 
         pass
@@ -103,10 +103,6 @@ class PCB_model(nn.Module):
             # 4d vector h -> 2d vector h
             h = h.view(f_shape[0], self.num_features)
             h_s.append(h)
-            if hasattr(self, 'fc_s'):
-                prediction_s.append(self.fc_s[i](h))
+            prediction_s.append(self.fc_s[i](h))
 
-        if hasattr(self, 'fc_s'):
-            return h_s, prediction_s
-
-        return h_s
+        return h_s, prediction_s

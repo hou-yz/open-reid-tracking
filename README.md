@@ -5,6 +5,20 @@ purpose. It aims to provide a uniform interface for different datasets, a full
 set of models and evaluation metrics, as well as examples to reproduce (near)
 state-of-the-art results.
 
+## IDE baseline
+training IDE from scratch
+```angular2html
+cd open-reid
+python3 examples/IDE.py --train -d market1501  --combine-trainval --logs-dir logs/ide/market1501
+```
+
+
+testing & evaluating
+```angular2html
+python3 examples/IDE.py --evaluate -d market1501 --resume logs/ide/market1501/model_best.pth.tar --combine-trainval > eval_IDE.log
+```
+
+
 ## PCB Model
 
 Added PCB model support with faster evaluation.
@@ -14,18 +28,18 @@ See `/examples/PCB_n_RPP.py` and `/reid/models/PCB_model.py`. also modified `/re
 training PCB from scratch
 ```angular2html
 cd open-reid
-python3 ./examples/PCB_n_RPP.py --train-PCB -d market1501  --combine-trainval --logs-dir logs/pcb/market1501
+python3 examples/PCB_n_RPP.py --train-PCB -d market1501  --combine-trainval --logs-dir logs/pcb/market1501
 ```
 
 training RPP based on trained PCB model
 ```angular2html
-python3 ./examples/PCB_n_RPP.py --train-RPP -d market1501 --resume logs/pcb/market1501/model_best.pth.tar --combine-trainval --logs-dir logs/pcb_n_rpp/market1501
+python3 examples/PCB_n_RPP.py --train-RPP -d market1501 --resume logs/pcb/market1501/model_best.pth.tar --combine-trainval --logs-dir logs/pcb_n_rpp/market1501
 ```
 
 testing & evaluating
 ```angular2html
-python3 ./examples/PCB_n_RPP.py --evaluate -d market1501 --resume logs/pcb/market1501/model_best.pth.tar --combine-trainval > eval_PCB.log
-python3 ./examples/PCB_n_RPP.py --evaluate -d market1501 --resume logs/pcb_n_rpp/market1501/model_best.pth.tar --combine-trainval > eval_RPP.log
+python3 examples/PCB_n_RPP.py --evaluate -d market1501 --resume logs/pcb/market1501/model_best.pth.tar --combine-trainval > eval_PCB.log
+python3 examples/PCB_n_RPP.py --evaluate -d market1501 --resume logs/pcb_n_rpp/market1501/model_best.pth.tar --combine-trainval > eval_RPP.log
 ```
 
 
