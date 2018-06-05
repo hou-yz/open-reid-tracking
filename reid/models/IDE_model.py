@@ -37,6 +37,8 @@ class IDE_model(nn.Module):
         # fc + softmax:
         if self.num_classes > 0:
             self.fc = nn.Linear(self.num_features, self.num_classes)
+            init.normal(self.fc.weight, std=0.001)
+            init.constant(self.fc.bias, 0)
 
         pass
 

@@ -16,7 +16,6 @@ class PCB_model(nn.Module):
         self.num_features = num_features
         self.num_classes = num_classes
         self.rpp = False
-        self.f_dimension = 256
 
         # ResNet50: from 3*384*128 -> 2048*24*8 (Tensor T; of column vector f's)
         self.base = nn.Sequential(
@@ -30,6 +29,7 @@ class PCB_model(nn.Module):
         # dropout after pool5 (or what left of it) at p=0.5
         self.drop = nn.Dropout2d()
 
+        self.f_dimension = self.base[7][2].conv3.out_channels  # 2048
         ################################################################################################################
         '''Average Pooling: 2048*24*8 -> 2048*6*1 (f -> g)'''
         # Tensor T [N, 2048, 24, 8]
@@ -61,8 +61,8 @@ class PCB_model(nn.Module):
             self.fc_s = nn.ModuleList()
             for _ in range(self.num_parts):
                 fc = nn.Linear(self.num_features, self.num_classes)
-                # init.normal(fc.weight, std=0.001)
-                # init.constant(fc.bias, 0)
+                init.normal(fc.weight, std=0.001)
+                init.constant(fc.bias, 0)
                 self.fc_s.append(fc)
 
         pass

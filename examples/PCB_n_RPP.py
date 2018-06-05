@@ -36,7 +36,7 @@ else:  # linux
     batch_size = 64                                         check
     dropout -- possible at layer: pool5                     check
     skip step-3 in RPP training                             check
-    RPP classifier -- 2048 -> 256 -> 6 (average pooling)    check
+    RPP classifier -- 2048 -> 256 -> 6 (average pooling)    
     '''
 
 
@@ -180,9 +180,9 @@ def main(args):
         else:
             param_groups = model.parameters()
         optimizer = torch.optim.SGD(param_groups, lr=args.lr,
-                                    momentum=args.momentum,
+                                    # momentum=args.momentum,
                                     weight_decay=args.weight_decay,
-                                    nesterov=True
+                                    # nesterov=True
                                     )
 
         # Trainer
@@ -252,9 +252,9 @@ def main(args):
         else:
             param_groups = model.parameters()
         optimizer = torch.optim.SGD(param_groups, lr=0.01,
-                                    momentum=args.momentum,
+                                    # momentum=args.momentum,
                                     weight_decay=args.weight_decay,
-                                    nesterov=True
+                                    # nesterov=True
                                     )
 
         # Trainer
@@ -271,7 +271,7 @@ def main(args):
         best_top1 = 0  # save new models at logs/.../pcb_n_rpp/
 
         # Start training
-        for epoch in range(start_epoch, args.epochs + 20):
+        for epoch in range(start_epoch, args.epochs + 30):
             adjust_lr(epoch)
             trainer.train(epoch, train_loader, optimizer)
             if epoch < args.start_save:

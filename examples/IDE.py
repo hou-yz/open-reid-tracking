@@ -28,7 +28,7 @@ if os.name == 'nt':  # windows
 else:  # linux
     num_workers = 0
     batch_size = 64
-    os.environ["CUDA_VISIBLE_DEVICES"] = '2, 3'
+    os.environ["CUDA_VISIBLE_DEVICES"] = '0, 1'
 
 
 def get_data(name, split_id, data_dir, height, width, batch_size, workers,
