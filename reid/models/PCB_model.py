@@ -16,7 +16,7 @@ class PCB_model(nn.Module):
         self.num_features = num_features
         self.num_classes = num_classes
         self.rpp = False
-        self.f_dimension = 2048
+        self.f_dimension = 256
 
         # ResNet50: from 3*384*128 -> 2048*24*8 (Tensor T; of column vector f's)
         self.base = nn.Sequential(
@@ -84,7 +84,6 @@ class PCB_model(nn.Module):
         # g [N, 2048, 6, 1]
         if not self.rpp:
             g_s = self.avg_pool(x)
-            self.f_dimension = 2048
         else:
             f_s = x.view(f_shape[0], f_shape[1], f_shape[2] * f_shape[3])
             f_s = (self.classifier_pool(f_s.permute(0, 2, 1)).permute(0, 2, 1))

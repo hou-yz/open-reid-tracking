@@ -28,7 +28,7 @@ if os.name == 'nt':  # windows
 else:  # linux
     num_workers = 8
     batch_size = 64
-    os.environ["CUDA_VISIBLE_DEVICES"] = '2, 3'
+    os.environ["CUDA_VISIBLE_DEVICES"] = '0, 1'
 
     '''
     ideas for better training from Dr. Yifan Sun
@@ -37,7 +37,6 @@ else:  # linux
     dropout -- possible at layer: pool5                     check
     skip step-3 in RPP training                             check
     RPP classifier -- 2048 -> 256 -> 6 (average pooling)    check
-
     '''
 
 
@@ -181,9 +180,9 @@ def main(args):
         else:
             param_groups = model.parameters()
         optimizer = torch.optim.SGD(param_groups, lr=args.lr,
-                                    # momentum=args.momentum,
+                                    momentum=args.momentum,
                                     weight_decay=args.weight_decay,
-                                    # nesterov=True
+                                    nesterov=True
                                     )
 
         # Trainer
@@ -253,18 +252,18 @@ def main(args):
         else:
             param_groups = model.parameters()
         optimizer = torch.optim.SGD(param_groups, lr=0.01,
-                                    # momentum=args.momentum,
+                                    momentum=args.momentum,
                                     weight_decay=args.weight_decay,
-                                    # nesterov=True
+                                    nesterov=True
                                     )
 
         # Trainer
         trainer = Trainer(model, criterion)
 
         def adjust_lr(epoch):
-            if epoch > args.epochs + 10:
-                for g in optimizer.param_groups:
-                    g['lr'] = 0.001
+            # if epoch >= args.epochs + 10:
+            #     for g in optimizer.param_groups:
+            #         g['lr'] = 0.001
             pass
 
         if args.train_PCB:  # if have just trained pcb model in the same run
