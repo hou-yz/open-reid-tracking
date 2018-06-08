@@ -47,14 +47,8 @@ class PCB_model(nn.Module):
         ################################################################################################################
 
         # 1*1 Conv: 6*1*2048 -> 6*1*256 (g -> h)
-        # 6 separate convs
-        self.one_one_conv_s = nn.ModuleList()
-        for _ in range(self.num_parts):
-            self.one_one_conv_s.append(nn.Sequential(
-                nn.Conv2d(self.f_dimension, self.num_features, 1),
-                nn.BatchNorm2d(self.num_features),
-                nn.ReLU(inplace=True)
-            ))
+        self.one_one_conv = nn.Sequential(nn.Conv2d(self.f_dimension, self.num_features, 1),
+                                          nn.BatchNorm2d(self.num_features), nn.ReLU(inplace=True))
 
         # 6 branches of fc's:
         if self.num_classes > 0:
@@ -81,7 +75,7 @@ class PCB_model(nn.Module):
         x = self.drop(x)
         f_shape = x.size()
 
-        # g [N, 2048, 6, 1]
+        # g_s [N, 2048, 6, 1]
         if not self.rpp:
             g_s = self.avg_pool(x)
         else:
@@ -93,15 +87,12 @@ class PCB_model(nn.Module):
 
         assert g_s.size(2) % self.num_parts == 0
 
-        h_s = []
+        # h_s [N, 256, 6, 1]
+        h_s = self.one_one_conv(g_s)
         prediction_s = []
         for i in range(self.num_parts):
-            g = g_s[:, :, i, :].unsqueeze(3)  # view(f_shape[0], self.f_dimension, 1, 1)  # 4d -> 3d
-            # h [N, 256, 1, 1]
-            h = self.one_one_conv_s[i](g)
             # 4d vector h -> 2d vector h
-            h = h.view(f_shape[0], self.num_features)
-            h_s.append(h)
+            h = h_s[:, :, i, :].squeeze(2)
             prediction_s.append(self.fc_s[i](h))
 
         return h_s, prediction_s
