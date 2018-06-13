@@ -167,12 +167,12 @@ def main(args):
 
         # Schedule learning rate
         def adjust_lr(epoch):
-            if epoch >= args.epochs - 20:
-                for g in optimizer.param_groups:
-                    g['lr'] = 0.01
-            # if epoch >= args.epochs - 5:
-            #     for g in optimizer.param_groups:
-            #         g['lr'] = 0.001
+            if epoch < args.epochs - 20:
+                lr = args.lr
+            else:
+                lr = args.lr * 0.1
+            for g in optimizer.param_groups:
+                g['lr'] = lr * g.get('lr_mult', 1)
 
         # Start training
         for epoch in range(start_epoch, args.epochs):

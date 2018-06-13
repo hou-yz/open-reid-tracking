@@ -190,12 +190,12 @@ def main(args):
 
         # Schedule learning rate
         def adjust_lr(epoch):
-            if epoch >= args.epochs - 20:
-                for g in optimizer.param_groups:
-                    g['lr'] = 0.01
-            # if epoch >= args.epochs - 5:
-            #     for g in optimizer.param_groups:
-            #         g['lr'] = 0.001
+            if epoch < args.epochs - 20:
+                lr = args.lr
+            else:
+                lr = args.lr * 0.1
+            for g in optimizer.param_groups:
+                g['lr'] = lr * g.get('lr_mult', 1)
 
         # Start training
         for epoch in range(start_epoch, args.epochs):
@@ -251,7 +251,7 @@ def main(args):
                 {'params': new_params, 'lr_mult': 1.0}]
         else:
             param_groups = model.parameters()
-        optimizer = torch.optim.SGD(param_groups, lr=0.01,
+        optimizer = torch.optim.SGD(param_groups, lr=args.lr,
                                     # momentum=args.momentum,
                                     weight_decay=args.weight_decay,
                                     # nesterov=True
@@ -261,17 +261,16 @@ def main(args):
         trainer = Trainer(model, criterion)
 
         def adjust_lr(epoch):
-            # if epoch >= args.epochs + 10:
-            #     for g in optimizer.param_groups:
-            #         g['lr'] = 0.001
-            pass
+            lr = args.lr * 0.1
+            for g in optimizer.param_groups:
+                g['lr'] = lr * g.get('lr_mult', 1)
 
         if args.train_PCB:  # if have just trained pcb model in the same run
             start_epoch = epoch + 1
         best_top1 = 0  # save new models at logs/.../pcb_n_rpp/
 
         # Start training
-        for epoch in range(start_epoch, args.epochs + 30):
+        for epoch in range(start_epoch, args.epochs + 20):
             adjust_lr(epoch)
             trainer.train(epoch, train_loader, optimizer)
             if epoch < args.start_save:
