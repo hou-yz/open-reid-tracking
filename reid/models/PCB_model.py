@@ -33,7 +33,7 @@ class PCB_model(nn.Module):
         ################################################################################################################
         '''Average Pooling: 2048*24*8 -> 2048*6*1 (f -> g)'''
         # Tensor T [N, 2048, 24, 8]
-        self.avg_pool = nn.AdaptiveAvgPool2d((6, 1))
+        self.avg_pool = nn.AvgPool2d(kernel_size=(4, 8), stride=(4, 8))
 
         '''RPP: Refined part pooling'''
         # get sampling weights from f [2048*1*1]

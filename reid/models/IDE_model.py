@@ -25,14 +25,15 @@ class IDE_model(nn.Module):
         ################################################################################################################
         '''Global Average Pooling: 2048*12*4 -> 2048*1*1'''
         # Tensor T [N, 2048, 12, 1]
-        self.global_avg_pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.global_avg_pool = nn.AvgPool2d(kernel_size=(12, 4), stride=(12, 4))
 
         ################################################################################################################
 
         # 1*1 Conv(fc): 1*1*2048 -> 1*1*256 (g -> h)
         # 6 separate convs
         self.one_one_conv = nn.Sequential(nn.Conv2d(2048, self.num_features, 1),
-                                          nn.BatchNorm2d(self.num_features), nn.ReLU(inplace=True))
+                                          nn.BatchNorm2d(self.num_features),
+                                          nn.ReLU(inplace=True))
 
         # fc + softmax:
         if self.num_classes > 0:
