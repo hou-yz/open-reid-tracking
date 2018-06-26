@@ -26,14 +26,15 @@ class PCB_model(nn.Module):
         # change the downsampling layer in self.layer4 to stride=1
         self.base[7][0].downsample[0].stride = (1, 1)
 
-        # dropout after pool5 (or what left of it) at p=0.5
-        self.drop = nn.Dropout2d()
-
         self.f_dimension = self.base[7][2].conv3.out_channels  # 2048
         ################################################################################################################
         '''Average Pooling: 2048*24*8 -> 2048*6*1 (f -> g)'''
         # Tensor T [N, 2048, 24, 8]
         self.avg_pool = nn.AvgPool2d(kernel_size=(4, 8), stride=(4, 8))
+
+        # dropout after pool5 (or what left of it) at p=0.5
+        self.dropout = dropout
+        self.drop_layer = nn.Dropout(self.dropout)
 
         '''RPP: Refined part pooling'''
         # get sampling weights from f [2048*1*1]
@@ -43,12 +44,18 @@ class PCB_model(nn.Module):
         self.sampling_weight_layer = nn.Sequential(
             nn.Conv1d(self.f_dimension, self.num_parts, kernel_size=1),
             nn.Softmax(dim=1))
+
         # return a [N,6,24,8] tensor
         ################################################################################################################
 
         # 1*1 Conv: 6*1*2048 -> 6*1*256 (g -> h)
         self.one_one_conv = nn.Sequential(nn.Conv2d(self.f_dimension, self.num_features, 1),
-                                          nn.BatchNorm2d(self.num_features), nn.ReLU(inplace=True))
+                                          nn.BatchNorm2d(self.num_features))
+
+
+        init.kaiming_normal(self.one_one_conv[0].weight, mode='fan_out'),
+        init.constant(self.one_one_conv[1].weight, 1)
+        init.constant(self.one_one_conv[1].bias, 0)
 
         # 6 branches of fc's:
         if self.num_classes > 0:
@@ -72,12 +79,13 @@ class PCB_model(nn.Module):
         """
         # Tensor T [N, 2048, 24, 8]
         x = self.base(x)
-        x = self.drop(x)
         f_shape = x.size()
 
         # g_s [N, 2048, 6, 1]
         if not self.rpp:
             g_s = self.avg_pool(x)
+            if self.dropout > 0:
+                g_s = self.drop_layer(g_s)
         else:
             f_s = x.view(f_shape[0], f_shape[1], f_shape[2] * f_shape[3])
             f_s = (self.classifier_pool(f_s.permute(0, 2, 1)).permute(0, 2, 1))

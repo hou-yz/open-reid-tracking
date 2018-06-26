@@ -26,7 +26,7 @@ if os.name == 'nt':  # windows
     batch_size = 64
     pass
 else:  # linux
-    num_workers = 0
+    num_workers = 8
     batch_size = 64
     os.environ["CUDA_VISIBLE_DEVICES"] = '0, 1'
 
@@ -221,7 +221,7 @@ if __name__ == '__main__':
     parser.add_argument('-a', '--arch', type=str, default='resnet50',
                         choices=models.names())
     # parser.add_argument('--features', type=int, default=128)
-    parser.add_argument('--dropout', type=float, default=0.5)
+    parser.add_argument('--dropout', type=float, default=0)
     # optimizer
     parser.add_argument('--lr', type=float, default=0.1,
                         help="learning rate of new parameters, for pretrained "

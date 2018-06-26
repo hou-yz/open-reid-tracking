@@ -19,21 +19,22 @@ class IDE_model(nn.Module):
         self.base = nn.Sequential(
             *list(resnet50(pretrained=True, cut_at_pooling=True, norm=norm, dropout=dropout).base.children())[:-2])
 
-        # dropout after pool5 (or what left of it) at p=0.5
-        self.drop = nn.Dropout2d()
-
         ################################################################################################################
         '''Global Average Pooling: 2048*12*4 -> 2048*1*1'''
         # Tensor T [N, 2048, 12, 1]
         self.global_avg_pool = nn.AvgPool2d(kernel_size=(12, 4), stride=(12, 4))
 
+        # dropout after pool5 (or what left of it) at p=0.5
+        self.dropout = dropout
+        self.drop_layer = nn.Dropout(self.dropout)
+
         ################################################################################################################
 
         # 1*1 Conv(fc): 1*1*2048 -> 1*1*256 (g -> h)
         # 6 separate convs
-        self.one_one_conv = nn.Sequential(nn.Conv2d(2048, self.num_features, 1),
-                                          nn.BatchNorm2d(self.num_features),
-                                          nn.ReLU(inplace=True))
+        self.one_one_conv = nn.Sequential(nn.Conv2d(2048, self.num_features, 1, bias=False),
+                                          nn.BatchNorm2d(self.num_features))
+        init.kaiming_normal(self.one_one_conv[0].weight, mode='fan_out')
 
         # fc + softmax:
         if self.num_classes > 0:
@@ -51,9 +52,9 @@ class IDE_model(nn.Module):
         """
         # Tensor T [N, 2048, 12, 4]
         x = self.base(x)
-        x = self.drop(x)
-
         x = self.global_avg_pool(x)
+        if self.dropout:
+            x = self.drop_layer(x)
 
         x = self.one_one_conv(x).view(x.size()[0], self.num_features)
 
