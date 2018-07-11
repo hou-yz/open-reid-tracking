@@ -30,11 +30,11 @@ class PCB_model(nn.Module):
         ################################################################################################################
         '''Average Pooling: 2048*24*8 -> 2048*6*1 (f -> g)'''
         # Tensor T [N, 2048, 24, 8]
-        self.avg_pool = nn.AvgPool2d(kernel_size=(4, 8), stride=(4, 8))
+        self.avg_pool = nn.AdaptiveAvgPool2d((6, 1))
 
         # dropout after pool5 (or what left of it) at p=0.5
         self.dropout = dropout
-        self.drop_layer = nn.Dropout(self.dropout)
+        self.drop_layer = nn.Dropout2d(self.dropout)
 
         '''RPP: Refined part pooling'''
         # get sampling weights from f [2048*1*1]
@@ -51,7 +51,6 @@ class PCB_model(nn.Module):
         # 1*1 Conv: 6*1*2048 -> 6*1*256 (g -> h)
         self.one_one_conv = nn.Sequential(nn.Conv2d(self.f_dimension, self.num_features, 1),
                                           nn.BatchNorm2d(self.num_features))
-
 
         init.kaiming_normal(self.one_one_conv[0].weight, mode='fan_out'),
         init.constant(self.one_one_conv[1].weight, 1)
@@ -103,4 +102,5 @@ class PCB_model(nn.Module):
             h = h_s[:, :, i, :].squeeze(2)
             prediction_s.append(self.fc_s[i](h))
 
-        return h_s, prediction_s
+        x_s = h_s.view(f_shape[0], -1)
+        return x_s, prediction_s

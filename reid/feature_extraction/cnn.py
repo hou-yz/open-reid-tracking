@@ -17,7 +17,7 @@ def extract_cnn_feature(model, inputs, modules=None):
         outputs = model(inputs)
         if isinstance(model.module, PCB_model) or isinstance(model.module, IDE_model):
             # set the feature as 6 h's, which has a total dimension of 6*256=1536
-            outputs = torch.cat(tuple(outputs[0]), 1)
+            outputs = outputs[0]
         outputs = outputs.data.cpu()
         return outputs
     # Register forward hook for each module

@@ -21,12 +21,12 @@ class IDE_model(nn.Module):
 
         ################################################################################################################
         '''Global Average Pooling: 2048*12*4 -> 2048*1*1'''
-        # Tensor T [N, 2048, 12, 1]
-        self.global_avg_pool = nn.AvgPool2d(kernel_size=(12, 4), stride=(12, 4))
+        # Tensor T [N, 2048, 1, 1]
+        self.global_avg_pool = nn.AdaptiveAvgPool2d((1, 1))
 
         # dropout after pool5 (or what left of it) at p=0.5
         self.dropout = dropout
-        self.drop_layer = nn.Dropout(self.dropout)
+        self.drop_layer = nn.Dropout2d(self.dropout)
 
         ################################################################################################################
 
@@ -60,9 +60,7 @@ class IDE_model(nn.Module):
 
         prediction = self.fc(x)
 
-        x_s = []
-        prediction_s = []
-        x_s.append(x)
-        prediction_s.append(prediction)
+        x_s = x.view(x.shape[0], -1)
+        prediction_s = list(prediction)
 
         return x_s, prediction_s
