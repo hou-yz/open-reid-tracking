@@ -1,7 +1,7 @@
 from __future__ import print_function, absolute_import
 import argparse
-import os
 import os.path as osp
+import os
 
 import numpy as np
 import random
@@ -20,6 +20,7 @@ from reid.utils.data import transforms as T
 from reid.utils.data.preprocessor import Preprocessor
 from reid.utils.logging import Logger
 from reid.utils.serialization import load_checkpoint, save_checkpoint
+
 
 if os.name == 'nt':  # windows
     num_workers = 0
@@ -157,22 +158,26 @@ def main(args):
         else:
             param_groups = model.parameters()
         optimizer = torch.optim.SGD(param_groups, lr=args.lr,
-                                    # momentum=args.momentum,
+                                    momentum=args.momentum,
                                     weight_decay=args.weight_decay,
-                                    # nesterov=True
-                                    )
+                                    nesterov=True)
 
         # Trainer
         trainer = Trainer(model, criterion)
 
         # Schedule learning rate
         def adjust_lr(epoch):
-            if epoch < args.epochs - 20:
-                lr = args.lr
-            else:
-                lr = args.lr * 0.1
+            step_size = 60 if args.arch == 'inception' else 40
+            lr = args.lr * (0.1 ** (epoch // step_size))
             for g in optimizer.param_groups:
                 g['lr'] = lr * g.get('lr_mult', 1)
+        # def adjust_lr(epoch):
+        #     if epoch < args.epochs - 20:
+        #         lr = args.lr
+        #     else:
+        #         lr = args.lr * 0.1
+        #     for g in optimizer.param_groups:
+        #         g['lr'] = lr * g.get('lr_mult', 1)
 
         # Start training
         for epoch in range(start_epoch, args.epochs):
@@ -188,7 +193,6 @@ def main(args):
                 'state_dict': model.module.state_dict(),
                 'epoch': epoch + 1,
                 'best_top1': best_top1,
-                'rpp': False,
             }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
 
             print('\n * Finished epoch {:3d}  top1: {:5.1%}  best: {:5.1%}{}\n'.
