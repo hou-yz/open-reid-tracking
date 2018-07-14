@@ -221,7 +221,7 @@ if __name__ == '__main__':
     parser.add_argument('-a', '--arch', type=str, default='resnet50',
                         choices=models.names())
     # parser.add_argument('--features', type=int, default=128)
-    parser.add_argument('--dropout', type=float, default=0)
+    parser.add_argument('--dropout', type=float, default=0.5)
     # optimizer
     parser.add_argument('--lr', type=float, default=0.1,
                         help="learning rate of new parameters, for pretrained "
@@ -234,7 +234,7 @@ if __name__ == '__main__':
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
     parser.add_argument('--evaluate', action='store_true',
                         help="evaluation only")
-    parser.add_argument('--epochs', type=int, default=60)
+    parser.add_argument('--epochs', type=int, default=50)
     parser.add_argument('--start_save', type=int, default=0,
                         help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)

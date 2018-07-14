@@ -24,17 +24,20 @@ class IDE_model(nn.Module):
         # Tensor T [N, 2048, 1, 1]
         self.global_avg_pool = nn.AdaptiveAvgPool2d((1, 1))
 
+        ################################################################################################################
+        '''feat & feat_bn'''
+        # 1*1 Conv(fc): 1*1*2048 -> 1*1*256 (g -> h)
+        self.one_one_conv = nn.Sequential(nn.Conv2d(2048, self.num_features, 1),
+                                          nn.BatchNorm2d(self.num_features),
+                                          nn.ReLU())
+        init.kaiming_normal(self.one_one_conv[0].weight, mode='fan_out')
+        init.constant(self.one_one_conv[0].bias, 0)
+        init.constant(self.one_one_conv[1].weight, 1)
+        init.constant(self.one_one_conv[1].bias, 0)
+
         # dropout after pool5 (or what left of it) at p=0.5
         self.dropout = dropout
-        self.drop_layer = nn.Dropout2d(self.dropout)
-
-        ################################################################################################################
-
-        # 1*1 Conv(fc): 1*1*2048 -> 1*1*256 (g -> h)
-        # 6 separate convs
-        self.one_one_conv = nn.Sequential(nn.Conv2d(2048, self.num_features, 1, bias=False),
-                                          nn.BatchNorm2d(self.num_features))
-        init.kaiming_normal(self.one_one_conv[0].weight, mode='fan_out')
+        self.drop_layer = nn.Dropout(self.dropout)
 
         # fc + softmax:
         if self.num_classes > 0:
@@ -53,14 +56,16 @@ class IDE_model(nn.Module):
         # Tensor T [N, 2048, 12, 4]
         x = self.base(x)
         x = self.global_avg_pool(x)
+
+        x = self.one_one_conv(x).view(x.size()[0], -1)
+
         if self.dropout:
             x = self.drop_layer(x)
-
-        x = self.one_one_conv(x).view(x.size()[0], self.num_features)
 
         prediction = self.fc(x)
 
         x_s = x.view(x.shape[0], -1)
-        prediction_s = list(prediction)
+        prediction_s = []
+        prediction_s.append(prediction)
 
         return x_s, prediction_s

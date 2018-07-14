@@ -28,7 +28,7 @@ if os.name == 'nt':  # windows
 else:  # linux
     num_workers = 8
     batch_size = 64
-    os.environ["CUDA_VISIBLE_DEVICES"] = '0, 1'
+    os.environ["CUDA_VISIBLE_DEVICES"] = '2, 3'
 
     '''
     ideas for better training from Dr. Yifan Sun
@@ -103,8 +103,8 @@ def checkpoint_loader(model, path):
             else:
                 model.enable_RPP()
 
-    if 'sampling_weight_layer.0.weight' in pretrained_dict:
-        pass
+    # if 'sampling_weight_layer.0.weight' in pretrained_dict:
+    #     pass
 
     model_dict = model.state_dict()
     # 1. filter out unnecessary keys
@@ -318,7 +318,7 @@ if __name__ == '__main__':
     parser.add_argument('-a', '--arch', type=str, default='resnet50',
                         choices=models.names())
     # parser.add_argument('--features', type=int, default=128)
-    parser.add_argument('--dropout', type=float, default=0)
+    parser.add_argument('--dropout', type=float, default=0.5)
     # optimizer
     parser.add_argument('--lr', type=float, default=0.1,
                         help="learning rate of new parameters, for pretrained "
