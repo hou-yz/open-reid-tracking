@@ -20,7 +20,7 @@ def extract_cnn_feature(model, inputs, modules=None):
             outputs = outputs[0]
         elif isinstance(model.module, IDE_model):
             # set the feature as 1 h, which has a total dimension of 1*256=256
-            outputs = outputs[1]
+            outputs = outputs[0]
         outputs = outputs.data.cpu()
         return outputs
     # Register forward hook for each module
