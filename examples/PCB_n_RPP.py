@@ -183,25 +183,25 @@ def main(args):
         optimizer = torch.optim.SGD(param_groups, lr=args.lr,
                                     momentum=args.momentum,
                                     weight_decay=args.weight_decay,
-                                    nesterov=True
+                                    # nesterov=True
                                     )
 
         # Trainer
         trainer = Trainer(model, criterion)
 
         # Schedule learning rate
-        def adjust_lr(epoch):
-            step_size = 60
-            lr = args.lr * (0.1 ** (epoch // step_size))
-            for g in optimizer.param_groups:
-                g['lr'] = lr * g.get('lr_mult', 1)
         # def adjust_lr(epoch):
-        #     if epoch < args.epochs - 20:
-        #         lr = args.lr
-        #     else:
-        #         lr = args.lr * 0.1
+        #     step_size = 60
+        #     lr = args.lr * (0.1 ** (epoch // step_size))
         #     for g in optimizer.param_groups:
         #         g['lr'] = lr * g.get('lr_mult', 1)
+        def adjust_lr(epoch):
+            if epoch < args.epochs - 20:
+                lr = args.lr
+            else:
+                lr = args.lr * 0.1
+            for g in optimizer.param_groups:
+                g['lr'] = lr * g.get('lr_mult', 1)
 
         # Start training
         for epoch in range(start_epoch, args.epochs):
