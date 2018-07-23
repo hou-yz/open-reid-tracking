@@ -24,6 +24,10 @@ class IDE_model(nn.Module):
         # Tensor T [N, 2048, 1, 1]
         self.global_avg_pool = nn.AdaptiveAvgPool2d((1, 1))
 
+        # dropout after pool5 (or what left of it) at p=0.5
+        self.dropout = dropout
+        self.drop_layer = nn.Dropout2d(self.dropout)
+
         ################################################################################################################
         '''feat & feat_bn'''
         # 1*1 Conv(fc): 1*1*2048 -> 1*1*256 (g -> h)
@@ -34,10 +38,6 @@ class IDE_model(nn.Module):
         init.constant(self.one_one_conv[0].bias, 0)
         init.constant(self.one_one_conv[1].weight, 1)
         init.constant(self.one_one_conv[1].bias, 0)
-
-        # dropout after pool5 (or what left of it) at p=0.5
-        self.dropout = dropout
-        self.drop_layer = nn.Dropout(self.dropout)
 
         # fc + softmax:
         if self.num_classes > 0:
@@ -57,10 +57,10 @@ class IDE_model(nn.Module):
         x = self.base(x)
         x = self.global_avg_pool(x)
 
-        x = self.one_one_conv(x).view(x.size()[0], -1)
-
         if self.dropout:
             x = self.drop_layer(x)
+
+        x = self.one_one_conv(x).view(x.size()[0], -1)
 
         prediction = self.fc(x)
 

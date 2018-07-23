@@ -27,10 +27,15 @@ class PCB_model(nn.Module):
         self.base[7][0].downsample[0].stride = (1, 1)
 
         self.f_dimension = self.base[7][2].conv3.out_channels  # 2048
+
         ################################################################################################################
         '''Average Pooling: 2048*24*8 -> 2048*6*1 (f -> g)'''
         # Tensor T [N, 2048, 24, 8]
         self.avg_pool = nn.AdaptiveAvgPool2d((6, 1))
+
+        # dropout after pool5 (or what left of it) at p=0.5
+        self.dropout = dropout
+        self.drop_layer = nn.Dropout2d(self.dropout)
 
         '''RPP: Refined part pooling'''
         # first, extract each f's; then,
@@ -53,10 +58,6 @@ class PCB_model(nn.Module):
         init.constant(self.one_one_conv[0].bias, 0)
         init.constant(self.one_one_conv[1].weight, 1)
         init.constant(self.one_one_conv[1].bias, 0)
-
-        # dropout after pool5 (or what left of it) at p=0.5
-        self.dropout = dropout
-        self.drop_layer = nn.Dropout2d(self.dropout)
 
         # 6 branches of fc's:
         if self.num_classes > 0:
@@ -85,6 +86,8 @@ class PCB_model(nn.Module):
         # g_s [N, 2048, 6, 1]
         if not self.rpp:
             g_s = self.avg_pool(x)
+            if self.dropout:
+                g_s = self.drop_layer(g_s)
         else:
             f_s = x.view(f_shape[0], f_shape[1], f_shape[2] * f_shape[3])
             f_s = (self.classifier_pool(f_s.permute(0, 2, 1)).permute(0, 2, 1))
@@ -96,9 +99,6 @@ class PCB_model(nn.Module):
 
         # h_s [N, 256, 6, 1]
         h_s = self.one_one_conv(g_s)
-
-        if self.dropout:
-            h_s = self.drop_layer(h_s)
 
         prediction_s = []
         for i in range(self.num_parts):
