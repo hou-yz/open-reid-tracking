@@ -21,7 +21,6 @@ from reid.utils.data.preprocessor import Preprocessor
 from reid.utils.logging import Logger
 from reid.utils.serialization import load_checkpoint, save_checkpoint
 
-
 if os.name == 'nt':  # windows
     num_workers = 0
     batch_size = 64
@@ -37,7 +36,7 @@ else:  # linux
     batch_size = 64                                         check
     dropout -- possible at layer: pool5                     check
     skip step-3 in RPP training                             check
-    RPP classifier -- 2048 -> 256 -> 6 (average pooling)    
+    RPP classifier -- 2048 -> 256 -> 6 (average pooling)    check
     '''
 
 
@@ -183,25 +182,26 @@ def main(args):
         optimizer = torch.optim.SGD(param_groups, lr=args.lr,
                                     momentum=args.momentum,
                                     weight_decay=args.weight_decay,
-                                    # nesterov=True
+                                    nesterov=True
                                     )
 
         # Trainer
         trainer = Trainer(model, criterion)
 
         # Schedule learning rate
-        # def adjust_lr(epoch):
-        #     step_size = 60
-        #     lr = args.lr * (0.1 ** (epoch // step_size))
-        #     for g in optimizer.param_groups:
-        #         g['lr'] = lr * g.get('lr_mult', 1)
         def adjust_lr(epoch):
-            if epoch < args.epochs - 20:
-                lr = args.lr
-            else:
-                lr = args.lr * 0.1
+            step_size = 60
+            lr = args.lr * (0.1 ** (epoch // step_size))
             for g in optimizer.param_groups:
                 g['lr'] = lr * g.get('lr_mult', 1)
+
+        # def adjust_lr(epoch):
+        #     if epoch < args.epochs - 20:
+        #         lr = args.lr
+        #     else:
+        #        lr = args.lr * 0.1
+        #     for g in optimizer.param_groups:
+        #         g['lr'] = lr * g.get('lr_mult', 1)
 
         # Start training
         for epoch in range(start_epoch, args.epochs):
