@@ -27,6 +27,7 @@ class PCB_model(nn.Module):
         self.base[7][0].downsample[0].stride = (1, 1)
 
         self.f_dimension = self.base[7][2].conv3.out_channels  # 2048
+
         ################################################################################################################
         '''Average Pooling: 2048*24*8 -> 2048*6*1 (f -> g)'''
         # Tensor T [N, 2048, 24, 8]
@@ -37,22 +38,24 @@ class PCB_model(nn.Module):
         self.drop_layer = nn.Dropout2d(self.dropout)
 
         '''RPP: Refined part pooling'''
-        # get sampling weights from f [2048*1*1]
+        # first, extract each f's; then,
+        # get sampling weights from each f's [2048*1*1]
         # avg pooling along the channel dimension for a [256*1*1]
         self.classifier_pool = nn.AdaptiveAvgPool1d(self.f_dimension)
         # 6 classifier for f:[256*1*1] -> weight_s:[6*1*1]
         self.sampling_weight_layer = nn.Sequential(
             nn.Conv1d(self.f_dimension, self.num_parts, kernel_size=1),
             nn.Softmax(dim=1))
-
         # return a [N,6,24,8] tensor
-        ################################################################################################################
 
+        ################################################################################################################
+        '''feat & feat_bn'''
         # 1*1 Conv: 6*1*2048 -> 6*1*256 (g -> h)
         self.one_one_conv = nn.Sequential(nn.Conv2d(self.f_dimension, self.num_features, 1),
-                                          nn.BatchNorm2d(self.num_features))
-
-        init.kaiming_normal(self.one_one_conv[0].weight, mode='fan_out'),
+                                          nn.BatchNorm2d(self.num_features),
+                                          nn.ReLU())
+        init.kaiming_normal(self.one_one_conv[0].weight, mode='fan_out')
+        init.constant(self.one_one_conv[0].bias, 0)
         init.constant(self.one_one_conv[1].weight, 1)
         init.constant(self.one_one_conv[1].bias, 0)
 
@@ -83,7 +86,7 @@ class PCB_model(nn.Module):
         # g_s [N, 2048, 6, 1]
         if not self.rpp:
             g_s = self.avg_pool(x)
-            if self.dropout > 0:
+            if self.dropout:
                 g_s = self.drop_layer(g_s)
         else:
             f_s = x.view(f_shape[0], f_shape[1], f_shape[2] * f_shape[3])
@@ -96,6 +99,7 @@ class PCB_model(nn.Module):
 
         # h_s [N, 256, 6, 1]
         h_s = self.one_one_conv(g_s)
+
         prediction_s = []
         for i in range(self.num_parts):
             # 4d vector h -> 2d vector h

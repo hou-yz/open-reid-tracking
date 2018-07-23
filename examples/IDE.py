@@ -1,7 +1,7 @@
 from __future__ import print_function, absolute_import
 import argparse
-import os
 import os.path as osp
+import os
 
 import numpy as np
 import random
@@ -21,6 +21,7 @@ from reid.utils.data.preprocessor import Preprocessor
 from reid.utils.logging import Logger
 from reid.utils.serialization import load_checkpoint, save_checkpoint
 
+
 if os.name == 'nt':  # windows
     num_workers = 0
     batch_size = 64
@@ -28,7 +29,7 @@ if os.name == 'nt':  # windows
 else:  # linux
     num_workers = 8
     batch_size = 64
-    os.environ["CUDA_VISIBLE_DEVICES"] = '0, 1'
+    os.environ["CUDA_VISIBLE_DEVICES"] = '2'
 
 
 def get_data(name, split_id, data_dir, height, width, batch_size, workers,
@@ -157,22 +158,26 @@ def main(args):
         else:
             param_groups = model.parameters()
         optimizer = torch.optim.SGD(param_groups, lr=args.lr,
-                                    # momentum=args.momentum,
+                                    momentum=args.momentum,
                                     weight_decay=args.weight_decay,
-                                    # nesterov=True
-                                    )
+                                    nesterov=True)
 
         # Trainer
         trainer = Trainer(model, criterion)
 
         # Schedule learning rate
         def adjust_lr(epoch):
-            if epoch < args.epochs - 20:
-                lr = args.lr
-            else:
-                lr = args.lr * 0.1
+            step_size = 40
+            lr = args.lr * (0.1 ** (epoch // step_size))
             for g in optimizer.param_groups:
                 g['lr'] = lr * g.get('lr_mult', 1)
+        # def adjust_lr(epoch):
+        #     if epoch < args.epochs - 20:
+        #         lr = args.lr
+        #     else:
+        #         lr = args.lr * 0.1
+        #     for g in optimizer.param_groups:
+        #         g['lr'] = lr * g.get('lr_mult', 1)
 
         # Start training
         for epoch in range(start_epoch, args.epochs):
@@ -188,7 +193,6 @@ def main(args):
                 'state_dict': model.module.state_dict(),
                 'epoch': epoch + 1,
                 'best_top1': best_top1,
-                'rpp': False,
             }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
 
             print('\n * Finished epoch {:3d}  top1: {:5.1%}  best: {:5.1%}{}\n'.
@@ -221,7 +225,7 @@ if __name__ == '__main__':
     parser.add_argument('-a', '--arch', type=str, default='resnet50',
                         choices=models.names())
     # parser.add_argument('--features', type=int, default=128)
-    parser.add_argument('--dropout', type=float, default=0)
+    parser.add_argument('--dropout', type=float, default=0.5)
     # optimizer
     parser.add_argument('--lr', type=float, default=0.1,
                         help="learning rate of new parameters, for pretrained "
@@ -234,7 +238,7 @@ if __name__ == '__main__':
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
     parser.add_argument('--evaluate', action='store_true',
                         help="evaluation only")
-    parser.add_argument('--epochs', type=int, default=60)
+    parser.add_argument('--epochs', type=int, default=50)
     parser.add_argument('--start_save', type=int, default=0,
                         help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)

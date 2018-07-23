@@ -1,7 +1,7 @@
 from __future__ import print_function, absolute_import
 import argparse
-import os
 import os.path as osp
+import os
 
 import numpy as np
 import random
@@ -28,7 +28,7 @@ if os.name == 'nt':  # windows
 else:  # linux
     num_workers = 8
     batch_size = 64
-    os.environ["CUDA_VISIBLE_DEVICES"] = '0, 1'
+    os.environ["CUDA_VISIBLE_DEVICES"] = '2, 3'
 
     '''
     ideas for better training from Dr. Yifan Sun
@@ -36,7 +36,7 @@ else:  # linux
     batch_size = 64                                         check
     dropout -- possible at layer: pool5                     check
     skip step-3 in RPP training                             check
-    RPP classifier -- 2048 -> 256 -> 6 (average pooling)    
+    RPP classifier -- 2048 -> 256 -> 6 (average pooling)    check
     '''
 
 
@@ -103,8 +103,8 @@ def checkpoint_loader(model, path):
             else:
                 model.enable_RPP()
 
-    if 'sampling_weight_layer.0.weight' in pretrained_dict:
-        pass
+    # if 'sampling_weight_layer.0.weight' in pretrained_dict:
+    #     pass
 
     model_dict = model.state_dict()
     # 1. filter out unnecessary keys
@@ -180,9 +180,9 @@ def main(args):
         else:
             param_groups = model.parameters()
         optimizer = torch.optim.SGD(param_groups, lr=args.lr,
-                                    # momentum=args.momentum,
+                                    momentum=args.momentum,
                                     weight_decay=args.weight_decay,
-                                    # nesterov=True
+                                    nesterov=True
                                     )
 
         # Trainer
@@ -190,12 +190,18 @@ def main(args):
 
         # Schedule learning rate
         def adjust_lr(epoch):
-            if epoch < args.epochs - 20:
-                lr = args.lr
-            else:
-                lr = args.lr * 0.1
+            step_size = 60
+            lr = args.lr * (0.1 ** (epoch // step_size))
             for g in optimizer.param_groups:
                 g['lr'] = lr * g.get('lr_mult', 1)
+
+        # def adjust_lr(epoch):
+        #     if epoch < args.epochs - 20:
+        #         lr = args.lr
+        #     else:
+        #        lr = args.lr * 0.1
+        #     for g in optimizer.param_groups:
+        #         g['lr'] = lr * g.get('lr_mult', 1)
 
         # Start training
         for epoch in range(start_epoch, args.epochs):
@@ -252,14 +258,19 @@ def main(args):
         else:
             param_groups = model.parameters()
         optimizer = torch.optim.SGD(param_groups, lr=args.lr,
-                                    # momentum=args.momentum,
+                                    momentum=args.momentum,
                                     weight_decay=args.weight_decay,
-                                    # nesterov=True
+                                    nesterov=True
                                     )
 
         # Trainer
         trainer = Trainer(model, criterion)
 
+        # def adjust_lr(epoch):
+        #     step_size = 60 if args.arch == 'inception' else 40
+        #     lr = args.lr * (0.1 ** (epoch // step_size))
+        #     for g in optimizer.param_groups:
+        #         g['lr'] = lr * g.get('lr_mult', 1)
         def adjust_lr(epoch):
             lr = args.lr * 0.1
             for g in optimizer.param_groups:
@@ -318,7 +329,7 @@ if __name__ == '__main__':
     parser.add_argument('-a', '--arch', type=str, default='resnet50',
                         choices=models.names())
     # parser.add_argument('--features', type=int, default=128)
-    parser.add_argument('--dropout', type=float, default=0)
+    parser.add_argument('--dropout', type=float, default=0.5)
     # optimizer
     parser.add_argument('--lr', type=float, default=0.1,
                         help="learning rate of new parameters, for pretrained "

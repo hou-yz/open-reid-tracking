@@ -229,3 +229,5 @@ examples/logs
 
 logs/
 IDE_sigma.pt
+*.lnk
+*.bak
