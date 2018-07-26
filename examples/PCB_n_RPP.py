@@ -28,7 +28,7 @@ if os.name == 'nt':  # windows
 else:  # linux
     num_workers = 8
     batch_size = 64
-    os.environ["CUDA_VISIBLE_DEVICES"] = '2, 3'
+    os.environ["CUDA_VISIBLE_DEVICES"] = '0, 1, 2, 3'
 
     '''
     ideas for better training from Dr. Yifan Sun
@@ -190,7 +190,7 @@ def main(args):
 
         # Schedule learning rate
         def adjust_lr(epoch):
-            step_size = 60
+            step_size = 40
             lr = args.lr * (0.1 ** (epoch // step_size))
             for g in optimizer.param_groups:
                 g['lr'] = lr * g.get('lr_mult', 1)
@@ -199,7 +199,7 @@ def main(args):
         #     if epoch < args.epochs - 20:
         #         lr = args.lr
         #     else:
-        #        lr = args.lr * 0.1
+        #         lr = args.lr * 0.1
         #     for g in optimizer.param_groups:
         #         g['lr'] = lr * g.get('lr_mult', 1)
 
