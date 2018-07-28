@@ -21,15 +21,14 @@ from reid.utils.data.preprocessor import Preprocessor
 from reid.utils.logging import Logger
 from reid.utils.serialization import load_checkpoint, save_checkpoint
 
-
 if os.name == 'nt':  # windows
     num_workers = 0
     batch_size = 64
     pass
 else:  # linux
-    num_workers = 8
-    batch_size = 64
-    os.environ["CUDA_VISIBLE_DEVICES"] = '0,1'
+    num_workers = 16
+    batch_size = 256
+    os.environ["CUDA_VISIBLE_DEVICES"] = '0,1,2,3'
 
 
 def get_data(name, split_id, data_dir, height, width, batch_size, workers,
@@ -171,6 +170,7 @@ def main(args):
             lr = args.lr * (0.1 ** (epoch // step_size))
             for g in optimizer.param_groups:
                 g['lr'] = lr * g.get('lr_mult', 1)
+
         # def adjust_lr(epoch):
         #     if epoch < args.epochs - 20:
         #         lr = args.lr

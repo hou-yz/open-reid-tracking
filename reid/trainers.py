@@ -76,10 +76,14 @@ class Trainer(BaseTrainer):
             loss = 0
             for pred in prediction_s:
                 loss += self.criterion(pred, targets)
+            if isinstance(self.model.module, PCB_model):
+                prediction = prediction_s[2]
+            else:
+                prediction = prediction_s[0]
             # use the sum of 6 id-predictions as the input for accuracy(_, _)
             # prediction_sum = Variable(
             #     torch.from_numpy(np.sum(prediction_s[i].cpu().data.numpy() for i in range(len(prediction_s)))).cuda())
-            prec, = accuracy(prediction_s[2].data, targets.data)
+            prec, = accuracy(prediction.data, targets.data)
             prec = prec[0]
             pass
 
