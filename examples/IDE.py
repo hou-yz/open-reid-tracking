@@ -4,6 +4,7 @@ import os.path as osp
 import os
 
 import numpy as np
+import time
 import random
 import sys
 import torch
@@ -20,7 +21,6 @@ from reid.utils.data import transforms as T
 from reid.utils.data.preprocessor import Preprocessor
 from reid.utils.logging import Logger
 from reid.utils.serialization import load_checkpoint, save_checkpoint
-
 
 if os.name == 'nt':  # windows
     num_workers = 0
@@ -171,6 +171,7 @@ def main(args):
             lr = args.lr * (0.1 ** (epoch // step_size))
             for g in optimizer.param_groups:
                 g['lr'] = lr * g.get('lr_mult', 1)
+
         # def adjust_lr(epoch):
         #     if epoch < args.epochs - 20:
         #         lr = args.lr
@@ -181,6 +182,7 @@ def main(args):
 
         # Start training
         for epoch in range(start_epoch, args.epochs):
+            t0 = time.time()
             adjust_lr(epoch)
             trainer.train(epoch, train_loader, optimizer)
             if epoch < args.start_save:
@@ -195,8 +197,12 @@ def main(args):
                 'best_top1': best_top1,
             }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
 
+            t1 = time.time()
+            t_epoch = t1 - t0
             print('\n * Finished epoch {:3d}  top1: {:5.1%}  best: {:5.1%}{}\n'.
                   format(epoch, top1, best_top1, ' *' if is_best else ''))
+            print('*************** Epoch takes time: {:^10.2f} *********************\n'.format(t_epoch))
+            pass
 
         # Final test
         print('Test with best model:')

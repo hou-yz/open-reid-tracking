@@ -4,6 +4,7 @@ import os.path as osp
 import os
 
 import numpy as np
+import time
 import random
 import sys
 import torch
@@ -166,7 +167,7 @@ def main(args):
 
         # Schedule learning rate
         def adjust_lr(epoch):
-            step_size = 40
+            step_size = 10
             lr = args.lr * (0.1 ** (epoch // step_size))
             for g in optimizer.param_groups:
                 g['lr'] = lr * g.get('lr_mult', 1)
@@ -181,6 +182,7 @@ def main(args):
 
         # Start training
         for epoch in range(start_epoch, args.epochs):
+            t0 = time.time()
             adjust_lr(epoch)
             trainer.train(epoch, train_loader, optimizer)
             if epoch < args.start_save:
@@ -195,8 +197,12 @@ def main(args):
                 'best_top1': best_top1,
             }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
 
+            t1 = time.time()
+            t_epoch = t1 - t0
             print('\n * Finished epoch {:3d}  top1: {:5.1%}  best: {:5.1%}{}\n'.
                   format(epoch, top1, best_top1, ' *' if is_best else ''))
+            print('*************** Epoch takes time: {:^10.2f} *********************\n'.format(t_epoch))
+            pass
 
         # Final test
         print('Test with best model:')
@@ -238,7 +244,7 @@ if __name__ == '__main__':
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
     parser.add_argument('--evaluate', action='store_true',
                         help="evaluation only")
-    parser.add_argument('--epochs', type=int, default=50)
+    parser.add_argument('--epochs', type=int, default=20)
     parser.add_argument('--start_save', type=int, default=0,
                         help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)
