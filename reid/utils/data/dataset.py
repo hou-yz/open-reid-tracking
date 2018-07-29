@@ -59,8 +59,12 @@ class Dataset(object):
         if num_val >= num or num_val < 0:
             raise ValueError("num_val exceeds total identities {}"
                              .format(num))
-        train_pids = sorted(trainval_pids[:-num_val])
-        val_pids = sorted(trainval_pids[-num_val:])
+        if num_val:
+            train_pids = sorted(trainval_pids[:-num_val])
+            val_pids = sorted(trainval_pids[-num_val:])
+        else:
+            train_pids = sorted(trainval_pids)
+            val_pids = sorted([])
 
         self.meta = read_json(osp.join(self.root, 'meta.json'))
         identities = self.meta['identities']

@@ -31,6 +31,12 @@ else:  # linux
     batch_size = 256
     os.environ["CUDA_VISIBLE_DEVICES"] = '0,1,2,3'
 
+    '''
+    training on Duke GroundTruth        check
+    eval on DukeGT                      check, #10 
+    no eval set                         
+    test on 1501 query set              check
+    '''
 
 def get_data(name, split_id, data_dir, height, width, batch_size, workers,
              combine_trainval):
@@ -188,6 +194,8 @@ def main(args):
             if epoch < args.start_save:
                 continue
             top1 = evaluator.evaluate(val_loader, dataset.val, dataset.val)
+            # top1 = evaluator.evaluate(test_loader, eval_set_query, dataset.gallery,
+            #                           metric)  # eval on 1501 dataset instead of duke
 
             is_best = top1 >= best_top1
             best_top1 = max(top1, best_top1)
