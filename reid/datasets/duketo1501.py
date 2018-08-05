@@ -85,7 +85,7 @@ class DukeTo1501(Dataset):
                 if pid == -1: continue  # junk images are just ignored
                 assert 0 <= pid <= 8000  # pid == 0 means background
                 assert 1 <= cam <= 8
-                cam -= 1
+                cam -= 1  # from range[1,8]to range[0,7]
                 pids.add(pid)
                 # fname = ('{:08d}_{:02d}_{:04d}.jpg'.format(pid, cam, len(identities[pid][cam])))
                 identities[pid][cam].append(fname)

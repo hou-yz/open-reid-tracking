@@ -4,6 +4,7 @@ from collections import OrderedDict
 
 import torch
 
+from .models import IDE_model
 from .evaluation_metrics import cmc, mean_ap
 from .feature_extraction import extract_cnn_feature
 from .utils.meters import AverageMeter
@@ -115,6 +116,10 @@ class Evaluator(object):
         self.model = model
 
     def evaluate(self, data_loader, query, gallery, metric=None):
+        if isinstance(self.model, IDE_model):
+            self.model.eval_only()
         features, _ = extract_features(self.model, data_loader)
+        if isinstance(self.model, IDE_model):
+            self.model.train_n_eval()
         distmat = pairwise_distance(features, query, gallery, metric=metric)
         return evaluate_all(distmat, query=query, gallery=gallery)

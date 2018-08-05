@@ -15,6 +15,8 @@ class IDE_model(nn.Module):
         self.num_features = num_features
         self.num_classes = num_classes
 
+        self.eval = False
+
         # ResNet50: from 3*384*128 -> 2048*12*4 (Tensor T; of column vector f's)
         self.base = nn.Sequential(
             *list(resnet50(pretrained=True, cut_at_pooling=True, norm=norm, dropout=dropout).base.children())[:-2])
@@ -47,6 +49,12 @@ class IDE_model(nn.Module):
 
         pass
 
+    def eval_only(self):
+        self.eval = True
+
+    def train_n_eval(self):
+        self.eval = False
+
     def forward(self, x):
         """
         Returns:
@@ -61,10 +69,11 @@ class IDE_model(nn.Module):
             x = self.drop_layer(x)
 
         x = self.one_one_conv(x).view(x.size()[0], -1)
+        x_s = x.view(x.shape[0], -1)
+        if self.eval:
+            return x_s, []
 
         prediction = self.fc(x)
-
-        x_s = x.view(x.shape[0], -1)
         prediction_s = []
         prediction_s.append(prediction)
 

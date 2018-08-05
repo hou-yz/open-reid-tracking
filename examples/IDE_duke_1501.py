@@ -28,8 +28,8 @@ if os.name == 'nt':  # windows
     pass
 else:  # linux
     num_workers = 16
-    batch_size = 256
-    os.environ["CUDA_VISIBLE_DEVICES"] = '0,1,2,3'
+    batch_size = 384
+    os.environ["CUDA_VISIBLE_DEVICES"] = '0,1,2,3,4,5'
 
     '''
     training on Duke GroundTruth        check
@@ -37,6 +37,7 @@ else:  # linux
     no eval set                         
     test on 1501 query set              check
     '''
+
 
 def get_data(name, split_id, data_dir, height, width, batch_size, workers,
              combine_trainval):
@@ -90,21 +91,25 @@ def get_data(name, split_id, data_dir, height, width, batch_size, workers,
     return dataset, num_classes, train_loader, val_loader, test_loader, eval_set_query,
 
 
-def checkpoint_loader(model, path):
+def checkpoint_loader(model, path, eval_only=False):
     checkpoint = load_checkpoint(path)
     pretrained_dict = checkpoint['state_dict']
     model_dict = model.state_dict()
     # 1. filter out unnecessary keys
     pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+    if eval_only:
+        del pretrained_dict['fc.weight']
+        del pretrained_dict['fc.bias']
     # 2. overwrite entries in the existing state dict
     model_dict.update(pretrained_dict)
     # 3. load the new state dict
     model.load_state_dict(model_dict)
 
     start_epoch = checkpoint['epoch'] + 1
-    best_top1 = checkpoint['best_top1']
+    best_top1_eval = checkpoint['best_top1_eval']
+    best_top1_test = checkpoint['best_top1_test']
 
-    return model, start_epoch, best_top1
+    return model, start_epoch, best_top1_eval, best_top1_test
 
 
 def main(args):
@@ -129,11 +134,15 @@ def main(args):
                           dropout=args.dropout, num_classes=num_classes)
 
     # Load from checkpoint
-    start_epoch = best_top1 = 0
+    start_epoch = best_top1_eval = best_top1_test = 0
     if args.resume:
-        model, start_epoch, best_top1 = checkpoint_loader(model, args.resume)
-        print("=> Start epoch {}  best top1 {:.1%}"
-              .format(start_epoch, best_top1))
+        if args.evaluate:
+            model, start_epoch, best_top1_eval, best_top1_test = checkpoint_loader(model, args.resume, eval_only=True)
+            model.eval_only()
+        else:
+            model, start_epoch, best_top1_eval, best_top1_test = checkpoint_loader(model, args.resume)
+        print("=> Start epoch {}  best top1_eval {:.1%},  best top1_test {:.1%}"
+              .format(start_epoch, best_top1_eval, best_top1_test))
     model = nn.DataParallel(model).cuda()
 
     # Distance metric
@@ -173,7 +182,7 @@ def main(args):
 
         # Schedule learning rate
         def adjust_lr(epoch):
-            step_size = 10
+            step_size = int(args.epochs / 2)
             lr = args.lr * (0.1 ** (epoch // step_size))
             for g in optimizer.param_groups:
                 g['lr'] = lr * g.get('lr_mult', 1)
@@ -193,28 +202,36 @@ def main(args):
             trainer.train(epoch, train_loader, optimizer)
             if epoch < args.start_save:
                 continue
-            top1 = evaluator.evaluate(val_loader, dataset.val, dataset.val)
+
+            print("Validation:")
+            top1_eval = evaluator.evaluate(val_loader, dataset.val, dataset.val)
+            print("Test:")
+            top1_test = evaluator.evaluate(test_loader, eval_set_query, dataset.gallery)
+
             # top1 = evaluator.evaluate(test_loader, eval_set_query, dataset.gallery,
             #                           metric)  # eval on 1501 dataset instead of duke
 
-            is_best = top1 >= best_top1
-            best_top1 = max(top1, best_top1)
+            is_best = (top1_eval >= best_top1_eval and top1_test >= best_top1_test)
+            best_top1_eval = max(top1_eval, best_top1_eval)
+            best_top1_test = max(top1_test, best_top1_test)
             save_checkpoint({
                 'state_dict': model.module.state_dict(),
                 'epoch': epoch + 1,
-                'best_top1': best_top1,
+                'best_top1_eval': best_top1_eval,
+                'best_top1_test': best_top1_test,
             }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
 
             t1 = time.time()
             t_epoch = t1 - t0
-            print('\n * Finished epoch {:3d}  top1: {:5.1%}  best: {:5.1%}{}\n'.
-                  format(epoch, top1, best_top1, ' *' if is_best else ''))
+            print('\n * Finished epoch {:3d}  top1: {:5.1%}  best_eval: {:5.1%}  best_test: {:5.1%}{}\n'.
+                  format(epoch, top1_eval, best_top1_eval, best_top1_test, ' *' if is_best else ''))
             print('*************** Epoch takes time: {:^10.2f} *********************\n'.format(t_epoch))
             pass
 
         # Final test
         print('Test with best model:')
-        model, _, _ = checkpoint_loader(model, osp.join(args.logs_dir, 'model_best.pth.tar'))
+        model, _, _, _ = checkpoint_loader(model, osp.join(args.logs_dir, 'model_best.pth.tar'), eval_only=True)
+        model.eval_only()
 
         metric.train(model, train_loader)
         evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)
@@ -252,7 +269,7 @@ if __name__ == '__main__':
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
     parser.add_argument('--evaluate', action='store_true',
                         help="evaluation only")
-    parser.add_argument('--epochs', type=int, default=20)
+    parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--start_save', type=int, default=0,
                         help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)
