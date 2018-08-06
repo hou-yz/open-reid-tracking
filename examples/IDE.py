@@ -29,7 +29,7 @@ if os.name == 'nt':  # windows
 else:  # linux
     num_workers = 8
     batch_size = 64
-    os.environ["CUDA_VISIBLE_DEVICES"] = '4,5'
+    os.environ["CUDA_VISIBLE_DEVICES"] = '2,3'
 
 
 def get_data(name, split_id, data_dir, height, width, batch_size, workers,
@@ -148,18 +148,17 @@ def main(args):
 
     if args.train:
         # no training for bn in base network
-        for p in model.module.base.named_parameters():
-            if p[0][0:2] == '1.' or 'bn' in p[0]:
-                p[1].requires_grad = False
+        # for p in model.module.base.named_parameters():
+        #     if p[0][0:2] == '1.' or 'bn' in p[0]:
+        #         p[1].requires_grad = False
 
         # Optimizer
-        if hasattr(model.module, 'base'):  # low learning_rate the base network (aka. ResNet-50)
+        if hasattr(model.module, 'base'):
             base_param_ids = set(map(id, model.module.base.parameters()))
-            base_param_ids_no_bn = [p[1] for p in model.module.base.named_parameters() if
-                                    (p[0][0:2] != '1.' and 'bn' not in p[0])]
-            new_params = [p for p in model.parameters() if id(p) not in base_param_ids]
+            new_params = [p for p in model.parameters() if
+                          id(p) not in base_param_ids]
             param_groups = [
-                {'params': base_param_ids_no_bn, 'lr_mult': 0.1},
+                {'params': model.module.base.parameters(), 'lr_mult': 0.1},
                 {'params': new_params, 'lr_mult': 1.0}]
         else:
             param_groups = model.parameters()
@@ -177,14 +176,6 @@ def main(args):
             lr = args.lr * (0.1 ** (epoch // step_size))
             for g in optimizer.param_groups:
                 g['lr'] = lr * g.get('lr_mult', 1)
-
-        # def adjust_lr(epoch):
-        #     if epoch < args.epochs - 20:
-        #         lr = args.lr
-        #     else:
-        #         lr = args.lr * 0.1
-        #     for g in optimizer.param_groups:
-        #         g['lr'] = lr * g.get('lr_mult', 1)
 
         # Start training
         for epoch in range(start_epoch, args.epochs):
