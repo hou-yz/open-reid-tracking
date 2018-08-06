@@ -138,7 +138,6 @@ def main(args):
     if args.resume:
         if args.evaluate:
             model, start_epoch, best_top1_eval, best_top1_test = checkpoint_loader(model, args.resume, eval_only=True)
-            model.eval_only()
         else:
             model, start_epoch, best_top1_eval, best_top1_test = checkpoint_loader(model, args.resume)
         print("=> Start epoch {}  best top1_eval {:.1%},  best top1_test {:.1%}"
@@ -231,7 +230,6 @@ def main(args):
         # Final test
         print('Test with best model:')
         model, _, _, _ = checkpoint_loader(model, osp.join(args.logs_dir, 'model_best.pth.tar'), eval_only=True)
-        model.eval_only()
 
         metric.train(model, train_loader)
         evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)

@@ -20,13 +20,12 @@ from reid.utils.data.preprocessor import Preprocessor
 from reid.utils.logging import Logger
 from reid.utils.serialization import load_checkpoint, save_checkpoint
 
-
 if os.name == 'nt':  # windows
     num_workers = 0
     batch_size = 64
     pass
 else:  # linux
-    os.environ["CUDA_VISIBLE_DEVICES"] = '2, 3'
+    os.environ["CUDA_VISIBLE_DEVICES"] = '6,7'
 
 
 def get_data(name, split_id, data_dir, height, width, batch_size, workers,
@@ -88,7 +87,7 @@ def main(args):
     # Create data loaders
     if args.height is None or args.width is None:
         args.height, args.width = (144, 56) if args.arch == 'inception' else \
-                                  (384, 128)
+            (384, 128)
     dataset, num_classes, train_loader, val_loader, test_loader = \
         get_data(args.dataset, args.split, args.data_dir, args.height,
                  args.width, args.batch_size, args.workers,
