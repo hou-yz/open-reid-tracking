@@ -18,7 +18,7 @@ class BaseTrainer(object):
         self.model = model
         self.criterion = criterion
 
-    def train(self, epoch, data_loader, optimizer, print_freq=1):
+    def train(self, epoch, data_loader, optimizer, print_freq=10):
         self.model.train()
 
         # set the bn layers to eval() and don't change weight & bias
