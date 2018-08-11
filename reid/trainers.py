@@ -18,16 +18,17 @@ class BaseTrainer(object):
         self.model = model
         self.criterion = criterion
 
-    def train(self, epoch, data_loader, optimizer, print_freq=10):
+    def train(self, epoch, data_loader, optimizer, fixed_bn=False, print_freq=10):
         self.model.train()
 
-        # set the bn layers to eval() and don't change weight & bias
-        for m in self.model.module.base.modules():
-            if isinstance(m, nn.BatchNorm2d):
-                m.eval()
-                if m.affine:
-                    m.weight.requires_grad = False
-                    m.bias.requires_grad = False
+        if fixed_bn:
+            # set the bn layers to eval() and don't change weight & bias
+            for m in self.model.module.base.modules():
+                if isinstance(m, nn.BatchNorm2d):
+                    m.eval()
+                    if m.affine:
+                        m.weight.requires_grad = False
+                        m.bias.requires_grad = False
 
         batch_time = AverageMeter()
         data_time = AverageMeter()

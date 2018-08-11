@@ -39,9 +39,9 @@ else:  # linux
     keep batchnorm in resnet            check
     random crop                         check
     input size 256*128                  check
-    Resize instead of RectScale         
+    Resize instead of RectScale         check
     RE                                  
-    1024dim feature                     
+    1024dim feature                     check
     
     '''
 
@@ -68,7 +68,7 @@ def get_data(name, split_id, data_dir, height, width, batch_size, workers,
     ])
 
     test_transformer = T.Compose([
-        T.RectScale(height, width),
+        T.Resize((height, width), interpolation=3),
         T.ToTensor(),
         normalizer,
     ])
@@ -164,9 +164,10 @@ def main(args):
     if args.evaluate:
         metric.train(model, train_loader)
         # print("Validation:")
-        # evaluator.evaluate(val_loader, dataset.val, dataset.val, metric)
+        # evaluator.evaluate(val_loader, dataset.val, dataset.val, eval_only=True, output_feature=args.output_feature, metric=metric)
         print("Test:")
-        evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)
+        evaluator.evaluate(test_loader, eval_set_query, dataset.gallery,
+                           metric=metric, eval_only=True, output_feature=args.output_feature)
         return
 
     # Criterion
@@ -202,17 +203,16 @@ def main(args):
         for epoch in range(start_epoch, args.epochs):
             t0 = time.time()
             adjust_lr(epoch)
-            trainer.train(epoch, train_loader, optimizer)
+            trainer.train(epoch, train_loader, optimizer, fixed_bn=True)
             if epoch < args.start_save:
                 continue
 
             print("Validation:")
-            top1_eval = evaluator.evaluate(val_loader, dataset.val, dataset.val)
+            top1_eval = evaluator.evaluate(val_loader, dataset.val, dataset.val,
+                                           metric=metric, eval_only=True, output_feature=args.output_feature)
             # print("Test:")
-            # top1_test = evaluator.evaluate(test_loader, eval_set_query, dataset.gallery)
-
-            # top1 = evaluator.evaluate(test_loader, eval_set_query, dataset.gallery,
-            #                           metric)  # eval on 1501 dataset instead of duke
+            # top1_test = evaluator.evaluate(test_loader, eval_set_query, dataset.gallery,
+            #                                metric=metric, eval_only=True, output_feature=args.output_feature)
 
             is_best = top1_eval >= best_top1
             best_top1 = max(top1_eval, best_top1)
@@ -234,7 +234,8 @@ def main(args):
         model, _, _ = checkpoint_loader(model, osp.join(args.logs_dir, 'model_best.pth.tar'), eval_only=True)
 
         metric.train(model, train_loader)
-        evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)
+        evaluator.evaluate(test_loader, eval_set_query, dataset.gallery,
+                           metric=metric, eval_only=True, output_feature=args.output_feature)
 
 
 if __name__ == '__main__':
@@ -273,7 +274,7 @@ if __name__ == '__main__':
                         help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--print-freq', type=int, default=1)
-    #random erasing
+    # random erasing
     parser.add_argument('--re', type=float, default=0)
     # metric learning
     parser.add_argument('--dist-metric', type=str, default='euclidean',
@@ -284,4 +285,5 @@ if __name__ == '__main__':
                         default=osp.join(working_dir, 'data'))
     parser.add_argument('--logs-dir', type=str, metavar='PATH',
                         default=osp.join(working_dir, 'logs'))
+    parser.add_argument('--output_feature', type=str, default='pool5')
     main(parser.parse_args())

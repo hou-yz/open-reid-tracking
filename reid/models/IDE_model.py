@@ -4,6 +4,7 @@ import torch
 from torch import nn
 from torch.nn import init
 from torch.autograd import Variable
+from torch.nn import functional as F
 from .resnet import *
 import torchvision
 
@@ -14,8 +15,6 @@ class IDE_model(nn.Module):
         # Create IDE_only model
         self.num_features = num_features
         self.num_classes = num_classes
-
-        self.eval = False
 
         # ResNet50: from 3*384*128 -> 2048*12*4 (Tensor T; of column vector f's)
         self.base = nn.Sequential(
@@ -49,13 +48,7 @@ class IDE_model(nn.Module):
 
         pass
 
-    def eval_only(self):
-        self.eval = True
-
-    def train_n_eval(self):
-        self.eval = False
-
-    def forward(self, x):
+    def forward(self, x, eval_only=False, output_feature=None):
         """
         Returns:
           h_s: each member with shape [N, c]
@@ -65,12 +58,17 @@ class IDE_model(nn.Module):
         x = self.base(x)
         x = self.global_avg_pool(x)
 
+        if output_feature == 'pool5':
+            x_s = x.view(x.size[0], -1)
+            x_s = F.normalize(x_s)
+            return x_s, []
+
         if self.dropout:
             x = self.drop_layer(x)
 
         x = self.one_one_conv(x).view(x.size()[0], -1)
         x_s = x.view(x.shape[0], -1)
-        if self.eval:
+        if eval_only:
             return x_s, []
 
         prediction = self.fc(x)
