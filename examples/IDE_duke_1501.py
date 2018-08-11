@@ -40,14 +40,13 @@ else:  # linux
     random crop                         check
     input size 256*128                  check
     RE                                  
-    Resize instead of RectScale         check
     1024dim feature                     
     
     '''
 
 
 def get_data(name, split_id, data_dir, height, width, batch_size, workers,
-             combine_trainval, re=0):
+             combine_trainval):
     root = osp.join(data_dir, name)
 
     dataset = datasets.create(name, root, split_id=split_id)
@@ -64,11 +63,10 @@ def get_data(name, split_id, data_dir, height, width, batch_size, workers,
         T.RandomHorizontalFlip(),
         T.ToTensor(),
         normalizer,
-        T.RandomErasing(EPSILON=re),
     ])
 
     test_transformer = T.Compose([
-        T.Resize((height, width), interpolation=3),
+        T.RectScale(height, width),
         T.ToTensor(),
         normalizer,
     ])
@@ -139,7 +137,7 @@ def main(args):
     dataset, num_classes, train_loader, val_loader, test_loader, eval_set_query = \
         get_data(args.dataset, args.split, args.data_dir, args.height,
                  args.width, batch_size, num_workers,
-                 args.combine_trainval, re=args.re)
+                 args.combine_trainval)
 
     # Create model
     model = models.create('ide', num_features=args.features,
@@ -273,8 +271,6 @@ if __name__ == '__main__':
                         help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--print-freq', type=int, default=1)
-    #random erasing
-    parser.add_argument('--re', type=float, default=0)
     # metric learning
     parser.add_argument('--dist-metric', type=str, default='euclidean',
                         choices=['euclidean', 'kissme'])
