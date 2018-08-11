@@ -27,15 +27,17 @@ if os.name == 'nt':  # windows
     batch_size = 64
     pass
 else:  # linux
-    num_workers = 16
-    batch_size = 384
-    os.environ["CUDA_VISIBLE_DEVICES"] = '0,1,2,3,4,5'
+    num_workers = 8
+    batch_size = 128
+    os.environ["CUDA_VISIBLE_DEVICES"] = '6,7'
 
     '''
     training on Duke GroundTruth        check
     eval on DukeGT                      check, #10 
     no eval set                         
     test on 1501 query set              check
+    keep batchnorm in resnet            check
+    random crop                         check
     '''
 
 
@@ -53,8 +55,7 @@ def get_data(name, split_id, data_dir, height, width, batch_size, workers,
                    else dataset.num_train_ids)
 
     train_transformer = T.Compose([
-        # T.RandomSizedRectCrop(height, width),
-        T.RectScale(height, width),
+        T.RandomSizedRectCrop(height, width),
         T.RandomHorizontalFlip(),
         T.ToTensor(),
         normalizer,
@@ -94,6 +95,12 @@ def get_data(name, split_id, data_dir, height, width, batch_size, workers,
 def checkpoint_loader(model, path, eval_only=False):
     checkpoint = load_checkpoint(path)
     pretrained_dict = checkpoint['state_dict']
+    if isinstance(model, nn.DataParallel):
+        Parallel = 1
+        model = model.module.cpu()
+    else:
+        Parallel = 0
+
     model_dict = model.state_dict()
     # 1. filter out unnecessary keys
     pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
@@ -106,10 +113,12 @@ def checkpoint_loader(model, path, eval_only=False):
     model.load_state_dict(model_dict)
 
     start_epoch = checkpoint['epoch'] + 1
-    best_top1_eval = checkpoint['best_top1_eval']
-    best_top1_test = checkpoint['best_top1_test']
+    best_top1 = checkpoint['best_top1']
 
-    return model, start_epoch, best_top1_eval, best_top1_test
+    if Parallel:
+        model = nn.DataParallel(model).cuda()
+
+    return model, start_epoch, best_top1
 
 
 def main(args):
@@ -118,7 +127,7 @@ def main(args):
     cudnn.benchmark = True
 
     # Redirect print to both console and log file
-    if not args.evaluate:
+    if (not args.evaluate) and args.log:
         sys.stdout = Logger(osp.join(args.logs_dir, 'log.txt'))
 
     # Create data loaders
@@ -134,14 +143,14 @@ def main(args):
                           dropout=args.dropout, num_classes=num_classes)
 
     # Load from checkpoint
-    start_epoch = best_top1_eval = best_top1_test = 0
+    start_epoch = best_top1 = 0
     if args.resume:
         if args.evaluate:
-            model, start_epoch, best_top1_eval, best_top1_test = checkpoint_loader(model, args.resume, eval_only=True)
+            model, start_epoch, best_top1 = checkpoint_loader(model, args.resume, eval_only=True)
         else:
-            model, start_epoch, best_top1_eval, best_top1_test = checkpoint_loader(model, args.resume)
-        print("=> Start epoch {}  best top1_eval {:.1%},  best top1_test {:.1%}"
-              .format(start_epoch, best_top1_eval, best_top1_test))
+            model, start_epoch, best_top1 = checkpoint_loader(model, args.resume)
+        print("=> Start epoch {}  best top1_eval {:.1%}"
+              .format(start_epoch, best_top1))
     model = nn.DataParallel(model).cuda()
 
     # Distance metric
@@ -186,14 +195,6 @@ def main(args):
             for g in optimizer.param_groups:
                 g['lr'] = lr * g.get('lr_mult', 1)
 
-        # def adjust_lr(epoch):
-        #     if epoch < args.epochs - 20:
-        #         lr = args.lr
-        #     else:
-        #         lr = args.lr * 0.1
-        #     for g in optimizer.param_groups:
-        #         g['lr'] = lr * g.get('lr_mult', 1)
-
         # Start training
         for epoch in range(start_epoch, args.epochs):
             t0 = time.time()
@@ -210,26 +211,24 @@ def main(args):
             # top1 = evaluator.evaluate(test_loader, eval_set_query, dataset.gallery,
             #                           metric)  # eval on 1501 dataset instead of duke
 
-            is_best = (top1_eval >= best_top1_eval and top1_test >= best_top1_test)
-            best_top1_eval = max(top1_eval, best_top1_eval)
-            best_top1_test = max(top1_test, best_top1_test)
+            is_best = top1_eval >= best_top1
+            best_top1 = max(top1_eval, best_top1)
             save_checkpoint({
                 'state_dict': model.module.state_dict(),
                 'epoch': epoch + 1,
-                'best_top1_eval': best_top1_eval,
-                'best_top1_test': best_top1_test,
+                'best_top1': best_top1,
             }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
 
             t1 = time.time()
             t_epoch = t1 - t0
-            print('\n * Finished epoch {:3d}  top1: {:5.1%}  best_eval: {:5.1%}  best_test: {:5.1%}{}\n'.
-                  format(epoch, top1_eval, best_top1_eval, best_top1_test, ' *' if is_best else ''))
+            print('\n * Finished epoch {:3d}  top1_eval: {:5.1%}  best_eval: {:5.1%} \n'.
+                  format(epoch, top1_eval, best_top1, ' *' if is_best else ''))
             print('*************** Epoch takes time: {:^10.2f} *********************\n'.format(t_epoch))
             pass
 
         # Final test
         print('Test with best model:')
-        model, _, _, _ = checkpoint_loader(model, osp.join(args.logs_dir, 'model_best.pth.tar'), eval_only=True)
+        model, _, _= checkpoint_loader(model, osp.join(args.logs_dir, 'model_best.pth.tar'), eval_only=True)
 
         metric.train(model, train_loader)
         evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)
@@ -237,6 +236,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Softmax loss classification")
+    parser.add_argument('--log', type=int, default=1)
     # data
     parser.add_argument('-d', '--dataset', type=str, default='market1501',
                         choices=datasets.names())

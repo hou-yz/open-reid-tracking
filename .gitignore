@@ -233,3 +233,4 @@ IDE_sigma.pt
 *.bak
 reid/models/PCB_model - Copy.py
 ~$pcb_rpp_result.xlsx
+*.h5
