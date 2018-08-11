@@ -29,7 +29,7 @@ if os.name == 'nt':  # windows
 else:  # linux
     num_workers = 8
     batch_size = 128
-    os.environ["CUDA_VISIBLE_DEVICES"] = '6,7'
+    os.environ["CUDA_VISIBLE_DEVICES"] = '4,5'
 
     '''
     training on Duke GroundTruth        
@@ -39,6 +39,7 @@ else:  # linux
     keep batchnorm in resnet            check
     random crop                         check
     input size 256*128                  check
+    Resize instead of RectScale         check
     RE                                  
     1024dim feature                     
     
@@ -46,7 +47,7 @@ else:  # linux
 
 
 def get_data(name, split_id, data_dir, height, width, batch_size, workers,
-             combine_trainval):
+             combine_trainval, re=0):
     root = osp.join(data_dir, name)
 
     dataset = datasets.create(name, root, split_id=split_id)
@@ -63,10 +64,11 @@ def get_data(name, split_id, data_dir, height, width, batch_size, workers,
         T.RandomHorizontalFlip(),
         T.ToTensor(),
         normalizer,
+        T.RandomErasing(EPSILON=re),
     ])
 
     test_transformer = T.Compose([
-        T.RectScale(height, width),
+        T.Resize((height, width), interpolation=3),
         T.ToTensor(),
         normalizer,
     ])
@@ -137,7 +139,7 @@ def main(args):
     dataset, num_classes, train_loader, val_loader, test_loader, eval_set_query = \
         get_data(args.dataset, args.split, args.data_dir, args.height,
                  args.width, batch_size, num_workers,
-                 args.combine_trainval)
+                 args.combine_trainval, args.re)
 
     # Create model
     model = models.create('ide', num_features=args.features,
@@ -271,6 +273,8 @@ if __name__ == '__main__':
                         help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--print-freq', type=int, default=1)
+    #random erasing
+    parser.add_argument('--re', type=float, default=0)
     # metric learning
     parser.add_argument('--dist-metric', type=str, default='euclidean',
                         choices=['euclidean', 'kissme'])
