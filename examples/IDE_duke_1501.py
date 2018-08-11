@@ -29,7 +29,7 @@ if os.name == 'nt':  # windows
 else:  # linux
     num_workers = 8
     batch_size = 128
-    os.environ["CUDA_VISIBLE_DEVICES"] = '2,3'
+    # os.environ["CUDA_VISIBLE_DEVICES"] = '2,3'
 
     '''
     training on Duke GroundTruth        
@@ -39,7 +39,7 @@ else:  # linux
     keep batchnorm in resnet            check
     random crop                         check
     input size 256*128                  check
-    Resize instead of RectScale         check
+    Resize instead of RectScale         
     RE                                  
     1024dim feature                     
     
@@ -68,7 +68,7 @@ def get_data(name, split_id, data_dir, height, width, batch_size, workers,
     ])
 
     test_transformer = T.Compose([
-        T.Resize((height, width), interpolation=3),
+        T.RectScale(height, width),
         T.ToTensor(),
         normalizer,
     ])
@@ -163,8 +163,8 @@ def main(args):
     evaluator = Evaluator(model)
     if args.evaluate:
         metric.train(model, train_loader)
-        print("Validation:")
-        evaluator.evaluate(val_loader, dataset.val, dataset.val, metric)
+        # print("Validation:")
+        # evaluator.evaluate(val_loader, dataset.val, dataset.val, metric)
         print("Test:")
         evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)
         return
