@@ -29,7 +29,7 @@ if os.name == 'nt':  # windows
 else:  # linux
     num_workers = 8
     batch_size = 128
-    os.environ["CUDA_VISIBLE_DEVICES"] = '4,5'
+    os.environ["CUDA_VISIBLE_DEVICES"] = '2,3'
 
     '''
     training on Duke GroundTruth        
@@ -254,7 +254,7 @@ if __name__ == '__main__':
     # model
     parser.add_argument('-a', '--arch', type=str, default='resnet50',
                         choices=models.names())
-    parser.add_argument('--features', type=int, default=256)
+    parser.add_argument('--features', type=int, default=1024)
     parser.add_argument('--dropout', type=float, default=0.5)
     # optimizer
     parser.add_argument('--lr', type=float, default=0.1,
