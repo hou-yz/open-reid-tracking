@@ -32,12 +32,16 @@ else:  # linux
     os.environ["CUDA_VISIBLE_DEVICES"] = '6,7'
 
     '''
-    training on Duke GroundTruth        check
-    eval on DukeGT                      check, #10 
+    training on Duke GroundTruth        
+    eval on DukeGT                      
     no eval set                         
-    test on 1501 query set              check
+    test on 1501 query set              
     keep batchnorm in resnet            check
     random crop                         check
+    input size 256*128                  check
+    RE                                  
+    1024dim feature                     
+    
     '''
 
 
@@ -125,21 +129,18 @@ def main(args):
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     cudnn.benchmark = True
-
     # Redirect print to both console and log file
     if (not args.evaluate) and args.log:
         sys.stdout = Logger(osp.join(args.logs_dir, 'log.txt'))
 
     # Create data loaders
-    if args.height is None or args.width is None:
-        args.height, args.width = (384, 128)
     dataset, num_classes, train_loader, val_loader, test_loader, eval_set_query = \
         get_data(args.dataset, args.split, args.data_dir, args.height,
                  args.width, batch_size, num_workers,
                  args.combine_trainval)
 
     # Create model
-    model = models.create('ide', num_features=256,
+    model = models.create('ide', num_features=args.features,
                           dropout=args.dropout, num_classes=num_classes)
 
     # Load from checkpoint
@@ -190,7 +191,7 @@ def main(args):
 
         # Schedule learning rate
         def adjust_lr(epoch):
-            step_size = int(args.epochs / 2)
+            step_size = 40
             lr = args.lr * (0.1 ** (epoch // step_size))
             for g in optimizer.param_groups:
                 g['lr'] = lr * g.get('lr_mult', 1)
@@ -205,8 +206,8 @@ def main(args):
 
             print("Validation:")
             top1_eval = evaluator.evaluate(val_loader, dataset.val, dataset.val)
-            print("Test:")
-            top1_test = evaluator.evaluate(test_loader, eval_set_query, dataset.gallery)
+            # print("Test:")
+            # top1_test = evaluator.evaluate(test_loader, eval_set_query, dataset.gallery)
 
             # top1 = evaluator.evaluate(test_loader, eval_set_query, dataset.gallery,
             #                           metric)  # eval on 1501 dataset instead of duke
@@ -228,7 +229,7 @@ def main(args):
 
         # Final test
         print('Test with best model:')
-        model, _, _= checkpoint_loader(model, osp.join(args.logs_dir, 'model_best.pth.tar'), eval_only=True)
+        model, _, _ = checkpoint_loader(model, osp.join(args.logs_dir, 'model_best.pth.tar'), eval_only=True)
 
         metric.train(model, train_loader)
         evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)
@@ -241,19 +242,17 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--dataset', type=str, default='market1501',
                         choices=datasets.names())
     parser.add_argument('--split', type=int, default=0)
-    parser.add_argument('--height', type=int,
-                        help="input height, default: 256 for resnet*, "
-                             "144 for inception")
-    parser.add_argument('--width', type=int,
-                        help="input width, default: 128 for resnet*, "
-                             "56 for inception")
+    parser.add_argument('--height', type=int, default=256,
+                        help="input height, default: 256 for resnet*")
+    parser.add_argument('--width', type=int, default=128,
+                        help="input width, default: 128 for resnet*")
     parser.add_argument('--combine-trainval', action='store_true',
                         help="train and val sets together for training, "
                              "val set alone for validation")
     # model
     parser.add_argument('-a', '--arch', type=str, default='resnet50',
                         choices=models.names())
-    # parser.add_argument('--features', type=int, default=128)
+    parser.add_argument('--features', type=int, default=256)
     parser.add_argument('--dropout', type=float, default=0.5)
     # optimizer
     parser.add_argument('--lr', type=float, default=0.1,
