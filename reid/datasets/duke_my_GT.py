@@ -6,10 +6,10 @@ from ..utils.osutils import mkdir_if_missing
 from ..utils.serialization import write_json
 
 
-class DukeTo1501(Dataset):
+class DukeMyGT(Dataset):
 
     def __init__(self, root, split_id=0, num_val=10, download=True):
-        super(DukeTo1501, self).__init__(root, split_id=split_id)
+        super(DukeMyGT, self).__init__(root, split_id=split_id)
 
         if download:
             self.download()

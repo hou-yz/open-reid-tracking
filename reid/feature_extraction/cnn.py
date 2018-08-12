@@ -9,7 +9,7 @@ from torch.autograd import Variable
 from ..utils import to_torch
 
 
-def extract_cnn_feature(model, inputs, eval_only, output_feature, modules=None):
+def extract_cnn_feature(model, inputs, eval_only=True, output_feature=None, modules=None):
     model.eval()
     inputs = to_torch(inputs)
     inputs = Variable(inputs, volatile=True)

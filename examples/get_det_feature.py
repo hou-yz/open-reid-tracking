@@ -29,9 +29,9 @@ if os.name == 'nt':  # windows
     batch_size = 64
     pass
 else:  # linux
-    num_workers = 24
-    batch_size = 768
-    os.environ["CUDA_VISIBLE_DEVICES"] = '0,1,2,3,4,5'
+    num_workers = 16
+    batch_size = 512
+    os.environ["CUDA_VISIBLE_DEVICES"] = '0,1,6,7'
 
 
 def checkpoint_loader(model, path, eval_only=False):
@@ -74,7 +74,7 @@ def extract_features(model, data_loader, print_freq=10):
     for i, (imgs, fnames) in enumerate(data_loader):
         data_time.update(time.time() - end)
 
-        outputs = extract_cnn_feature(model, imgs)
+        outputs = extract_cnn_feature(model, imgs,eval_only=True,output_feature=None)
         for fname, output in zip(fnames, outputs):
             cam, frame = int(fname[1]), int(fname[4:10])
             # f_names[cam - 1].append(fname)
@@ -105,14 +105,15 @@ def main(args):
 
     # Create data loaders
     if args.height is None or args.width is None:
-        args.height, args.width = (384, 128)
+        args.height, args.width = (256, 128)
 
     dataset_dir = osp.join(args.data_dir, 'det_dataset_openpose')
     dataset = DetDuke(dataset_dir)
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],
                              std=[0.229, 0.224, 0.225])
     test_transformer = T.Compose([
-        T.RectScale(384, 128),
+        # T.RectScale(256, 128),
+        T.Resize((256, 128), interpolation=3),
         T.ToTensor(),
         normalizer,
     ])
