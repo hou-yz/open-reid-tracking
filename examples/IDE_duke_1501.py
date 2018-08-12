@@ -33,7 +33,7 @@ else:  # linux
     eval on DukeGT                      
     no eval set                         
     test on 1501 query set              
-    fix bn in resnet                    
+    fix bn in resnet                    check
     random crop                         check
     input size 256*128                  check
     Resize instead of RectScale         check
@@ -84,20 +84,19 @@ def get_data(name, split_id, data_dir, height, width, batch_size, workers,
         batch_size=batch_size, num_workers=workers,
         shuffle=False, pin_memory=True)
 
-    # slimmer & faster query
-    indices_eval_query = random.sample(range(len(dataset.query)), int(len(dataset.query) / 5))
-    eval_set_query = list(dataset.query[i] for i in indices_eval_query)
-
-    test_loader = DataLoader(
-        Preprocessor(list(set(eval_set_query) | set(dataset.gallery)),
-                     root=dataset.images_dir, transform=test_transformer),
+    query_loader = DataLoader(
+        Preprocessor(dataset.query,root=dataset.images_dir, transform=test_transformer),
         batch_size=batch_size, num_workers=workers,
         shuffle=False, pin_memory=True)
 
-    return dataset, num_classes, train_loader, val_loader, test_loader, eval_set_query,
+    gallery_loader = DataLoader(
+        Preprocessor(dataset.gallery,root=dataset.images_dir, transform=test_transformer),
+        batch_size=batch_size, num_workers=workers,
+        shuffle=False, pin_memory=True)
+    return dataset, num_classes, train_loader, val_loader, query_loader, gallery_loader,
 
 
-def checkpoint_loader(model, path, eval_only=False):
+def checkpoint_loader(model, path, eval_only=True):
     checkpoint = load_checkpoint(path)
     pretrained_dict = checkpoint['state_dict']
     if isinstance(model, nn.DataParallel):
@@ -135,7 +134,7 @@ def main(args):
         sys.stdout = Logger(osp.join(args.logs_dir, 'log.txt'))
 
     # Create data loaders
-    dataset, num_classes, train_loader, val_loader, test_loader, eval_set_query = \
+    dataset, num_classes, train_loader, val_loader, query_loader, gallery_loader = \
         get_data(args.dataset, args.split, args.data_dir, args.height,
                  args.width, args.batch_size, num_workers,
                  args.combine_trainval, args.re)
@@ -165,7 +164,7 @@ def main(args):
         # print("Validation:")
         # evaluator.evaluate(val_loader, dataset.val, dataset.val, eval_only=True, output_feature=args.output_feature, metric=metric)
         print("Test:")
-        evaluator.evaluate(test_loader, eval_set_query, dataset.gallery,
+        evaluator.evaluate(query_loader, gallery_loader, dataset.query, dataset.gallery,
                            metric=metric, eval_only=True, output_feature=args.output_feature)
         return
 
@@ -207,10 +206,10 @@ def main(args):
                 continue
 
             print("Validation:")
-            top1_eval = evaluator.evaluate(val_loader, dataset.val, dataset.val,
+            top1_eval = evaluator.evaluate(query_loader, gallery_loader, dataset.query, dataset.gallery,
                                            metric=metric, eval_only=True, output_feature=args.output_feature)
             # print("Test:")
-            # top1_test = evaluator.evaluate(test_loader, eval_set_query, dataset.gallery,
+            # top1_test = evaluator.evaluate(query_loader, gallery_loader, dataset.query, dataset.gallery,
             #                                metric=metric, eval_only=True, output_feature=args.output_feature)
 
             is_best = top1_eval >= best_top1
@@ -233,7 +232,7 @@ def main(args):
         model, _, _ = checkpoint_loader(model, osp.join(args.logs_dir, 'model_best.pth.tar'), eval_only=True)
 
         metric.train(model, train_loader)
-        evaluator.evaluate(test_loader, eval_set_query, dataset.gallery,
+        evaluator.evaluate(query_loader, gallery_loader, dataset.query, dataset.gallery,
                            metric=metric, eval_only=True, output_feature=args.output_feature)
 
 
