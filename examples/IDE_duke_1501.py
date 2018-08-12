@@ -24,12 +24,9 @@ from reid.utils.serialization import load_checkpoint, save_checkpoint
 
 if os.name == 'nt':  # windows
     num_workers = 0
-    batch_size = 64
     pass
 else:  # linux
     num_workers = 8
-    batch_size = 128
-    # os.environ["CUDA_VISIBLE_DEVICES"] = '2,3'
 
     '''
     training on Duke GroundTruth        
@@ -42,7 +39,7 @@ else:  # linux
     Resize instead of RectScale         check
     RE                                  
     1024dim feature                     check
-    
+    dataloader from zzd                 check
     '''
 
 
@@ -60,7 +57,9 @@ def get_data(name, split_id, data_dir, height, width, batch_size, workers,
                    else dataset.num_train_ids)
 
     train_transformer = T.Compose([
-        T.RandomSizedRectCrop(height, width),
+        # T.RandomSizedRectCrop(height, width),
+        T.Resize((288, 144), interpolation=3),
+        T.RandomCrop((256, 128)),
         T.RandomHorizontalFlip(),
         T.ToTensor(),
         normalizer,
@@ -138,7 +137,7 @@ def main(args):
     # Create data loaders
     dataset, num_classes, train_loader, val_loader, test_loader, eval_set_query = \
         get_data(args.dataset, args.split, args.data_dir, args.height,
-                 args.width, batch_size, num_workers,
+                 args.width, args.batch_size, num_workers,
                  args.combine_trainval, args.re)
 
     # Create model
@@ -244,6 +243,7 @@ if __name__ == '__main__':
     # data
     parser.add_argument('-d', '--dataset', type=str, default='market1501',
                         choices=datasets.names())
+    parser.add_argument('-b', '--batch-size', type=int, default=128, help="batch size")
     parser.add_argument('--split', type=int, default=0)
     parser.add_argument('--height', type=int, default=256,
                         help="input height, default: 256 for resnet*")
