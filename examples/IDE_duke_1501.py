@@ -33,7 +33,7 @@ else:  # linux
     eval on DukeGT                      
     no eval set                         
     test on 1501 query set              
-    keep batchnorm in resnet            check
+    fix bn in resnet                    
     random crop                         check
     input size 256*128                  check
     Resize instead of RectScale         check
@@ -202,7 +202,7 @@ def main(args):
         for epoch in range(start_epoch, args.epochs):
             t0 = time.time()
             adjust_lr(epoch)
-            trainer.train(epoch, train_loader, optimizer, fixed_bn=True)
+            trainer.train(epoch, train_loader, optimizer, fixed_bn=False)
             if epoch < args.start_save:
                 continue
 
