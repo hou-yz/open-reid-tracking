@@ -95,7 +95,7 @@ def checkpoint_loader(model, path):
     # 3. load the new state dict
     model.load_state_dict(model_dict)
 
-    start_epoch = checkpoint['epoch'] + 1
+    start_epoch = checkpoint['epoch']
     best_top1 = checkpoint['best_top1']
 
     return model, start_epoch, best_top1

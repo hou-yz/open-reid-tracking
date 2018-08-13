@@ -29,9 +29,9 @@ if os.name == 'nt':  # windows
     batch_size = 64
     pass
 else:  # linux
-    num_workers = 16
-    batch_size = 512
-    os.environ["CUDA_VISIBLE_DEVICES"] = '0,1,6,7'
+    num_workers = 8
+    batch_size = 256
+    os.environ["CUDA_VISIBLE_DEVICES"] = '6,7'
 
 
 def checkpoint_loader(model, path, eval_only=False):
@@ -74,7 +74,7 @@ def extract_features(model, data_loader, print_freq=10):
     for i, (imgs, fnames) in enumerate(data_loader):
         data_time.update(time.time() - end)
 
-        outputs = extract_cnn_feature(model, imgs,eval_only=True,output_feature=None)
+        outputs = extract_cnn_feature(model, imgs, eval_only=True, output_feature=None)
         for fname, output in zip(fnames, outputs):
             cam, frame = int(fname[1]), int(fname[4:10])
             # f_names[cam - 1].append(fname)
@@ -123,7 +123,7 @@ def main(args):
         batch_size=batch_size, num_workers=num_workers,
         shuffle=False, pin_memory=True)
     # Create model
-    model = models.create('ide', num_features=256,
+    model = models.create('ide', num_features=args.features,
                           dropout=args.dropout, num_classes=1)
     # Load from checkpoint
     model, start_epoch = checkpoint_loader(model, args.resume, eval_only=True)
@@ -169,7 +169,7 @@ if __name__ == '__main__':
                              "56 for inception")
     # model
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
-    # parser.add_argument('--features', type=int, default=128)
+    parser.add_argument('--features', type=int, default=1024)
     parser.add_argument('--dropout', type=float, default=0.5)
     # misc
     parser.add_argument('--seed', type=int, default=1)

@@ -111,7 +111,7 @@ def checkpoint_loader(model, path, eval_only=False):
     # 3. load the new state dict
     model.load_state_dict(model_dict)
 
-    start_epoch = checkpoint['epoch'] + 1
+    start_epoch = checkpoint['epoch']
     best_top1 = checkpoint['best_top1']
 
     if Parallel:
@@ -187,7 +187,10 @@ def main(args):
 
         # Schedule learning rate
         def adjust_lr(epoch):
-            step_size = 40
+            if args.epochs == 60:
+                step_size = 40
+            else:
+                step_size = args.epochs / 2
             lr = args.lr * (0.1 ** (epoch // step_size))
             for g in optimizer.param_groups:
                 g['lr'] = lr * g.get('lr_mult', 1)
