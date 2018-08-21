@@ -40,7 +40,7 @@ class IDE_model(nn.Module):
         init.constant(self.one_one_conv[1].weight, 1)
         init.constant(self.one_one_conv[1].bias, 0)
 
-        # fc + softmax:
+        # fc for softmax:
         if self.num_classes > 0:
             self.fc = nn.Linear(self.num_features, self.num_classes)
             init.normal(self.fc.weight, std=0.001)
@@ -71,8 +71,10 @@ class IDE_model(nn.Module):
         if eval_only:
             return x_s, []
 
-        prediction = self.fc(x)
         prediction_s = []
-        prediction_s.append(prediction)
+        # fc for softmax:
+        if self.num_classes > 0:
+            prediction = self.fc(x)
+            prediction_s.append(prediction)
 
         return x_s, prediction_s

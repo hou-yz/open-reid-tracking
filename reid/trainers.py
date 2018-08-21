@@ -80,35 +80,35 @@ class Trainer(BaseTrainer):
 
     def _forward(self, inputs, targets):
         outputs = self.model(*inputs)
-        if isinstance(self.model.module, PCB_model) or isinstance(self.model.module, IDE_model):
-            h_s = outputs[0]
-            prediction_s = outputs[1]
-            loss = 0
-            for pred in prediction_s:
-                loss += self.criterion(pred, targets)
-            if isinstance(self.model.module, PCB_model):
-                prediction = prediction_s[2]
+        if isinstance(self.criterion, torch.nn.CrossEntropyLoss):
+            if isinstance(self.model.module, PCB_model) or isinstance(self.model.module, IDE_model):
+                x_s = outputs[0]
+                prediction_s = outputs[1]
+                loss = 0
+                for pred in prediction_s:
+                    loss += self.criterion(pred, targets)
+                if isinstance(self.model.module, PCB_model):
+                    prediction = prediction_s[2]
+                else:
+                    prediction = prediction_s[0]
+                # use the sum of 6 id-predictions as the input for accuracy(_, _)
+                # prediction_sum = Variable(
+                #     torch.from_numpy(np.sum(prediction_s[i].cpu().data.numpy() for i in range(len(prediction_s)))).cuda())
+                prec, = accuracy(prediction.data, targets.data)
             else:
-                prediction = prediction_s[0]
-            # use the sum of 6 id-predictions as the input for accuracy(_, _)
-            # prediction_sum = Variable(
-            #     torch.from_numpy(np.sum(prediction_s[i].cpu().data.numpy() for i in range(len(prediction_s)))).cuda())
-            prec, = accuracy(prediction.data, targets.data)
-            prec = prec[0]
-            pass
-
-        else:
-            if isinstance(self.criterion, torch.nn.CrossEntropyLoss):
                 loss = self.criterion(outputs, targets)
                 prec, = accuracy(outputs.data, targets.data)
-                prec = prec[0]
-                pass
-            elif isinstance(self.criterion, OIMLoss):
-                loss, outputs = self.criterion(outputs, targets)
-                prec, = accuracy(outputs.data, targets.data)
-                prec = prec[0]
-            elif isinstance(self.criterion, TripletLoss):
-                loss, prec = self.criterion(outputs, targets)
-            else:
-                raise ValueError("Unsupported loss:", self.criterion)
+            prec = prec[0]
+            pass
+        elif isinstance(self.criterion, OIMLoss):
+            loss, outputs = self.criterion(outputs, targets)
+            prec, = accuracy(outputs.data, targets.data)
+            prec = prec[0]
+        elif isinstance(self.criterion, TripletLoss):
+            if isinstance(self.model.module, PCB_model) or isinstance(self.model.module, IDE_model):
+                outputs = outputs[0]  # = x_s
+
+            loss, prec = self.criterion(outputs, targets)
+        else:
+            raise ValueError("Unsupported loss:", self.criterion)
         return loss, prec
