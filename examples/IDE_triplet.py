@@ -163,15 +163,6 @@ def main(args):
 
     if args.train:
         # Optimizer
-        if hasattr(model.module, 'base'):  # low learning_rate the base network (aka. ResNet-50)
-            base_param_ids = set(map(id, model.module.base.parameters()))
-            new_params = [p for p in model.parameters() if
-                          id(p) not in base_param_ids]
-            param_groups = [
-                {'params': model.module.base.parameters(), 'lr_mult': 0.1},
-                {'params': new_params, 'lr_mult': 1.0}]
-        else:
-            param_groups = model.parameters()
         optimizer = torch.optim.Adam(model.parameters(), lr=args.lr,
                                      weight_decay=args.weight_decay)
 
@@ -249,8 +240,8 @@ if __name__ == '__main__':
     # model
     parser.add_argument('-a', '--arch', type=str, default='resnet50',
                         choices=models.names())
-    parser.add_argument('--features', type=int, default=1024)
-    parser.add_argument('--dropout', type=float, default=0.5)
+    parser.add_argument('--features', type=int, default=None)
+    parser.add_argument('--dropout', type=float, default=0)
     # loss
     parser.add_argument('--margin', type=float, default=0.5,
                         help="margin of the triplet loss, default: 0.5")
