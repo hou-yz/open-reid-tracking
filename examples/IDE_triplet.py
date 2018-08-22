@@ -96,7 +96,7 @@ def checkpoint_loader(model, path, eval_only=False):
     model_dict = model.state_dict()
     # 1. filter out unnecessary keys
     pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
-    if eval_only and 'fc.weight' in pretrained_dict:
+    if eval_only:
         del pretrained_dict['fc.weight']
         del pretrained_dict['fc.bias']
     # 2. overwrite entries in the existing state dict
@@ -171,38 +171,16 @@ def main(args):
 
         # Schedule learning rate
         def adjust_lr(epoch):
-            """
-            Decay exponentially in the later phase of training. All parameters in the
-            optimizer share the same learning rate.
-
-            Args:
-                optimizer: a pytorch `Optimizer` object
-                base_lr: starting learning rate
-                ep: current epoch, ep >= 1
-                total_ep: total number of epochs to train
-                start_decay_at_ep: start decaying at the BEGINNING of this epoch
-
-            Example:
-                base_lr = 2e-4
-                total_ep = 300
-                start_decay_at_ep = 201
-                It means the learning rate starts at 2e-4 and begins decaying after 200
-                epochs. And training stops after 300 epochs.
-
-            NOTE:
-                It is meant to be called at the BEGINNING of an epoch.
-            """
-            if epoch < args.start_decay_at_ep:
-                return
+            lr = args.lr if epoch <= 100 else \
+                args.lr * (0.001 ** ((epoch - 100) / 50.0))
             for g in optimizer.param_groups:
-                g['lr'] = (args.lr * (0.001 ** (float(epoch + 1 - args.start_decay_at_ep)
-                                                / (args.epochs + 1 - args.start_decay_at_ep))))
-            print('=====> lr adjusted to {:.10f}'.format(g['lr']).rstrip('0'))
+                g['lr'] = lr * g.get('lr_mult', 1)
 
         # Start training
         for epoch in range(start_epoch, args.epochs):
+            t0 = time.time()
             adjust_lr(epoch)
-            trainer.train(epoch, train_loader, optimizer)
+            trainer.train(epoch, train_loader, optimizer, fixed_bn=True)
             if epoch < args.start_save:
                 continue
 
@@ -224,6 +202,9 @@ def main(args):
                 print('\n * Finished epoch {:3d}  top1_eval: {:5.1%}  best_eval: {:5.1%} \n'.
                       format(epoch, top1_eval, best_top1, ' *' if is_best else ''))
 
+            t1 = time.time()
+            t_epoch = t1 - t0
+            print('*************** Epoch takes time: {:^10.2f} *********************\n'.format(t_epoch))
             pass
 
         # Final test
@@ -262,8 +243,8 @@ if __name__ == '__main__':
     parser.add_argument('--features', type=int, default=None)
     parser.add_argument('--dropout', type=float, default=0)
     # loss
-    parser.add_argument('--margin', type=float, default=0.3,
-                        help="margin of the triplet loss, default: 0.3")
+    parser.add_argument('--margin', type=float, default=0.5,
+                        help="margin of the triplet loss, default: 0.5")
     # optimizer
     parser.add_argument('--lr', type=float, default=0.0002,
                         help="learning rate of new parameters, for pretrained "
@@ -275,12 +256,11 @@ if __name__ == '__main__':
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
     parser.add_argument('--evaluate', action='store_true',
                         help="evaluation only")
-    parser.add_argument('--epochs', type=int, default=300)
-    parser.add_argument('--start_decay_at_ep', type=int, default=150)
+    parser.add_argument('--epochs', type=int, default=150)
     parser.add_argument('--start_save', type=int, default=0,
                         help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)
-    parser.add_argument('--print-freq', type=int, default=10)
+    parser.add_argument('--print-freq', type=int, default=1)
     # random erasing
     parser.add_argument('--re', type=float, default=0)
     # metric learning
@@ -292,5 +272,5 @@ if __name__ == '__main__':
                         default=osp.join(working_dir, 'data'))
     parser.add_argument('--logs-dir', type=str, metavar='PATH',
                         default=osp.join(working_dir, 'logs'))
-    parser.add_argument('--output_feature', type=str, default=None)
+    parser.add_argument('--output_feature', type=str, default='pool5')
     main(parser.parse_args())
