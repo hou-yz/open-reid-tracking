@@ -61,9 +61,9 @@ class BaseTrainer(object):
                 dist_ap_meter.update(d_ap)
                 dist_an_meter.update(d_an)
                 loss_meter.update(loss)
-                tri_log = ('prec {:.2%}, sm {:.2%}, d_ap {:.4f}, d_an {:.4f}, loss {:.4f}'.format(
-                    prec_meter.val, sm_meter.val, dist_ap_meter.val, dist_an_meter.val, loss_meter.val, ))
-                print(tri_log)
+                # tri_log = ('prec {:.2%}, sm {:.2%}, d_ap {:.4f}, d_an {:.4f}, loss {:.4f}'.format(
+                #     prec_meter.val, sm_meter.val, dist_ap_meter.val, dist_an_meter.val, loss_meter.val, ))
+                # print(tri_log)
             else:
                 loss, prec1 = self._forward(inputs, targets)
 

@@ -5,6 +5,7 @@ import os
 
 import numpy as np
 import time
+import datetime
 import random
 import sys
 import torch
@@ -126,7 +127,8 @@ def main(args):
     cudnn.benchmark = True
     # Redirect print to both console and log file
     if (not args.evaluate) and args.log:
-        sys.stdout = Logger(osp.join(args.logs_dir, 'log.txt'))
+        sys.stdout = Logger(
+            osp.join(args.logs_dir, 'log_{}.txt'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H:%M:%S'))))
 
     # Create data loaders
     dataset, num_classes, train_loader, val_loader, test_loader, eval_set_query = \

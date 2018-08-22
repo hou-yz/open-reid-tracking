@@ -5,6 +5,7 @@ import os
 
 import numpy as np
 import time
+import datetime
 import random
 import sys
 import torch
@@ -35,7 +36,7 @@ def get_data(name, split_id, data_dir, height, width, batch_size, num_instances,
 
     dataset = datasets.create(name, root, split_id=split_id)
 
-    normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],
+    normalizer = T.Normalize(mean=[0.486, 0.459, 0.408],
                              std=[0.229, 0.224, 0.225])
 
     train_set = dataset.trainval if combine_trainval else dataset.train
@@ -43,9 +44,9 @@ def get_data(name, split_id, data_dir, height, width, batch_size, num_instances,
                    else dataset.num_train_ids)
 
     train_transformer = T.Compose([
-        # T.RandomSizedRectCrop(height, width),
-        T.Resize((288, 144), interpolation=3),
-        T.RandomCrop((256, 128)),
+        # T.Resize((288, 144), interpolation=3),
+        # T.RandomCrop((256, 128)),
+        T.Resize((height, width), interpolation=3),
         T.RandomHorizontalFlip(),
         T.ToTensor(),
         normalizer,
@@ -119,7 +120,8 @@ def main(args):
     cudnn.benchmark = True
     # Redirect print to both console and log file
     if (not args.evaluate) and args.log:
-        sys.stdout = Logger(osp.join(args.logs_dir, 'log.txt'))
+        sys.stdout = Logger(
+            osp.join(args.logs_dir, 'log_{}.txt'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H:%M:%S'))))
 
     # Create data loaders
     assert args.num_instances > 1, "num_instances should be greater than 1"
