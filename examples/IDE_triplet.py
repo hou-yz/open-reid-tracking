@@ -133,7 +133,7 @@ def main(args):
 
     # Create model for triplet (num_classes = 0)
     model = models.create('ide', num_features=args.features,
-                          dropout=args.dropout, num_classes=0)
+                          dropout=args.dropout, num_classes=0, last_stride=args.last_stride)
 
     # Load from checkpoint
     start_epoch = best_top1 = 0
@@ -204,7 +204,7 @@ def main(args):
         # Start training
         for epoch in range(start_epoch, args.epochs):
             adjust_lr(epoch)
-            trainer.train(epoch, train_loader, optimizer)
+            trainer.train(epoch, train_loader, optimizer, args.fix_bn)
             if epoch < args.start_save:
                 continue
 
@@ -261,8 +261,10 @@ if __name__ == '__main__':
     # model
     parser.add_argument('-a', '--arch', type=str, default='resnet50',
                         choices=models.names())
-    parser.add_argument('--features', type=int, default=None)
+    parser.add_argument('--features', type=int, default=0)
     parser.add_argument('--dropout', type=float, default=0)
+    parser.add_argument('-s', '--last_stride', type=int, default=2,
+                        choices=[1, 2])
     # loss
     parser.add_argument('--margin', type=float, default=0.3,
                         help="margin of the triplet loss, default: 0.3")
@@ -283,6 +285,7 @@ if __name__ == '__main__':
                         help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--print-freq', type=int, default=10)
+    parser.add_argument('--fix_bn', action='store_true')
     # random erasing
     parser.add_argument('--re', type=float, default=0)
     # metric learning

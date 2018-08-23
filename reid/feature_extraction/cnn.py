@@ -12,7 +12,7 @@ from ..utils import to_torch
 def extract_cnn_feature(model, inputs, eval_only=True, output_feature=None, modules=None):
     model.eval()
     inputs = to_torch(inputs)
-    inputs = Variable(inputs, volatile=True)
+    inputs = Variable(inputs, requires_grad=False)
     if modules is None:
         if isinstance(model, IDE_model):
             outputs = model(inputs, eval_only, output_feature)

@@ -31,7 +31,6 @@ if os.name == 'nt':  # windows
 else:  # linux
     num_workers = 8
     batch_size = 256
-    os.environ["CUDA_VISIBLE_DEVICES"] = '6,7'
 
 
 def checkpoint_loader(model, path, eval_only=False):
@@ -45,7 +44,7 @@ def checkpoint_loader(model, path, eval_only=False):
     model_dict = model.state_dict()
     # 1. filter out unnecessary keys
     pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
-    if eval_only:
+    if eval_only and 'fc.weight' in pretrained_dict:
         del pretrained_dict['fc.weight']
         del pretrained_dict['fc.bias']
     # 2. overwrite entries in the existing state dict
@@ -123,7 +122,7 @@ def main(args):
         shuffle=False, pin_memory=True)
     # Create model
     model = models.create('ide', num_features=args.features,
-                          dropout=args.dropout, num_classes=1)
+                          dropout=args.dropout, num_classes=0, last_stride=args.last_stride)
     # Load from checkpoint
     model, start_epoch = checkpoint_loader(model, args.resume, eval_only=True)
     print("=> Start epoch {}".format(start_epoch))
@@ -136,12 +135,14 @@ def main(args):
     toc = time.time() - tic
     print('*************** compute features takes time: {:^10.2f} *********************\n'.format(toc))
 
-    if not os.path.isdir("det_features_OpenPose"):
-        os.mkdir("det_features_OpenPose")
+    folder_name = "det_features_{}".format(args.l0_name)
+    if not os.path.isdir(folder_name):
+        os.mkdir(folder_name)
         pass
     tic = time.time()
     for cam in range(8):
-        output_fname = 'det_features_OpenPose/features%d.h5' % (cam + 1)
+        output_fname = '/home/wangzd/houyz/DeepCC/experiments/demo/L0-features/' + folder_name + '/features%d.h5' % (
+                    cam + 1)
         with h5py.File(output_fname, 'w') as f:
             # asciiList = [n.encode("ascii", "ignore") for n in f_names[cam]]
             # f.create_dataset('f_names', (len(asciiList), 1), 'S10', asciiList)
@@ -171,11 +172,15 @@ if __name__ == '__main__':
     parser.add_argument('--features', type=int, default=1024)
     parser.add_argument('--dropout', type=float, default=0.5)
     parser.add_argument('--output-feature', type=str, default='None')
+    parser.add_argument('-s', '--last_stride', type=int, default=2,
+                        choices=[1, 2])
     # misc
     parser.add_argument('--seed', type=int, default=1)
     working_dir = osp.dirname(osp.abspath(__file__))
     parser.add_argument('--data-dir', type=str, metavar='PATH',
                         default=osp.join(working_dir, 'data'))
     parser.add_argument('--logs-dir', type=str, metavar='PATH',
+                        default=osp.join(working_dir, 'logs'))
+    parser.add_argument('--l0_name', type=str, metavar='PATH',
                         default=osp.join(working_dir, 'logs'))
     main(parser.parse_args())

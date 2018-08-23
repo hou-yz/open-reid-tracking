@@ -10,7 +10,7 @@ import torchvision
 
 
 class IDE_model(nn.Module):
-    def __init__(self, num_features=256, num_classes=0, norm=False, dropout=0):
+    def __init__(self, num_features=256, num_classes=0, norm=False, dropout=0, last_stride=2):
         super(IDE_model, self).__init__()
         # Create IDE_only model
         self.num_features = num_features
@@ -19,6 +19,13 @@ class IDE_model(nn.Module):
         # ResNet50: from 3*384*128 -> 2048*12*4 (Tensor T; of column vector f's)
         self.base = nn.Sequential(
             *list(resnet50(pretrained=True, cut_at_pooling=True, norm=norm, dropout=dropout).base.children())[:-2])
+
+        if last_stride != 2:
+            # decrease the downsampling rate
+            # change the stride2 conv layer in self.layer4 to stride=1
+            self.base[7][0].conv2.stride = last_stride
+            # change the downsampling layer in self.layer4 to stride=1
+            self.base[7][0].downsample[0].stride = last_stride
 
         ################################################################################################################
         '''Global Average Pooling: 2048*12*4 -> 2048*1*1'''
@@ -32,7 +39,7 @@ class IDE_model(nn.Module):
 
         ################################################################################################################
         '''feat & feat_bn'''
-        if self.num_features is not None:
+        if self.num_features > 0:
             # 1*1 Conv(fc): 1*1*2048 -> 1*1*256 (g -> h)
             self.one_one_conv = nn.Sequential(nn.Conv2d(2048, self.num_features, 1),
                                               nn.BatchNorm2d(self.num_features),
@@ -68,7 +75,7 @@ class IDE_model(nn.Module):
         if self.dropout > 0:
             x = self.drop_layer(x)
 
-        if self.num_features is not None:
+        if self.num_features > 0:
             x = self.one_one_conv(x).view(x.size()[0], -1)
         x_s = x.view(x.shape[0], -1)
         if eval_only:
