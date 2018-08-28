@@ -38,10 +38,10 @@ class PCB_model(nn.Module):
         self.PCB_conv_channel_reduce = nn.Sequential(nn.Conv2d(self.base_out, self.num_features, kernel_size=1, bias=False),
                                           nn.BatchNorm2d(self.num_features),
                                           nn.ReLU())
-        init.kaiming_normal(self.PCB_conv_channel_reduce[0].weight, mode='fan_out')
-        # init.constant(self.PCB_conv_channel_reduce[0].bias, 0)
-        init.constant(self.PCB_conv_channel_reduce[1].weight, 1)
-        init.constant(self.PCB_conv_channel_reduce[1].bias, 0)
+        init.kaiming_normal_(self.PCB_conv_channel_reduce[0].weight, mode='fan_out')
+        # init.constant_(self.PCB_conv_channel_reduce[0].bias, 0)
+        init.constant_(self.PCB_conv_channel_reduce[1].weight, 1)
+        init.constant_(self.PCB_conv_channel_reduce[1].bias, 0)
         #############################################  RPP  ############################################################
         '''channel reduce: 2048*24*8 -> 256*24*8'''
         # avg pooling along the channel dimension for a [256*1*1]

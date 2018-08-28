@@ -44,10 +44,13 @@ class IDE_model(nn.Module):
             self.one_one_conv = nn.Sequential(nn.Conv2d(2048, self.num_features, 1),
                                               nn.BatchNorm2d(self.num_features),
                                               nn.ReLU())
-            init.kaiming_normal(self.one_one_conv[0].weight, mode='fan_out')
-            init.constant(self.one_one_conv[0].bias, 0)
-            init.constant(self.one_one_conv[1].weight, 1)
-            init.constant(self.one_one_conv[1].bias, 0)
+            init.kaiming_normal_(self.one_one_conv[0].weight, mode='fan_out')
+            init.constant_(self.one_one_conv[0].bias, 0)
+            init.constant_(self.one_one_conv[1].weight, 1)
+            init.constant_(self.one_one_conv[1].bias, 0)
+        # else:
+        #     # 128 dim pooling for triplet
+        #     self.classifier_pool = nn.AdaptiveAvgPool1d(128)
 
         # fc for softmax:
         if self.num_classes > 0:
@@ -77,6 +80,10 @@ class IDE_model(nn.Module):
 
         if self.num_features > 0:
             x = self.one_one_conv(x).view(x.size()[0], -1)
+        # else:
+        #     # 128 dim pooling for triplet
+        #     x = x.view(x.shape[0], 2048, -1).permute(0, 2, 1)
+        #     x = self.classifier_pool(x).permute(0, 2, 1)
         x_s = x.view(x.shape[0], -1)
         if eval_only:
             return x_s, []
