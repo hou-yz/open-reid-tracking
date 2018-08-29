@@ -141,7 +141,7 @@ def main(args):
         pass
     tic = time.time()
     for cam in range(8):
-        output_fname = '/home/wangzd/houyz/DeepCC/experiments/demo/L0-features/' + folder_name + '/features%d.h5' % (
+        output_fname = '/home/wangzd/Data/DukeMTMC/L0-features/' + folder_name + '/features%d.h5' % (
                     cam + 1)
         with h5py.File(output_fname, 'w') as f:
             # asciiList = [n.encode("ascii", "ignore") for n in f_names[cam]]
