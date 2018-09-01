@@ -44,9 +44,9 @@ def get_data(name, split_id, data_dir, height, width, batch_size, num_instances,
                    else dataset.num_train_ids)
 
     train_transformer = T.Compose([
-        # T.Resize((288, 144), interpolation=3),
-        # T.RandomCrop((256, 128)),
-        T.Resize((height, width), interpolation=3),
+        T.Resize((288, 144), interpolation=3),
+        T.RandomCrop((256, 128)),
+        # T.Resize((height, width), interpolation=3),
         T.RandomHorizontalFlip(),
         T.ToTensor(),
         normalizer,
@@ -73,8 +73,11 @@ def get_data(name, split_id, data_dir, height, width, batch_size, num_instances,
         shuffle=False, pin_memory=True)
 
     # slimmer & faster query
-    indices_eval_query = random.sample(range(len(dataset.query)), int(len(dataset.query) / 5))
-    eval_set_query = list(dataset.query[i] for i in indices_eval_query)
+    # indices_eval_query = random.sample(range(len(dataset.query)), int(len(dataset.query) / 5))
+    # eval_set_query = list(dataset.query[i] for i in indices_eval_query)
+
+    # full query
+    eval_set_query = dataset.query
 
     test_loader = DataLoader(
         Preprocessor(list(set(eval_set_query) | set(dataset.gallery)),
@@ -165,7 +168,16 @@ def main(args):
 
     if args.train:
         # Optimizer
-        optimizer = torch.optim.Adam(model.parameters(), lr=args.lr,
+        if hasattr(model.module, 'base'):  # low learning_rate the base network (aka. ResNet-50)
+            base_param_ids = set(map(id, model.module.base.parameters()))
+            new_params = [p for p in model.parameters() if
+                          id(p) not in base_param_ids]
+            param_groups = [
+                {'params': model.module.base.parameters(), 'base_lr_mult': 1},
+                {'params': new_params, 'base_lr_mult': 10}]
+        else:
+            param_groups = model.parameters()
+        optimizer = torch.optim.Adam(param_groups, lr=args.base_lr,
                                      weight_decay=args.weight_decay)
 
         # Trainer
@@ -194,17 +206,23 @@ def main(args):
             NOTE:
                 It is meant to be called at the BEGINNING of an epoch.
             """
-            if epoch < args.start_decay_at_ep:
-                return
             for g in optimizer.param_groups:
-                g['lr'] = (args.lr * (0.001 ** (float(epoch + 1 - args.start_decay_at_ep)
-                                                / (args.epochs + 1 - args.start_decay_at_ep))))
-            print('=====> lr adjusted to {:.10f}'.format(g['lr']).rstrip('0'))
+                if epoch < args.start_decay_at_ep:
+                    base_lr = args.base_lr
+                else:
+                    base_lr = (args.base_lr * (0.001 ** (float(epoch + 1 - args.start_decay_at_ep)
+                                                         / (args.epochs + 1 - args.start_decay_at_ep))))
+                for g in optimizer.param_groups:
+                    g['lr'] = base_lr * g.get('base_lr_mult', 1)
+                    if g.get('base_lr_mult', 1) > 1:
+                        pass
+            if epoch >= args.start_decay_at_ep:
+                print('=====> base_lr adjusted to {:.10f}'.format(g['lr']).rstrip('0'))
 
         # Start training
         for epoch in range(start_epoch, args.epochs):
             adjust_lr(epoch)
-            trainer.train(epoch, train_loader, optimizer, args.fix_bn)
+            trainer.train(epoch, train_loader, optimizer, args.fix_base_bn)
             if epoch < args.start_save:
                 continue
 
@@ -269,7 +287,7 @@ if __name__ == '__main__':
     parser.add_argument('--margin', type=float, default=0.3,
                         help="margin of the triplet loss, default: 0.3")
     # optimizer
-    parser.add_argument('--lr', type=float, default=0.0002,
+    parser.add_argument('--base_lr', type=float, default=0.0002,
                         help="learning rate of new parameters, for pretrained "
                              "parameters it is 10 times smaller than this")
     parser.add_argument('--weight-decay', type=float, default=5e-4)
@@ -285,7 +303,7 @@ if __name__ == '__main__':
                         help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--print-freq', type=int, default=10)
-    parser.add_argument('--fix_bn', action='store_true')
+    parser.add_argument('--fix_base_bn', action='store_true')
     # random erasing
     parser.add_argument('--re', type=float, default=0)
     # metric learning
