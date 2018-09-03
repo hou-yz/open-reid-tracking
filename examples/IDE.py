@@ -39,7 +39,7 @@ from reid.utils.serialization import load_checkpoint, save_checkpoint
 
 
 def get_data(name, split_id, data_dir, height, width, batch_size, workers,
-             combine_trainval, re=0):
+             combine_trainval, crop, re=0):
     root = osp.join(data_dir, name)
 
     dataset = datasets.create(name, root, split_id=split_id)
@@ -51,18 +51,27 @@ def get_data(name, split_id, data_dir, height, width, batch_size, workers,
     num_classes = (dataset.num_trainval_ids if combine_trainval
                    else dataset.num_train_ids)
 
-    train_transformer = T.Compose([
-        # T.RandomSizedRectCrop(height, width),
-        T.Resize((288, 144), interpolation=3),
-        T.RandomCrop((256, 128)),
-        T.RandomHorizontalFlip(),
-        T.ToTensor(),
-        normalizer,
-        T.RandomErasing(EPSILON=re),
-    ])
+    if crop:
+        train_transformer = T.Compose([
+            T.Resize((int(height / 8 * 9), int(width / 8 * 9)), interpolation=3),
+            T.RandomCrop((height, width)),
+            T.RandomHorizontalFlip(),
+            T.ToTensor(),
+            normalizer,
+            T.RandomErasing(EPSILON=re),
+        ])
+    else:
+        train_transformer = T.Compose([
+            T.RectScale(height, width, interpolation=3),
+            T.RandomHorizontalFlip(),
+            T.ToTensor(),
+            normalizer,
+            T.RandomErasing(EPSILON=re),
+        ])
 
     test_transformer = T.Compose([
-        T.Resize((height, width), interpolation=3),
+        # T.Resize((height, width), interpolation=3),
+        T.RectScale(height, width, interpolation=3),
         T.ToTensor(),
         normalizer,
     ])
@@ -134,11 +143,11 @@ def main(args):
     dataset, num_classes, train_loader, val_loader, test_loader, eval_set_query = \
         get_data(args.dataset, args.split, args.data_dir, args.height,
                  args.width, args.batch_size, args.num_workers,
-                 args.combine_trainval, args.re)
+                 args.combine_trainval, args.crop, args.re)
 
     # Create model
     model = models.create('ide', num_features=args.features,
-                          dropout=args.dropout, num_classes=num_classes)
+                          dropout=args.dropout, num_classes=num_classes, last_stride=args.last_stride)
 
     # Load from checkpoint
     start_epoch = best_top1 = 0
@@ -201,16 +210,13 @@ def main(args):
         for epoch in range(start_epoch, args.epochs):
             t0 = time.time()
             adjust_lr(epoch)
-            trainer.train(epoch, train_loader, optimizer, fixed_bn=True)
+            trainer.train(epoch, train_loader, optimizer, fix_bn=args.fix_bn)
             if epoch < args.start_save:
                 continue
 
             print("Validation:")
             top1_eval = evaluator.evaluate(val_loader, dataset.val, dataset.val,
                                            metric=metric, eval_only=True, output_feature=args.output_feature)
-            # print("Test:")
-            # top1_test = evaluator.evaluate(test_loader, eval_set_query, dataset.gallery,
-            #                                metric=metric, eval_only=True, output_feature=args.output_feature)
 
             is_best = top1_eval >= best_top1
             best_top1 = max(top1_eval, best_top1)
@@ -257,6 +263,8 @@ if __name__ == '__main__':
                         choices=models.names())
     parser.add_argument('--features', type=int, default=1024)
     parser.add_argument('--dropout', type=float, default=0.5)
+    parser.add_argument('-s', '--last_stride', type=int, default=2,
+                        choices=[1, 2])
     # optimizer
     parser.add_argument('--lr', type=float, default=0.1,
                         help="learning rate of new parameters, for pretrained "
@@ -266,6 +274,10 @@ if __name__ == '__main__':
     # training configs
     parser.add_argument('--train', action='store_true',
                         help="train IDE model from start")
+    parser.add_argument('--crop', action='store_true',
+                        help="resize then crop")
+    parser.add_argument('--fix_bn', type=bool, default=1,
+                        help="fix BN in base network")
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
     parser.add_argument('--evaluate', action='store_true',
                         help="evaluation only")

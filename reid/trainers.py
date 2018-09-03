@@ -18,7 +18,7 @@ class BaseTrainer(object):
         self.model = model
         self.criterion = criterion
 
-    def train(self, epoch, data_loader, optimizer, fixed_bn=False, print_freq=10):
+    def train(self, epoch, data_loader, optimizer, fix_bn=False, print_freq=10):
         self.model.train()
 
         # detailed logging for triplet
@@ -29,7 +29,7 @@ class BaseTrainer(object):
             dist_ap_meter = AverageMeter()
             dist_an_meter = AverageMeter()
             loss_meter = AverageMeter()
-        if fixed_bn:
+        if fix_bn:
             # set the bn layers to eval() and don't change weight & bias
             for m in self.model.module.base.modules():
                 if isinstance(m, nn.BatchNorm2d):
@@ -126,12 +126,12 @@ class Trainer(BaseTrainer):
             else:
                 loss = self.criterion(outputs, targets)
                 prec, = accuracy(outputs.data, targets.data)
-            prec = prec[0]
+            prec = prec.item()
             pass
         elif isinstance(self.criterion, OIMLoss):
             loss, outputs = self.criterion(outputs, targets)
             prec, = accuracy(outputs.data, targets.data)
-            prec = prec[0]
+            prec = prec.item()
         elif isinstance(self.criterion, TripletLoss):
             if isinstance(self.model.module, PCB_model) or isinstance(self.model.module, IDE_model):
                 outputs = outputs[0]  # = x_s
