@@ -51,7 +51,7 @@ def get_data(name, split_id, data_dir, height, width, batch_size, workers,
     num_classes = (dataset.num_trainval_ids if combine_trainval
                    else dataset.num_train_ids)
 
-    if crop:
+    if crop:  # default: False
         train_transformer = T.Compose([
             T.Resize((int(height / 8 * 9), int(width / 8 * 9)), interpolation=3),
             T.RandomCrop((height, width)),
@@ -275,7 +275,7 @@ if __name__ == '__main__':
     parser.add_argument('--train', action='store_true',
                         help="train IDE model from start")
     parser.add_argument('--crop', action='store_true',
-                        help="resize then crop")
+                        help="resize then crop, default: False")
     parser.add_argument('--fix_bn', type=bool, default=1,
                         help="fix BN in base network")
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
