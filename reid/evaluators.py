@@ -10,7 +10,7 @@ from .feature_extraction import extract_cnn_feature
 from .utils.meters import AverageMeter
 
 
-def extract_features(model, data_loader, eval_only, output_feature, print_freq=10):
+def extract_features(model, data_loader, eval_only, print_freq=10):
     model.eval()
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -22,7 +22,7 @@ def extract_features(model, data_loader, eval_only, output_feature, print_freq=1
     for i, (imgs, fnames, pids, _) in enumerate(data_loader):
         data_time.update(time.time() - end)
 
-        outputs = extract_cnn_feature(model, imgs, eval_only, output_feature)
+        outputs = extract_cnn_feature(model, imgs, eval_only)
         for fname, output, pid in zip(fnames, outputs, pids):
             features[fname] = output
             labels[fname] = pid
@@ -110,7 +110,7 @@ class Evaluator(object):
         super(Evaluator, self).__init__()
         self.model = model
 
-    def evaluate(self, data_loader, query, gallery, metric=None, eval_only=True, output_feature=None):
-        features, _ = extract_features(self.model, data_loader, eval_only, output_feature)
+    def evaluate(self, data_loader, query, gallery, metric=None, eval_only=True):
+        features, _ = extract_features(self.model, data_loader, eval_only)
         distmat = pairwise_distance(features, query, gallery, metric=metric)
         return evaluate_all(distmat, query=query, gallery=gallery)

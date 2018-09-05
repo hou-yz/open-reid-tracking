@@ -39,10 +39,14 @@ from reid.utils.serialization import load_checkpoint, save_checkpoint
 
 
 def get_data(name, split_id, data_dir, height, width, batch_size, workers,
-             combine_trainval, crop, re=0):
+             combine_trainval, crop, mygt_icams, re=0):
     root = osp.join(data_dir, name)
 
-    dataset = datasets.create(name, root, split_id=split_id)
+    if mygt_icams != 0:
+        mygt_icams = [mygt_icams]
+        dataset = datasets.create(name, root, split_id=split_id, mygt_icams=mygt_icams)
+    else:
+        dataset = datasets.create(name, root, split_id=split_id)
 
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],
                              std=[0.229, 0.224, 0.225])
@@ -143,11 +147,11 @@ def main(args):
     dataset, num_classes, train_loader, val_loader, test_loader, eval_set_query = \
         get_data(args.dataset, args.split, args.data_dir, args.height,
                  args.width, args.batch_size, args.num_workers,
-                 args.combine_trainval, args.crop, args.re)
+                 args.combine_trainval, args.crop, args.mygt_icams, args.re)
 
     # Create model
     model = models.create('ide', num_features=args.features,
-                          dropout=args.dropout, num_classes=num_classes, last_stride=args.last_stride)
+                          dropout=args.dropout, num_classes=num_classes, last_stride=args.last_stride, output_feature=args.output_feature)
 
     # Load from checkpoint
     start_epoch = best_top1 = 0
@@ -168,10 +172,10 @@ def main(args):
     if args.evaluate:
         metric.train(model, train_loader)
         # print("Validation:")
-        # evaluator.evaluate(val_loader, dataset.val, dataset.val, eval_only=True, output_feature=args.output_feature, metric=metric)
+        # evaluator.evaluate(val_loader, dataset.val, dataset.val, eval_only=True, metric=metric)
         print("Test:")
         evaluator.evaluate(test_loader, eval_set_query, dataset.gallery,
-                           metric=metric, eval_only=True, output_feature=args.output_feature)
+                           metric=metric, eval_only=True)
         return
 
     # Criterion
@@ -216,7 +220,7 @@ def main(args):
 
             print("Validation:")
             top1_eval = evaluator.evaluate(val_loader, dataset.val, dataset.val,
-                                           metric=metric, eval_only=True, output_feature=args.output_feature)
+                                           metric=metric, eval_only=True)
 
             is_best = top1_eval >= best_top1
             best_top1 = max(top1_eval, best_top1)
@@ -239,7 +243,7 @@ def main(args):
 
         metric.train(model, train_loader)
         evaluator.evaluate(test_loader, eval_set_query, dataset.gallery,
-                           metric=metric, eval_only=True, output_feature=args.output_feature)
+                           metric=metric, eval_only=True)
 
 
 if __name__ == '__main__':
@@ -258,6 +262,8 @@ if __name__ == '__main__':
     parser.add_argument('--combine-trainval', action='store_true',
                         help="train and val sets together for training, "
                              "val set alone for validation")
+    parser.add_argument('--mygt_icams', type=int, default=0, help="specify if train on single iCam")
+    parser.add_argument('--re', type=float, default=0, help="random erasing")
     # model
     parser.add_argument('-a', '--arch', type=str, default='resnet50',
                         choices=models.names())
@@ -265,6 +271,7 @@ if __name__ == '__main__':
     parser.add_argument('--dropout', type=float, default=0.5)
     parser.add_argument('-s', '--last_stride', type=int, default=2,
                         choices=[1, 2])
+    parser.add_argument('--output_feature', type=str, default='None')
     # optimizer
     parser.add_argument('--lr', type=float, default=0.1,
                         help="learning rate of new parameters, for pretrained "
@@ -286,8 +293,6 @@ if __name__ == '__main__':
                         help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--print-freq', type=int, default=1)
-    # random erasing
-    parser.add_argument('--re', type=float, default=0)
     # metric learning
     parser.add_argument('--dist-metric', type=str, default='euclidean',
                         choices=['euclidean', 'kissme'])
@@ -297,5 +302,4 @@ if __name__ == '__main__':
                         default=osp.join(working_dir, 'data'))
     parser.add_argument('--logs-dir', type=str, metavar='PATH',
                         default=osp.join(working_dir, 'logs'))
-    parser.add_argument('--output_feature', type=str, default='pool5')
     main(parser.parse_args())

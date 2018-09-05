@@ -9,13 +9,13 @@ from torch.autograd import Variable
 from ..utils import to_torch
 
 
-def extract_cnn_feature(model, inputs, eval_only=True, output_feature=None, modules=None):
+def extract_cnn_feature(model, inputs, eval_only=True, modules=None):
     model.eval()
     inputs = to_torch(inputs)
     inputs = Variable(inputs, requires_grad=False)
     if modules is None:
         if isinstance(model, IDE_model):
-            outputs = model(inputs, eval_only, output_feature)
+            outputs = model(inputs, eval_only)
         else:
             outputs = model(inputs)
         if isinstance(model.module, PCB_model) or isinstance(model.module, IDE_model):

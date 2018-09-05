@@ -136,7 +136,7 @@ def main(args):
 
     # Create model for triplet (num_classes = 0)
     model = models.create('ide', num_features=args.features,
-                          dropout=args.dropout, num_classes=0, last_stride=args.last_stride)
+                          dropout=args.dropout, num_classes=0, last_stride=args.last_stride, output_feature=args.output_feature)
 
     # Load from checkpoint
     start_epoch = best_top1 = 0
@@ -157,10 +157,10 @@ def main(args):
     if args.evaluate:
         metric.train(model, train_loader)
         # print("Validation:")
-        # evaluator.evaluate(val_loader, dataset.val, dataset.val, eval_only=True, output_feature=args.output_feature, metric=metric)
+        # evaluator.evaluate(val_loader, dataset.val, dataset.val, eval_only=True, metric=metric)
         print("Test:")
         evaluator.evaluate(test_loader, eval_set_query, dataset.gallery,
-                           metric=metric, eval_only=True, output_feature=args.output_feature)
+                           metric=metric, eval_only=True)
         return
 
     # Criterion
@@ -229,10 +229,10 @@ def main(args):
             if epoch % 5 == 0:
                 print("Validation:")
                 top1_eval = evaluator.evaluate(val_loader, dataset.val, dataset.val,
-                                               metric=metric, eval_only=True, output_feature=args.output_feature)
+                                               metric=metric, eval_only=True)
                 # print("Test:")
                 # top1_test = evaluator.evaluate(test_loader, eval_set_query, dataset.gallery,
-                #                                metric=metric, eval_only=True, output_feature=args.output_feature)
+                #                                metric=metric, eval_only=True)
 
                 is_best = top1_eval >= best_top1
                 best_top1 = max(top1_eval, best_top1)
@@ -252,7 +252,7 @@ def main(args):
 
         metric.train(model, train_loader)
         evaluator.evaluate(test_loader, eval_set_query, dataset.gallery,
-                           metric=metric, eval_only=True, output_feature=args.output_feature)
+                           metric=metric, eval_only=True)
 
 
 if __name__ == '__main__':

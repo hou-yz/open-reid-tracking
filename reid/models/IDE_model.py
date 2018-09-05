@@ -10,11 +10,12 @@ import torchvision
 
 
 class IDE_model(nn.Module):
-    def __init__(self, num_features=256, num_classes=0, norm=False, dropout=0, last_stride=2):
+    def __init__(self, num_features=256, num_classes=0, norm=False, dropout=0, last_stride=2, output_feature=None):
         super(IDE_model, self).__init__()
         # Create IDE_only model
         self.num_features = num_features
         self.num_classes = num_classes
+        self.output_feature = output_feature
 
         # ResNet50: from 3*384*128 -> 2048*12*4 (Tensor T; of column vector f's)
         self.base = nn.Sequential(
@@ -60,7 +61,7 @@ class IDE_model(nn.Module):
 
         pass
 
-    def forward(self, x, eval_only=False, output_feature=None):
+    def forward(self, x, eval_only=False):
         """
         Returns:
           h_s: each member with shape [N, c]
@@ -70,7 +71,7 @@ class IDE_model(nn.Module):
         x = self.base(x)
         x = self.global_avg_pool(x)
 
-        if output_feature == 'pool5':
+        if self.output_feature == 'pool5':
             x_s = x.view(x.size[0], -1)
             x_s = F.normalize(x_s)
             return x_s, []
