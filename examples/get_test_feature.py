@@ -25,14 +25,6 @@ from reid.feature_extraction import extract_cnn_feature
 import h5py
 import re
 
-if os.name == 'nt':  # windows
-    num_workers = 0
-    batch_size = 64
-    pass
-else:  # linux
-    num_workers = 8
-    batch_size = 256
-
 
 def checkpoint_loader(model, path, eval_only=False):
     checkpoint = load_checkpoint(path)
@@ -53,7 +45,7 @@ def checkpoint_loader(model, path, eval_only=False):
     # 3. load the new state dict
     model.load_state_dict(model_dict)
 
-    start_epoch = checkpoint['epoch'] + 1
+    start_epoch = checkpoint['epoch']
 
     if Parallel:
         model = nn.DataParallel(model).cuda()
@@ -74,7 +66,7 @@ def extract_features(model, data_loader, args, print_freq=10, OpenPose_det=True)
     for i, (imgs, fnames) in enumerate(data_loader):
         data_time.update(time.time() - end)
 
-        outputs = extract_cnn_feature(model, imgs, eval_only=True, output_feature=args.output_feature)
+        outputs = extract_cnn_feature(model, imgs, eval_only=True)
         for fname, output in zip(fnames, outputs):
             if OpenPose_det:
                 cam, frame = int(fname[1]), int(fname[4:10])
@@ -109,34 +101,26 @@ def main(args):
 
     # Redirect print to both console and log file
 
-    # Create data loaders
-    if args.height is None or args.width is None:
-        args.height, args.width = (256, 128)
-
     if args.dataset == 'detections':
-        dataset_dir = osp.join(args.data_dir, 'det_dataset_OpenPose')
-    elif args.dataset == 'reid_test':
+        dataset_dir = osp.join(args.data_dir, 'det_bbox_OpenPose')
+    else:
         dataset_dir = osp.join(args.data_dir, '/home/wangzd/houyz/open-reid-PCB_n_RPP'
                                               '/examples/data/dukemtmc/dukemtmc/raw/DukeMTMC-reID/bounding_box_test')
-    else:
-        pass
 
     dataset = DetDuke(dataset_dir)
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     test_transformer = T.Compose([
-        # T.RectScale(256, 128),
-        T.Resize((args.height, args.width), interpolation=3),
+        T.RectScale(args.height, args.width, interpolation=3),
         T.ToTensor(),
         normalizer,
     ])
-    data_loader = DataLoader(
-        Preprocessor(dataset, root=dataset_dir,
-                     transform=test_transformer),
-        batch_size=batch_size, num_workers=num_workers,
-        shuffle=False, pin_memory=True)
+    data_loader = DataLoader(Preprocessor(dataset, root=dataset_dir, transform=test_transformer),
+                             batch_size=args.batch_size, num_workers=args.num_workers,
+                             shuffle=False, pin_memory=True)
     # Create model
     model = models.create('ide', num_features=args.features,
-                          dropout=args.dropout, num_classes=0, last_stride=args.last_stride)
+                          dropout=args.dropout, num_classes=0, last_stride=args.last_stride,
+                          output_feature=args.output_feature)
     # Load from checkpoint
     model, start_epoch = checkpoint_loader(model, args.resume, eval_only=True)
     print("=> Start epoch {}".format(start_epoch))
@@ -145,7 +129,7 @@ def main(args):
     print('*************** initialization takes time: {:^10.2f} *********************\n'.format(toc))
 
     tic = time.time()
-    lines = extract_features(model, data_loader, args, OpenPose_det=False)
+    lines = extract_features(model, data_loader, args, OpenPose_det=(args.dataset == 'detections'))
     toc = time.time() - tic
     print('*************** compute features takes time: {:^10.2f} *********************\n'.format(toc))
 
@@ -190,20 +174,22 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Softmax loss classification")
     # data
-    parser.add_argument('-d', '--dataset', type=str, default='reid_test')
-    parser.add_argument('--height', type=int,
-                        help="input height, default: 256 for resnet*, "
-                             "144 for inception")
-    parser.add_argument('--width', type=int,
-                        help="input width, default: 128 for resnet*, "
-                             "56 for inception")
+    parser.add_argument('-d', '--dataset', type=str, default='reid_test',
+                        choices=['detections', 'reid_test'])
+    parser.add_argument('-b', '--batch-size', type=int, default=128, help="batch size")
+    parser.add_argument('-j', '--num-workers', type=int, default=8)
+    parser.add_argument('--height', type=int, default=256,
+                        help="input height, default: 256 for resnet*")
+    parser.add_argument('--width', type=int, default=128,
+                        help="input width, default: 128 for resnet*")
     # model
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
     parser.add_argument('--features', type=int, default=1024)
-    parser.add_argument('--dropout', type=float, default=0)
+    parser.add_argument('--dropout', type=float, default=0.5)
     parser.add_argument('--output-feature', type=str, default='None')
     parser.add_argument('-s', '--last_stride', type=int, default=2,
                         choices=[1, 2])
+    parser.add_argument('--output_feature', type=str, default='None')
     # misc
     parser.add_argument('--seed', type=int, default=1)
     working_dir = osp.dirname(osp.abspath(__file__))
@@ -212,5 +198,5 @@ if __name__ == '__main__':
     parser.add_argument('--logs-dir', type=str, metavar='PATH',
                         default=osp.join(working_dir, 'logs'))
     parser.add_argument('--l0_name', type=str, metavar='PATH',
-                        default=osp.join(working_dir, 'logs'))
+                        default='my_gt_ide_2048_')
     main(parser.parse_args())
