@@ -71,8 +71,8 @@ class IDE_model(nn.Module):
         x = self.base(x)
         x = self.global_avg_pool(x)
 
-        if self.output_feature == 'pool5':
-            x_s = x.view(x.size[0], -1)
+        if self.output_feature == 'pool5' and eval_only:
+            x_s = x.view(x.shape[0], -1)
             x_s = F.normalize(x_s)
             return x_s, []
 
@@ -80,7 +80,7 @@ class IDE_model(nn.Module):
             x = self.drop_layer(x)
 
         if self.num_features > 0:
-            x = self.one_one_conv(x).view(x.size()[0], -1)
+            x = self.one_one_conv(x).view(x.shape[0], -1)
         # else:
         #     # 128 dim pooling for triplet
         #     x = x.view(x.shape[0], 2048, -1).permute(0, 2, 1)
