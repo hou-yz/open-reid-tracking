@@ -57,8 +57,9 @@ def get_data(name, split_id, data_dir, height, width, batch_size, workers,
 
     if crop:  # default: False
         train_transformer = T.Compose([
-            T.Resize((int(height / 8 * 9), int(width / 8 * 9)), interpolation=3),
-            T.RandomCrop((height, width)),
+            # T.Resize((int(height / 8 * 9), int(width / 8 * 9)), interpolation=3),
+            # T.RandomCrop((height, width)),
+            T.RandomSizedRectCrop(height, width, interpolation=3),
             T.RandomHorizontalFlip(),
             T.ToTensor(),
             normalizer,
