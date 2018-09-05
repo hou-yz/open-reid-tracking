@@ -60,7 +60,11 @@ def extract_features(model, data_loader, args, print_freq=10, OpenPose_det=True)
 
     # f_names = [[] for _ in range(8)]
     # features = [[] for _ in range(8)]
-    lines = []
+
+    if OpenPose_det:
+        lines = [[] for _ in range(8)]
+    else:
+        lines = []
 
     end = time.time()
     for i, (imgs, fnames) in enumerate(data_loader):
@@ -69,11 +73,12 @@ def extract_features(model, data_loader, args, print_freq=10, OpenPose_det=True)
         outputs = extract_cnn_feature(model, imgs, eval_only=True)
         for fname, output in zip(fnames, outputs):
             if OpenPose_det:
-                cam, frame = int(fname[1]), int(fname[4:10])
+                pattern = re.compile(r'c(\d)_f(\d+)')
+                cam, frame = map(int, pattern.search(fname).groups())
                 # f_names[cam - 1].append(fname)
                 # features[cam - 1].append(output.numpy())
                 line = np.concatenate([np.array([cam, frame]), output.numpy()])
-                lines.append(line)
+                lines[cam - 1].append(line)
             else:
                 pattern = re.compile(r'(\d+)_c(\d+)_f(\d+)')
                 pid, cam, frame = map(int, pattern.search(fname).groups())
@@ -103,6 +108,7 @@ def main(args):
 
     if args.dataset == 'detections':
         dataset_dir = osp.join(args.data_dir, 'det_bbox_OpenPose')
+        # dataset_dir = osp.join(args.data_dir, 'det_bbox_OpenPose_simple')
     else:
         dataset_dir = osp.join(args.data_dir, '/home/wangzd/houyz/open-reid-PCB_n_RPP'
                                               '/examples/data/dukemtmc/dukemtmc/raw/DukeMTMC-reID/bounding_box_test')
@@ -136,13 +142,12 @@ def main(args):
     tic = time.time()
     # write file
     if args.dataset == 'detections':
-        folder_name = "det_features_{}".format(args.l0_name)
+        folder_name = '/home/wangzd/Data/DukeMTMC/L0-features/' + "det_features_{}".format(args.l0_name)
         if not os.path.isdir(folder_name):
             os.mkdir(folder_name)
             pass
         for cam in range(8):
-            output_fname = '/home/wangzd/houyz/DeepCC/experiments/demo/L0-features/' + \
-                           folder_name + '/features%d.h5' % (cam + 1)
+            output_fname = folder_name + '/features%d.h5' % (cam + 1)
 
             with h5py.File(output_fname, 'w') as f:
                 # asciiList = [n.encode("ascii", "ignore") for n in f_names[cam]]
