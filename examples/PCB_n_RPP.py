@@ -21,30 +21,34 @@ from reid.utils.data.preprocessor import Preprocessor
 from reid.utils.logging import Logger
 from reid.utils.serialization import load_checkpoint, save_checkpoint
 
-if os.name == 'nt':  # windows
-    num_workers = 0
-    batch_size = 64
-    pass
-else:  # linux
-    num_workers = 8
-    batch_size = 64
-    os.environ["CUDA_VISIBLE_DEVICES"] = '0, 1, 2, 3'
+# if os.name == 'nt':  # windows
+#     num_workers = 0
+#     batch_size = 64
+#     pass
+# else:  # linux
+#     num_workers = 8
+#     batch_size = 64
+#     os.environ["CUDA_VISIBLE_DEVICES"] = '0, 1, 2, 3'
 
-    '''
+'''
     ideas for better training from Dr. Yifan Sun
 
     batch_size = 64                                         check
     dropout -- possible at layer: pool5                     check
     skip step-3 in RPP training                             check
     RPP classifier -- 2048 -> 256 -> 6 (average pooling)    check
-    '''
+'''
 
 
 def get_data(name, split_id, data_dir, height, width, batch_size, workers,
-             combine_trainval):
+             combine_trainval, crop, mygt_icams, re=0):
     root = osp.join(data_dir, name)
 
-    dataset = datasets.create(name, root, split_id=split_id)
+    if mygt_icams != 0:
+        mygt_icams = [mygt_icams]
+        dataset = datasets.create(name, root, split_id=split_id, mygt_icams=mygt_icams)
+    else:
+        dataset = datasets.create(name, root, split_id=split_id)
 
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],
                              std=[0.229, 0.224, 0.225])
@@ -53,16 +57,28 @@ def get_data(name, split_id, data_dir, height, width, batch_size, workers,
     num_classes = (dataset.num_trainval_ids if combine_trainval
                    else dataset.num_train_ids)
 
-    train_transformer = T.Compose([
-        # T.RandomSizedRectCrop(height, width),
-        T.RectScale(height, width),
-        T.RandomHorizontalFlip(),
-        T.ToTensor(),
-        normalizer,
-    ])
+    if crop:  # default: False
+        train_transformer = T.Compose([
+            # T.Resize((int(height / 8 * 9), int(width / 8 * 9)), interpolation=3),
+            # T.RandomCrop((height, width)),
+            T.RandomSizedRectCrop(height, width, interpolation=3),
+            T.RandomHorizontalFlip(),
+            T.ToTensor(),
+            normalizer,
+            T.RandomErasing(EPSILON=re),
+        ])
+    else:
+        train_transformer = T.Compose([
+            T.RectScale(height, width, interpolation=3),
+            T.RandomHorizontalFlip(),
+            T.ToTensor(),
+            normalizer,
+            T.RandomErasing(EPSILON=re),
+        ])
 
     test_transformer = T.Compose([
-        T.RectScale(height, width),
+        # T.Resize((height, width), interpolation=3),
+        T.RectScale(height, width, interpolation=3),
         T.ToTensor(),
         normalizer,
     ])
@@ -95,6 +111,11 @@ def get_data(name, split_id, data_dir, height, width, batch_size, workers,
 def checkpoint_loader(model, path):
     checkpoint = load_checkpoint(path)
     pretrained_dict = checkpoint['state_dict']
+    if isinstance(model, nn.DataParallel):
+        Parallel = 1
+        model = model.module.cpu()
+    else:
+        Parallel = 0
     if 'rpp' in checkpoint:
         has_rpp = checkpoint['rpp']
         if has_rpp:
@@ -103,8 +124,6 @@ def checkpoint_loader(model, path):
             else:
                 model.enable_RPP()
 
-    # if 'sampling_weight_layer.0.weight' in pretrained_dict:
-    #     pass
 
     model_dict = model.state_dict()
     # 1. filter out unnecessary keys
@@ -130,11 +149,9 @@ def main(args):
         sys.stdout = Logger(osp.join(args.logs_dir, 'log.txt'))
 
     # Create data loaders
-    if args.height is None or args.width is None:
-        args.height, args.width = (384, 128)
     dataset, num_classes, train_loader, val_loader, test_loader, eval_set_query = \
         get_data(args.dataset, args.split, args.data_dir, args.height,
-                 args.width, batch_size, num_workers,
+                 args.width, args.batch_size, args.num_workers,
                  args.combine_trainval)
 
     # Create model
