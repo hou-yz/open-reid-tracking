@@ -8,11 +8,11 @@ from ..utils.serialization import write_json
 
 class DukeMyGT(Dataset):
 
-    def __init__(self, root, split_id=0, num_val=10, download=True, iCams=list(range(1, 9))):
+    def __init__(self, root, split_id=0, num_val=10, download=True, iCams=list(range(1, 9)), fps=60):
         super(DukeMyGT, self).__init__(root, split_id=split_id)
 
         if download:
-            self.download(iCams)
+            self.download(iCams, fps)
 
         # if not self._check_integrity():
         #     raise RuntimeError("Dataset not found or corrupted. " +
@@ -20,7 +20,7 @@ class DukeMyGT(Dataset):
 
         self.load(num_val)
 
-    def download(self, iCams):
+    def download(self, iCams, fps):
         # if self._check_integrity():
         #     print("Files already downloaded and verified")
         #     return
@@ -45,7 +45,7 @@ class DukeMyGT(Dataset):
         # Format
         images_dir = osp.join(self.root, 'images')
         mkdir_if_missing(images_dir)
-        duke_raw_dir = osp.join(self.root, 'gt_bbox')
+        duke_raw_dir = osp.join(self.root, ('gt_bbox_'+str(fps)+'_fps'))
 
         # 1501 identities (+1 for background) with 6 camera views each
         # and more than 7000 ids from dukemtmc

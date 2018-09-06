@@ -39,12 +39,15 @@ from reid.utils.serialization import load_checkpoint, save_checkpoint
 
 
 def get_data(name, split_id, data_dir, height, width, batch_size, workers,
-             combine_trainval, crop, mygt_icams, re=0):
+             combine_trainval, crop, mygt_icams, fps, re=0):
     root = osp.join(data_dir, name)
 
-    if mygt_icams != 0:
-        mygt_icams = [mygt_icams]
-        dataset = datasets.create(name, root, split_id=split_id, mygt_icams=mygt_icams)
+    if name == 'duke_my_gt':
+        if mygt_icams != 0:
+            mygt_icams = [mygt_icams]
+        else:
+            mygt_icams = list(range(1, 9))
+        dataset = datasets.create(name, root, split_id=split_id, iCams=mygt_icams, fps=fps)
     else:
         dataset = datasets.create(name, root, split_id=split_id)
 
@@ -148,11 +151,12 @@ def main(args):
     dataset, num_classes, train_loader, val_loader, test_loader, eval_set_query = \
         get_data(args.dataset, args.split, args.data_dir, args.height,
                  args.width, args.batch_size, args.num_workers,
-                 args.combine_trainval, args.crop, args.mygt_icams, args.re)
+                 args.combine_trainval, args.crop, args.mygt_icams, args.mygt_fps, args.re)
 
     # Create model
     model = models.create('ide', num_features=args.features,
-                          dropout=args.dropout, num_classes=num_classes, last_stride=args.last_stride, output_feature=args.output_feature)
+                          dropout=args.dropout, num_classes=num_classes, last_stride=args.last_stride,
+                          output_feature=args.output_feature)
 
     # Load from checkpoint
     start_epoch = best_top1 = 0
@@ -264,6 +268,8 @@ if __name__ == '__main__':
                         help="train and val sets together for training, "
                              "val set alone for validation")
     parser.add_argument('--mygt_icams', type=int, default=0, help="specify if train on single iCam")
+    parser.add_argument('--mygt_fps', type=int, default=60,
+                        choices=[1, 30, 60], help="specify if train on single iCam")
     parser.add_argument('--re', type=float, default=0, help="random erasing")
     # model
     parser.add_argument('-a', '--arch', type=str, default='resnet50',

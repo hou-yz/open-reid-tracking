@@ -107,8 +107,7 @@ def main(args):
     # Redirect print to both console and log file
 
     if args.dataset == 'detections':
-        dataset_dir = osp.join(args.data_dir, 'det_bbox_OpenPose')
-        # dataset_dir = osp.join(args.data_dir, 'det_bbox_OpenPose_simple')
+        dataset_dir = osp.join(args.data_dir, ('det_bbox_OpenPose_'+args.det_time))
     else:
         dataset_dir = osp.join(args.data_dir, '/home/wangzd/houyz/open-reid-PCB_n_RPP'
                                               '/examples/data/dukemtmc/dukemtmc/raw/DukeMTMC-reID/bounding_box_test')
@@ -142,7 +141,8 @@ def main(args):
     tic = time.time()
     # write file
     if args.dataset == 'detections':
-        folder_name = '/home/wangzd/Data/DukeMTMC/L0-features/' + "det_features_{}".format(args.l0_name)
+        folder_name = '/home/wangzd/Data/DukeMTMC/L0-features/' + "det_features_{}". \
+            format(args.l0_name) + '_' + args.det_time
         if not os.path.isdir(folder_name):
             os.mkdir(folder_name)
             pass
@@ -187,6 +187,8 @@ if __name__ == '__main__':
                         help="input height, default: 256 for resnet*")
     parser.add_argument('--width', type=int, default=128,
                         help="input width, default: 128 for resnet*")
+    parser.add_argument('--det_time', type=str, metavar='PATH',
+                        default='trainval_mini')
     # model
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
     parser.add_argument('--features', type=int, default=1024)
@@ -199,7 +201,7 @@ if __name__ == '__main__':
     parser.add_argument('--seed', type=int, default=1)
     working_dir = osp.dirname(osp.abspath(__file__))
     parser.add_argument('--data-dir', type=str, metavar='PATH',
-                        default=osp.join(working_dir, 'data'))
+                        default='/home/wangzd/Data/DukeMTMC')
     parser.add_argument('--logs-dir', type=str, metavar='PATH',
                         default=osp.join(working_dir, 'logs'))
     parser.add_argument('--l0_name', type=str, metavar='PATH',
