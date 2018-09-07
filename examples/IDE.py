@@ -269,7 +269,7 @@ if __name__ == '__main__':
                              "val set alone for validation")
     parser.add_argument('--mygt_icams', type=int, default=0, help="specify if train on single iCam")
     parser.add_argument('--mygt_fps', type=int, default=60,
-                        choices=[1, 6, 30, 60], help="specify if train on single iCam")
+                        choices=[1, 6, 12, 30, 60], help="specify if train on single iCam")
     parser.add_argument('--re', type=float, default=0, help="random erasing")
     # model
     parser.add_argument('-a', '--arch', type=str, default='resnet50',
