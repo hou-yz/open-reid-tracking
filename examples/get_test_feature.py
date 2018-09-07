@@ -205,5 +205,5 @@ if __name__ == '__main__':
     parser.add_argument('--logs-dir', type=str, metavar='PATH',
                         default=osp.join(working_dir, 'logs'))
     parser.add_argument('--l0_name', type=str, metavar='PATH',
-                        default='my_gt_ide_2048_')
+                        default='ide_2048_')
     main(parser.parse_args())
