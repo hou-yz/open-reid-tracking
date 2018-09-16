@@ -224,8 +224,12 @@ def main(args):
                 continue
 
             print("Validation:")
-            top1_eval = evaluator.evaluate(val_loader, dataset.val, dataset.val,
-                                           metric=metric, eval_only=True)
+            # skip evaluate for separate iCam training
+            if args.mygt_icams == 0:
+                top1_eval = evaluator.evaluate(val_loader, dataset.val, dataset.val,
+                                               metric=metric, eval_only=True)
+            else:
+                top1_eval = 50
 
             is_best = top1_eval >= best_top1
             best_top1 = max(top1_eval, best_top1)

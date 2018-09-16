@@ -69,6 +69,14 @@ def extract_features(model, data_loader, args, print_freq=10, OpenPose_det=True)
     end = time.time()
     for i, (imgs, fnames) in enumerate(data_loader):
         data_time.update(time.time() - end)
+        if args.mygt_icams != 0 and OpenPose_det:
+            pattern = re.compile(r'c(\d)_f(\d+)')
+            start_cam, _ = map(int, pattern.search(fnames[0]).groups())
+            end_cam, _ = map(int, pattern.search(fnames[-1]).groups())
+            if start_cam > args.mygt_icams or end_cam < args.mygt_icams:
+                continue
+
+            pass
 
         outputs = extract_cnn_feature(model, imgs, eval_only=True)
         for fname, output in zip(fnames, outputs):
@@ -109,10 +117,10 @@ def main(args):
     data_dir = '/home/wangzd/Data/DukeMTMC/ALL_det_bbox'
 
     if args.dataset == 'detections':
-        dataset_dir = osp.join(data_dir, ('det_bbox_OpenPose_'+args.det_time))
+        dataset_dir = osp.join(data_dir, ('det_bbox_OpenPose_' + args.det_time))
     else:
         dataset_dir = osp.join(data_dir, '/home/wangzd/houyz/open-reid-PCB_n_RPP'
-                                              '/examples/data/dukemtmc/dukemtmc/raw/DukeMTMC-reID/bounding_box_test')
+                                         '/examples/data/dukemtmc/dukemtmc/raw/DukeMTMC-reID/bounding_box_test')
 
     dataset = DetDuke(dataset_dir)
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -150,12 +158,10 @@ def main(args):
             pass
         for cam in range(8):
             output_fname = folder_name + '/features%d.h5' % (cam + 1)
+            if args.mygt_icams != 0 and cam + 1 != args.mygt_icams:
+                continue
 
             with h5py.File(output_fname, 'w') as f:
-                # asciiList = [n.encode("ascii", "ignore") for n in f_names[cam]]
-                # f.create_dataset('f_names', (len(asciiList), 1), 'S10', asciiList)
-                # emb = np.vstack(features[cam])
-                # f.create_dataset('emb', data=emb, dtype=float)
                 mat_data = np.vstack(lines[cam])
                 f.create_dataset('emb', data=mat_data, dtype=float)
                 pass
@@ -164,7 +170,11 @@ def main(args):
         if not os.path.isdir(folder_name):
             os.mkdir(folder_name)
             pass
-        output_fname = folder_name + '/features.h5'
+        if args.mygt_icams == 0:
+            output_fname = folder_name + '/features.h5'
+        else:
+            output_fname = folder_name + '/features_icam' + str(args.mygt_icams) + '.h5'
+
         with h5py.File(output_fname, 'w') as f:
             # asciiList = [n.encode("ascii", "ignore") for n in f_names[cam]]
             # f.create_dataset('f_names', (len(asciiList), 1), 'S10', asciiList)
@@ -206,4 +216,5 @@ if __name__ == '__main__':
                         default='ide_2048_')
     parser.add_argument('--det_time', type=str, metavar='PATH',
                         default='trainval_mini')
+    parser.add_argument('--mygt_icams', type=int, default=0, help="specify if train on single iCam")
     main(parser.parse_args())
