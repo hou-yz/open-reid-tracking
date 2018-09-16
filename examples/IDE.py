@@ -38,6 +38,10 @@ from reid.utils.serialization import load_checkpoint, save_checkpoint
 '''
 
 
+def str2bool(v):
+    return v.lower() in ('true')
+
+
 def get_data(name, split_id, data_dir, height, width, batch_size, workers,
              combine_trainval, crop, mygt_icams, fps, re=0):
     root = osp.join(data_dir, name)
@@ -261,7 +265,7 @@ if __name__ == '__main__':
     # data
     parser.add_argument('-d', '--dataset', type=str, default='market1501',
                         choices=datasets.names())
-    parser.add_argument('-b', '--batch-size', type=int, default=128, help="batch size")
+    parser.add_argument('-b', '--batch-size', type=int, default=64, help="batch size")
     parser.add_argument('-j', '--num-workers', type=int, default=8)
     parser.add_argument('--split', type=int, default=0)
     parser.add_argument('--height', type=int, default=256,
@@ -282,7 +286,8 @@ if __name__ == '__main__':
     parser.add_argument('--dropout', type=float, default=0.5)
     parser.add_argument('-s', '--last_stride', type=int, default=2,
                         choices=[1, 2])
-    parser.add_argument('--output_feature', type=str, default='None')
+    parser.add_argument('--output_feature', type=str, default='fc',
+                        choices=['pool5','fc'])
     # optimizer
     parser.add_argument('--lr', type=float, default=0.1,
                         help="learning rate of new parameters, for pretrained "
@@ -294,7 +299,7 @@ if __name__ == '__main__':
                         help="train IDE model from start")
     parser.add_argument('--crop', action='store_true',
                         help="resize then crop, default: False")
-    parser.add_argument('--fix_bn', type=bool, default=1,
+    parser.add_argument('--fix_bn', type=str2bool, default=1,
                         help="fix BN in base network")
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
     parser.add_argument('--evaluate', action='store_true',
