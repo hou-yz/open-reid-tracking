@@ -15,7 +15,6 @@ from torch.utils.data import DataLoader
 
 from reid import datasets
 from reid import models
-from reid.dist_metric import DistanceMetric
 from reid.trainers import Trainer
 from reid.evaluators import Evaluator
 from reid.utils.data import transforms as T
@@ -34,7 +33,8 @@ from reid.utils.serialization import load_checkpoint, save_checkpoint
 
 '''
     ideas for better training from Dr. Yifan Sun
-
+    
+    no crop                                                 check
     batch_size = 64                                         check
     dropout -- possible at layer: pool5                     check
     skip step-3 in RPP training                             check
@@ -109,12 +109,12 @@ def get_data(name, split_id, data_dir, height, width, batch_size, workers,
     eval_set_query = list(dataset.query[i] for i in indices_eval_query)
 
     test_loader = DataLoader(
-        Preprocessor(list(set(eval_set_query) | set(dataset.gallery)),
+        Preprocessor(list(set(dataset.query) | set(dataset.gallery)),
                      root=dataset.images_dir, transform=test_transformer),
         batch_size=batch_size, num_workers=workers,
         shuffle=False, pin_memory=True)
 
-    return dataset, num_classes, train_loader, val_loader, test_loader, eval_set_query,
+    return dataset, num_classes, train_loader, val_loader, test_loader
 
 
 def checkpoint_loader(model, path, eval_only=False):
@@ -137,8 +137,15 @@ def checkpoint_loader(model, path, eval_only=False):
     # 1. filter out unnecessary keys
     pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
     if eval_only:
-        del pretrained_dict['fc.weight']
-        del pretrained_dict['fc.bias']
+        keys = pretrained_dict.keys()
+        keys_to_del = []
+        for key in keys:
+            if 'fc' in key:
+                keys_to_del.append(key)
+        for key in keys_to_del:
+            del pretrained_dict[key]
+        pass
+
     # 2. overwrite entries in the existing state dict
     model_dict.update(pretrained_dict)
     # 3. load the new state dict
@@ -164,7 +171,7 @@ def main(args):
             osp.join(args.logs_dir, 'log_{}.txt'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H:%M:%S'))))
 
     # Create data loaders
-    dataset, num_classes, train_loader, val_loader, test_loader, eval_set_query = \
+    dataset, num_classes, train_loader, val_loader, test_loader = \
         get_data(args.dataset, args.split, args.data_dir, args.height,
                  args.width, args.batch_size, args.num_workers,
                  args.combine_trainval, args.crop, args.mygt_icams, args.mygt_fps, args.re)
@@ -181,22 +188,16 @@ def main(args):
             model, start_epoch, best_top1 = checkpoint_loader(model, args.resume, eval_only=True)
         else:
             model, start_epoch, best_top1 = checkpoint_loader(model, args.resume)
-        print("=> Start epoch {}  best top1 {:.1%}"
-              .format(start_epoch, best_top1))
+        print("=> Start epoch {}  best top1 {:.1%}".format(start_epoch, best_top1))
     model = nn.DataParallel(model).cuda()
-
-    # Distance metric
-    metric = DistanceMetric(algorithm=args.dist_metric)
 
     # Evaluator
     evaluator = Evaluator(model)
     if args.evaluate:
-        metric.train(model, train_loader)
         print("Validation:")
-        evaluator.evaluate(val_loader, dataset.val, dataset.val, eval_only=True, metric=metric)
+        evaluator.evaluate(val_loader, dataset.val, dataset.val, eval_only=True)
         print("Test:")
-        evaluator.evaluate(test_loader, eval_set_query, dataset.gallery,
-                           metric=metric, eval_only=True)
+        evaluator.evaluate(test_loader, dataset.query, dataset.gallery, eval_only=True)
         return
 
     # Criterion
@@ -226,7 +227,10 @@ def main(args):
 
         # Schedule learning rate
         def adjust_lr(epoch):
-            step_size = 40
+            if args.epochs == 60:
+                step_size = 40
+            else:
+                step_size = args.epochs / 2
             lr = args.lr * (0.1 ** (epoch // step_size))
             for g in optimizer.param_groups:
                 g['lr'] = lr * g.get('lr_mult', 1)
@@ -242,8 +246,7 @@ def main(args):
             print("Validation:")
             # skip evaluate for separate iCam training
             if args.mygt_icams == 0:
-                top1 = evaluator.evaluate(val_loader, dataset.val, dataset.val,
-                                          metric=metric, eval_only=True)
+                top1 = evaluator.evaluate(val_loader, dataset.val, dataset.val, eval_only=True)
             else:
                 top1 = 50
 
@@ -266,9 +269,7 @@ def main(args):
         print('Test with best model:')
         model, _, _ = checkpoint_loader(model, osp.join(args.logs_dir, 'model_best.pth.tar'), eval_only=True)
 
-        metric.train(model, train_loader)
-        evaluator.evaluate(test_loader, eval_set_query, dataset.gallery,
-                           metric=metric, eval_only=True)
+        evaluator.evaluate(test_loader, dataset.query, dataset.gallery, eval_only=True)
         pass
     if args.train_RPP:
         '''
@@ -342,11 +343,11 @@ def main(args):
 
         # Final test
         print('Test with best model:')
-        model, _, _ = checkpoint_loader(model, osp.join(args.logs_dir, 'model_best.pth.tar'), eval_only=True)
+        model, start_epoch, best_top1 = checkpoint_loader(model, osp.join(args.logs_dir, 'model_best.pth.tar'),
+                                                          eval_only=True)
+        print("=> Start epoch {}  best top1 {:.1%}".format(start_epoch, best_top1))
 
-        metric.train(model, train_loader)
-        evaluator.evaluate(test_loader, eval_set_query, dataset.gallery,
-                           metric=metric, eval_only=True)
+        evaluator.evaluate(test_loader, dataset.query, dataset.gallery, eval_only=True)
     pass
 
 
@@ -378,7 +379,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--last_stride', type=int, default=2,
                         choices=[1, 2])
     parser.add_argument('--output_feature', type=str, default='fc',
-                        choices=['pool5','fc'])
+                        choices=['pool5', 'fc'])
     # optimizer
     parser.add_argument('--lr', type=float, default=0.1,
                         help="learning rate of new parameters, for pretrained "
@@ -402,9 +403,6 @@ if __name__ == '__main__':
                         help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--print-freq', type=int, default=1)
-    # metric learning
-    parser.add_argument('--dist-metric', type=str, default='euclidean',
-                        choices=['euclidean', 'kissme'])
     # misc
     working_dir = osp.dirname(osp.abspath(__file__))
     parser.add_argument('--data-dir', type=str, metavar='PATH',
