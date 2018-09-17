@@ -30,13 +30,13 @@ def extract_features(model, data_loader, eval_only, print_freq=10):
         batch_time.update(time.time() - end)
         end = time.time()
 
-        # if (i + 1) % print_freq == 0:
-        #     print('Extract Features: [{}/{}]\t'
-        #           'Time {:.3f} ({:.3f})\t'
-        #           'Data {:.3f} ({:.3f})\t'
-        #           .format(i + 1, len(data_loader),
-        #                   batch_time.val, batch_time.avg,
-        #                   data_time.val, data_time.avg))
+        if (i + 1) % print_freq == 0:
+            print('Extract Features: [{}/{}]\t'
+                  'Time {:.3f} ({:.3f})\t'
+                  'Data {:.3f} ({:.3f})\t'
+                  .format(i + 1, len(data_loader),
+                          batch_time.val, batch_time.avg,
+                          data_time.val, data_time.avg))
 
     return features, labels
 
