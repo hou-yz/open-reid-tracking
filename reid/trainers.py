@@ -67,11 +67,14 @@ class BaseTrainer(object):
             else:
                 loss, prec1 = self._forward(inputs, targets)
 
-            losses.update(loss.item(), targets.size(0))
             precisions.update(prec1, targets.size(0))
-
             optimizer.zero_grad()
-            loss.backward()
+            if isinstance(self.model.module, PCB_model):
+                torch.autograd.backward(loss, [torch.ones(()).cuda()] * 6)
+                losses.update(sum(loss).item() / 6)
+            else:
+                loss.backward()
+                losses.update(loss.item(), targets.size(0))
             optimizer.step()
 
             batch_time.update(time.time() - end)
@@ -113,15 +116,19 @@ class Trainer(BaseTrainer):
     def _forward(self, inputs, targets):
         outputs = self.model(*inputs)
         if isinstance(self.criterion, torch.nn.CrossEntropyLoss):
-            if isinstance(self.model.module, PCB_model) or isinstance(self.model.module, IDE_model):
+            if isinstance(self.model.module, IDE_model):
                 prediction_s = outputs[1]
                 loss = 0
                 for pred in prediction_s:
                     loss += self.criterion(pred, targets)
                 prediction = prediction_s[0]
-                # use the sum of 6 id-predictions as the input for accuracy(_, _)
-                # prediction_sum = Variable(
-                #     torch.from_numpy(np.sum(prediction_s[i].cpu().data.numpy() for i in range(len(prediction_s)))).cuda())
+                prec, = accuracy(prediction.data, targets.data)
+            elif isinstance(self.model.module, PCB_model):
+                prediction_s = outputs[1]
+                loss = []
+                for pred in prediction_s:
+                    loss.append(self.criterion(pred, targets))
+                prediction = prediction_s[0]
                 prec, = accuracy(prediction.data, targets.data)
             else:
                 loss = self.criterion(outputs, targets)
