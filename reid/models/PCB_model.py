@@ -31,16 +31,19 @@ class PCB_model(nn.Module):
             # change the downsampling layer in self.layer4 to stride=1
             self.base[7][0].downsample[0].stride = last_stride
 
+        '''Average Pooling: 256*24*8 -> 256*6*1 (f -> g)'''
+        # Tensor T [N, 256, 24, 8]
+        self.avg_pool = nn.AdaptiveAvgPool2d((6, 1))
+
         # dropout after pool5 (or what left of it) at p=0.5
         self.dropout = dropout
         if self.dropout > 0:
             self.drop_layer = nn.Dropout2d(self.dropout)
-        '''Average Pooling: 256*24*8 -> 256*6*1 (f -> g)'''
-        # Tensor T [N, 256, 24, 8]
-        self.avg_pool = nn.AdaptiveAvgPool2d((6, 1))
+
         '''channel reduce: 2048*24*8 -> 256*24*8'''
         # avg pooling along the channel dimension for a [256*1*1]
         self.RPP_pool_channel_reduce = nn.AdaptiveAvgPool1d(self.reduced_dim)
+
         #############################################  PCB  ############################################################
         '''feat & feat_bn'''
         if self.num_features > 0:
@@ -117,7 +120,7 @@ class PCB_model(nn.Module):
             prediction_s.append(self.fc_s[i](x))
 
         if self.output_feature == 'pool5':
-            x_s = g_s.view(f_shape[0], -1)/g_s.norm()
+            x_s = g_s.view(f_shape[0], -1) / g_s.norm()
         else:
-            x_s = h_s.view(f_shape[0], -1)/h_s.norm()
+            x_s = h_s.view(f_shape[0], -1) / h_s.norm()
         return x_s, prediction_s
