@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader
 
 from reid import datasets
 from reid import models
-from reid.trainers import Trainer
+from reid.trainers import Trainer, CamStyleTrainer
 from reid.evaluators import Evaluator
 from reid.utils.data import transforms as T
 from reid.utils.data.preprocessor import Preprocessor
@@ -41,8 +41,8 @@ def str2bool(v):
     return v.lower() in ('true')
 
 
-def get_data(name, split_id, data_dir, height, width, batch_size, workers,
-             combine_trainval, crop, mygt_icams, fps, re=0):
+def get_data(name, data_dir, height, width, batch_size, workers,
+             combine_trainval, crop, mygt_icams, fps, camstyle=0, re=0):
     root = osp.join(data_dir, name)
 
     if name == 'duke_my_gt':
@@ -50,9 +50,9 @@ def get_data(name, split_id, data_dir, height, width, batch_size, workers,
             mygt_icams = [mygt_icams]
         else:
             mygt_icams = list(range(1, 9))
-        dataset = datasets.create(name, root, split_id=split_id, iCams=mygt_icams, fps=fps)
+        dataset = datasets.create(name, root, iCams=mygt_icams, fps=fps)
     else:
-        dataset = datasets.create(name, root, split_id=split_id)
+        dataset = datasets.create(name, root)
 
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],
                              std=[0.229, 0.224, 0.225])
@@ -109,7 +109,16 @@ def get_data(name, split_id, data_dir, height, width, batch_size, workers,
         batch_size=batch_size, num_workers=workers,
         shuffle=False, pin_memory=True)
 
-    return dataset, num_classes, train_loader, val_loader, test_loader
+    if camstyle <= 0:
+        camstyle_loader = None
+    else:
+        camstyle_loader = DataLoader(
+            Preprocessor(dataset.camstyle, root=dataset.images_dir,
+                         transform=train_transformer),
+            batch_size=camstyle, num_workers=workers,
+            shuffle=True, pin_memory=True, drop_last=True)
+
+    return dataset, num_classes, train_loader, val_loader, test_loader, camstyle_loader
 
 
 def checkpoint_loader(model, path, eval_only=False):
@@ -151,10 +160,10 @@ def main(args):
             osp.join(args.logs_dir, 'log_{}.txt'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H:%M:%S'))))
 
     # Create data loaders
-    dataset, num_classes, train_loader, val_loader, test_loader = \
-        get_data(args.dataset, args.split, args.data_dir, args.height,
+    dataset, num_classes, train_loader, val_loader, test_loader, camstyle_loader = \
+        get_data(args.dataset, args.data_dir, args.height,
                  args.width, args.batch_size, args.num_workers,
-                 args.combine_trainval, args.crop, args.mygt_icams, args.mygt_fps, args.re)
+                 args.combine_trainval, args.crop, args.mygt_icams, args.mygt_fps, args.camstyle, args.re)
 
     # Create model
     model = models.create('ide', num_features=args.features,
@@ -200,7 +209,10 @@ def main(args):
                                     nesterov=True)
 
         # Trainer
-        trainer = Trainer(model, criterion)
+        if args.camstyle == 0:
+            trainer = Trainer(model, criterion)
+        else:
+            trainer = CamStyleTrainer(model, criterion, camstyle_loader)
 
         # Schedule learning rate
         def adjust_lr(epoch):
@@ -259,7 +271,6 @@ if __name__ == '__main__':
                         choices=datasets.names())
     parser.add_argument('-b', '--batch-size', type=int, default=64, help="batch size")
     parser.add_argument('-j', '--num-workers', type=int, default=8)
-    parser.add_argument('--split', type=int, default=0)
     parser.add_argument('--height', type=int, default=256,
                         help="input height, default: 256 for resnet*")
     parser.add_argument('--width', type=int, default=128,
@@ -301,6 +312,8 @@ if __name__ == '__main__':
                         help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--print-freq', type=int, default=1)
+    # camstyle batchsize
+    parser.add_argument('--camstyle', type=int, default=0)
     # misc
     working_dir = osp.dirname(osp.abspath(__file__))
     parser.add_argument('--data-dir', type=str, metavar='PATH',
