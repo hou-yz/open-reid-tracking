@@ -68,15 +68,15 @@ def extract_features(model, data_loader, args, print_freq=10, OpenPose_det=True)
 
     end = time.time()
     for i, (imgs, fnames) in enumerate(data_loader):
-        data_time.update(time.time() - end)
-        if args.mygt_icams != 0 and OpenPose_det:
-            pattern = re.compile(r'c(\d)_f(\d+)')
-            start_cam, _ = map(int, pattern.search(fnames[0]).groups())
-            end_cam, _ = map(int, pattern.search(fnames[-1]).groups())
-            if start_cam > args.mygt_icams or end_cam < args.mygt_icams:
-                continue
+        # data_time.update(time.time() - end)
+        # if args.mygt_icams != 0 and OpenPose_det:
+        #     pattern = re.compile(r'c(\d)_f(\d+)')
+        #     start_cam, _ = map(int, pattern.search(fnames[0]).groups())
+        #     end_cam, _ = map(int, pattern.search(fnames[-1]).groups())
+        #     if start_cam > args.mygt_icams or end_cam < args.mygt_icams:
+        #         continue
 
-            pass
+        pass
 
         outputs = extract_cnn_feature(model, imgs, eval_only=True)
         for fname, output in zip(fnames, outputs):
@@ -121,8 +121,16 @@ def main(args):
     else:
         dataset_dir = osp.join(data_dir, '/home/wangzd/houyz/open-reid-PCB_n_RPP'
                                          '/examples/data/dukemtmc/dukemtmc/raw/DukeMTMC-reID/bounding_box_test')
+    if args.mygt_icams != 0:
+        mygt_icams = [args.mygt_icams]
+    else:
+        mygt_icams = list(range(1, 9))
 
-    dataset = DetDuke(dataset_dir)
+    if args.dataset == 'detections':
+        dataset = DetDuke(dataset_dir, mygt_icams)
+    else:
+        dataset = DetDuke(dataset_dir)
+
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     test_transformer = T.Compose([
         T.RectScale(args.height, args.width, interpolation=3),

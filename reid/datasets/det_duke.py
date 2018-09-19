@@ -11,17 +11,17 @@ from PIL import Image
 
 
 class DetDuke(Dataset):
-
-    def __init__(self, root, download=True):
+    def __init__(self, root, iCams=list(range(1, 9)), download=True):
         super(DetDuke, self).__init__(root)
 
         if download:
-            self.download()
+            self.download(iCams)
+        pass
 
     def __len__(self):
-        return len(glob.glob1(self.root, "*.jpg"))
+        return len(self.indexs)  # len(glob.glob1(self.root, "*.jpg"))
 
-    def download(self):
+    def download(self, iCams):
         import re
         import hashlib
         import shutil
@@ -35,9 +35,12 @@ class DetDuke(Dataset):
             fpaths = sorted(glob(osp.join(self.root, '*.jpg')))
             for fpath in fpaths:
                 fname = osp.basename(fpath)
-                # cam, frame, i = map(int, pattern.search(fname).groups())
-                # assert 1 <= cam <= 8
-                # cam -= 1  # from range[1,8]to range[0,7]
+                if len(iCams) < 8:
+                    cam, frame, i = map(int, pattern.search(fname).groups())
+                    assert 1 <= cam <= 8
+                    # cam -= 1  # from range[1,8]to range[0,7]
+                    if cam not in iCams:
+                        continue
                 self.indexs.append(fname)
                 # shutil.copy(fpath, osp.join(images_dir, fname))
 
@@ -66,14 +69,13 @@ class Preprocessor(object):
     def __len__(self):
         return len(self.dataset)
 
-
     def __getitem__(self, indices):
         if isinstance(indices, (tuple, list)):
             return [self._get_single_item(index) for index in indices]
         return self._get_single_item(indices)
 
     def _get_single_item(self, index):
-        fname= self.dataset.indexs[index]
+        fname = self.dataset.indexs[index]
         fpath = fname
         if self.root is not None:
             fpath = osp.join(self.root, fname)
