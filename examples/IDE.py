@@ -265,7 +265,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Softmax loss classification")
-    parser.add_argument('--log', type=int, default=1)
+    parser.add_argument('--log', type=str2bool, default=1)
     # data
     parser.add_argument('-d', '--dataset', type=str, default='market1501',
                         choices=datasets.names())
@@ -302,7 +302,7 @@ if __name__ == '__main__':
                         help="train IDE model from start")
     parser.add_argument('--crop', action='store_true',
                         help="resize then crop, default: False")
-    parser.add_argument('--fix_bn', type=str2bool, default=1,
+    parser.add_argument('--fix_bn', type=str2bool, default=0,
                         help="fix BN in base network")
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
     parser.add_argument('--evaluate', action='store_true',
