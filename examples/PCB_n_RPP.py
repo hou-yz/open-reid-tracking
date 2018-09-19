@@ -55,9 +55,9 @@ def get_data(name, split_id, data_dir, height, width, batch_size, workers,
             mygt_icams = [mygt_icams]
         else:
             mygt_icams = list(range(1, 9))
-        dataset = datasets.create(name, root, split_id=split_id, iCams=mygt_icams, fps=fps)
+        dataset = datasets.create(name, root, iCams=mygt_icams, fps=fps)
     else:
-        dataset = datasets.create(name, root, split_id=split_id)
+        dataset = datasets.create(name, root)
 
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],
                              std=[0.229, 0.224, 0.225])
@@ -172,7 +172,7 @@ def main(args):
 
     # Create data loaders
     dataset, num_classes, train_loader, val_loader, test_loader = \
-        get_data(args.dataset, args.split, args.data_dir, args.height,
+        get_data(args.dataset, args.data_dir, args.height,
                  args.width, args.batch_size, args.num_workers,
                  args.combine_trainval, args.crop, args.mygt_icams, args.mygt_fps, args.re)
 
@@ -359,7 +359,6 @@ if __name__ == '__main__':
                         choices=datasets.names())
     parser.add_argument('-b', '--batch-size', type=int, default=64, help="batch size")
     parser.add_argument('-j', '--num-workers', type=int, default=8)
-    parser.add_argument('--split', type=int, default=0)
     parser.add_argument('--height', type=int, default=384,
                         help="input height, default: 384 for PCB*")
     parser.add_argument('--width', type=int, default=128,
@@ -394,7 +393,7 @@ if __name__ == '__main__':
     parser.add_argument('--crop', action='store_true',
                         help="resize then crop, default: False")
     parser.add_argument('--fix_bn', type=str2bool, default=0,
-                        help="fix BN in base network")
+                        help="fix (skip training) BN in base network")
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
     parser.add_argument('--evaluate', action='store_true',
                         help="evaluation only")
