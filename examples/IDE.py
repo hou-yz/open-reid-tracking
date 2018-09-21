@@ -16,6 +16,7 @@ import matplotlib
 
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
+import json
 
 from reid import datasets
 from reid import models
@@ -159,9 +160,13 @@ def main(args):
     torch.manual_seed(args.seed)
     cudnn.benchmark = True
     # Redirect print to both console and log file
+    date_str = '{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S'))
+    # save opts
+    with open(osp.join(args.logs_dir, 'args_{}.json'.format(date_str)), 'w') as fp:
+        json.dump(vars(args), fp, indent=1)
     if (not args.evaluate) and args.log:
         sys.stdout = Logger(
-            osp.join(args.logs_dir, 'log_{}.txt'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S'))))
+            osp.join(args.logs_dir, 'log_{}.txt'.format(date_str)))
 
     # Create data loaders
     dataset, num_classes, train_loader, val_loader, test_loader, camstyle_loader = \
@@ -246,7 +251,7 @@ def main(args):
             if current_epoch == 0:
                 ax0.legend()
                 ax1.legend()
-            fig.savefig(os.path.join(args.logs_dir, 'train_{}.jpg'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S'))))
+            fig.savefig(os.path.join(args.logs_dir, 'train_{}.jpg'.format(date_str)))
 
         # Start training
         for epoch in range(start_epoch, args.epochs):
