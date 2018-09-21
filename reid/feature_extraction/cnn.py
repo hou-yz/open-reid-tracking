@@ -9,17 +9,17 @@ from torch.autograd import Variable
 from ..utils import to_torch
 
 
-def extract_cnn_feature(model, inputs, modules=None):
+def extract_cnn_feature(model, inputs, eval_only=True, modules=None):
     model.eval()
     inputs = to_torch(inputs)
-    inputs = Variable(inputs, volatile=True)
+    inputs = Variable(inputs, requires_grad=False)
     if modules is None:
-        outputs = model(inputs)
-        if isinstance(model.module, PCB_model):
+        if isinstance(model, IDE_model):
+            outputs = model(inputs, eval_only)
+        else:
+            outputs = model(inputs)
+        if isinstance(model.module, PCB_model) or isinstance(model.module, IDE_model):
             # set the feature as 6 h's, which has a total dimension of 6*256=1536
-            outputs = outputs[0]
-        elif isinstance(model.module, IDE_model):
-            # set the feature as 1 h, which has a total dimension of 1*256=256
             outputs = outputs[0]
         outputs = outputs.data.cpu()
         return outputs

@@ -4,6 +4,8 @@ import os.path as osp
 import os
 
 import numpy as np
+import time
+import random
 import sys
 import torch
 from torch import nn
@@ -25,6 +27,8 @@ if os.name == 'nt':  # windows
     batch_size = 64
     pass
 else:  # linux
+    num_workers = 8
+    batch_size = 64
     os.environ["CUDA_VISIBLE_DEVICES"] = '6,7'
 
 
@@ -42,7 +46,8 @@ def get_data(name, split_id, data_dir, height, width, batch_size, workers,
                    else dataset.num_train_ids)
 
     train_transformer = T.Compose([
-        T.RandomSizedRectCrop(height, width),
+        # T.RandomSizedRectCrop(height, width),
+        T.RectScale(height, width),
         T.RandomHorizontalFlip(),
         T.ToTensor(),
         normalizer,
@@ -66,13 +71,34 @@ def get_data(name, split_id, data_dir, height, width, batch_size, workers,
         batch_size=batch_size, num_workers=workers,
         shuffle=False, pin_memory=True)
 
+    # slimmer & faster query
+    indices_eval_query = random.sample(range(len(dataset.query)), int(len(dataset.query) / 5))
+    eval_set_query = list(dataset.query[i] for i in indices_eval_query)
+
     test_loader = DataLoader(
-        Preprocessor(list(set(dataset.query) | set(dataset.gallery)),
+        Preprocessor(list(set(eval_set_query) | set(dataset.gallery)),
                      root=dataset.images_dir, transform=test_transformer),
         batch_size=batch_size, num_workers=workers,
         shuffle=False, pin_memory=True)
 
-    return dataset, num_classes, train_loader, val_loader, test_loader
+    return dataset, num_classes, train_loader, val_loader, test_loader, eval_set_query,
+
+
+def checkpoint_loader(model, path):
+    checkpoint = load_checkpoint(path)
+    pretrained_dict = checkpoint['state_dict']
+    model_dict = model.state_dict()
+    # 1. filter out unnecessary keys
+    pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+    # 2. overwrite entries in the existing state dict
+    model_dict.update(pretrained_dict)
+    # 3. load the new state dict
+    model.load_state_dict(model_dict)
+
+    start_epoch = checkpoint['epoch']
+    best_top1 = checkpoint['best_top1']
+
+    return model, start_epoch, best_top1
 
 
 def main(args):
@@ -86,24 +112,20 @@ def main(args):
 
     # Create data loaders
     if args.height is None or args.width is None:
-        args.height, args.width = (144, 56) if args.arch == 'inception' else \
-            (384, 128)
-    dataset, num_classes, train_loader, val_loader, test_loader = \
+        args.height, args.width = (384, 128)
+    dataset, num_classes, train_loader, val_loader, test_loader, eval_set_query = \
         get_data(args.dataset, args.split, args.data_dir, args.height,
-                 args.width, args.batch_size, args.workers,
+                 args.width, batch_size, num_workers,
                  args.combine_trainval)
 
     # Create model
-    model = models.create(args.arch, num_features=args.features,
+    model = models.create('ide', num_features=256,
                           dropout=args.dropout, num_classes=num_classes)
 
     # Load from checkpoint
     start_epoch = best_top1 = 0
     if args.resume:
-        checkpoint = load_checkpoint(args.resume)
-        model.load_state_dict(checkpoint['state_dict'])
-        start_epoch = checkpoint['epoch']
-        best_top1 = checkpoint['best_top1']
+        model, start_epoch, best_top1 = checkpoint_loader(model, args.resume)
         print("=> Start epoch {}  best top1 {:.1%}"
               .format(start_epoch, best_top1))
     model = nn.DataParallel(model).cuda()
@@ -118,71 +140,80 @@ def main(args):
         print("Validation:")
         evaluator.evaluate(val_loader, dataset.val, dataset.val, metric)
         print("Test:")
-        evaluator.evaluate(test_loader, dataset.query, dataset.gallery, metric)
+        evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)
         return
 
     # Criterion
     criterion = nn.CrossEntropyLoss().cuda()
 
-    # Optimizer
-    if hasattr(model.module, 'base'):
-        base_param_ids = set(map(id, model.module.base.parameters()))
-        new_params = [p for p in model.parameters() if
-                      id(p) not in base_param_ids]
-        param_groups = [
-            {'params': model.module.base.parameters(), 'lr_mult': 0.1},
-            {'params': new_params, 'lr_mult': 1.0}]
-    else:
-        param_groups = model.parameters()
-    optimizer = torch.optim.SGD(param_groups, lr=args.lr,
-                                momentum=args.momentum,
-                                weight_decay=args.weight_decay,
-                                nesterov=True)
+    if args.train:
+        # no training for bn in base network
+        # for p in model.module.base.named_parameters():
+        #     if p[0][0:2] == '1.' or 'bn' in p[0]:
+        #         p[1].requires_grad = False
 
-    # Trainer
-    trainer = Trainer(model, criterion)
+        # Optimizer
+        if hasattr(model.module, 'base'):
+            base_param_ids = set(map(id, model.module.base.parameters()))
+            new_params = [p for p in model.parameters() if
+                          id(p) not in base_param_ids]
+            param_groups = [
+                {'params': model.module.base.parameters(), 'lr_mult': 0.1},
+                {'params': new_params, 'lr_mult': 1.0}]
+        else:
+            param_groups = model.parameters()
+        optimizer = torch.optim.SGD(param_groups, lr=args.lr,
+                                    momentum=args.momentum,
+                                    weight_decay=args.weight_decay,
+                                    nesterov=True)
 
-    # Schedule learning rate
-    def adjust_lr(epoch):
-        step_size = 60 if args.arch == 'inception' else 40
-        lr = args.lr * (0.1 ** (epoch // step_size))
-        for g in optimizer.param_groups:
-            g['lr'] = lr * g.get('lr_mult', 1)
+        # Trainer
+        trainer = Trainer(model, criterion)
 
-    # Start training
-    for epoch in range(start_epoch, args.epochs):
-        adjust_lr(epoch)
-        trainer.train(epoch, train_loader, optimizer)
-        if epoch < args.start_save:
-            continue
-        top1 = evaluator.evaluate(val_loader, dataset.val, dataset.val)
+        # Schedule learning rate
+        def adjust_lr(epoch):
+            step_size = 40
+            lr = args.lr * (0.1 ** (epoch // step_size))
+            for g in optimizer.param_groups:
+                g['lr'] = lr * g.get('lr_mult', 1)
 
-        is_best = top1 > best_top1
-        best_top1 = max(top1, best_top1)
-        save_checkpoint({
-            'state_dict': model.module.state_dict(),
-            'epoch': epoch + 1,
-            'best_top1': best_top1,
-        }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
+        # Start training
+        for epoch in range(start_epoch, args.epochs):
+            t0 = time.time()
+            adjust_lr(epoch)
+            trainer.train(epoch, train_loader, optimizer)
+            if epoch < args.start_save:
+                continue
+            top1 = evaluator.evaluate(val_loader, dataset.val, dataset.val)
 
-        print('\n * Finished epoch {:3d}  top1: {:5.1%}  best: {:5.1%}{}\n'.
-              format(epoch, top1, best_top1, ' *' if is_best else ''))
+            is_best = top1 >= best_top1
+            best_top1 = max(top1, best_top1)
+            save_checkpoint({
+                'state_dict': model.module.state_dict(),
+                'epoch': epoch + 1,
+                'best_top1': best_top1,
+            }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
 
-    # Final test
-    print('Test with best model:')
-    checkpoint = load_checkpoint(osp.join(args.logs_dir, 'model_best.pth.tar'))
-    model.module.load_state_dict(checkpoint['state_dict'])
-    metric.train(model, train_loader)
-    evaluator.evaluate(test_loader, dataset.query, dataset.gallery, metric)
+            t1 = time.time()
+            t_epoch = t1 - t0
+            print('\n * Finished epoch {:3d}  top1: {:5.1%}  best: {:5.1%}{}\n'.
+                  format(epoch, top1, best_top1, ' *' if is_best else ''))
+            print('*************** Epoch takes time: {:^10.2f} *********************\n'.format(t_epoch))
+            pass
+
+        # Final test
+        print('Test with best model:')
+        model, _, _ = checkpoint_loader(model, osp.join(args.logs_dir, 'model_best.pth.tar'))
+
+        metric.train(model, train_loader)
+        evaluator.evaluate(test_loader, eval_set_query, dataset.gallery, metric)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Softmax loss classification")
     # data
-    parser.add_argument('-d', '--dataset', type=str, default='cuhk03',
+    parser.add_argument('-d', '--dataset', type=str, default='market1501',
                         choices=datasets.names())
-    parser.add_argument('-b', '--batch-size', type=int, default=64)
-    parser.add_argument('-j', '--workers', type=int, default=4)
     parser.add_argument('--split', type=int, default=0)
     parser.add_argument('--height', type=int,
                         help="input height, default: 256 for resnet*, "
@@ -196,7 +227,7 @@ if __name__ == '__main__':
     # model
     parser.add_argument('-a', '--arch', type=str, default='resnet50',
                         choices=models.names())
-    parser.add_argument('--features', type=int, default=128)
+    # parser.add_argument('--features', type=int, default=128)
     parser.add_argument('--dropout', type=float, default=0.5)
     # optimizer
     parser.add_argument('--lr', type=float, default=0.1,
@@ -205,6 +236,8 @@ if __name__ == '__main__':
     parser.add_argument('--momentum', type=float, default=0.9)
     parser.add_argument('--weight-decay', type=float, default=5e-4)
     # training configs
+    parser.add_argument('--train', action='store_true',
+                        help="train IDE model from start")
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
     parser.add_argument('--evaluate', action='store_true',
                         help="evaluation only")

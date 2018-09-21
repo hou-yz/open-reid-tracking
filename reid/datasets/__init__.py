@@ -4,6 +4,7 @@ import warnings
 from .cuhk01 import CUHK01
 from .cuhk03 import CUHK03
 from .dukemtmc import DukeMTMC
+from .duke_my_GT import DukeMyGT
 from .market1501 import Market1501
 from .viper import VIPeR
 
@@ -12,6 +13,7 @@ __factory = {
     'viper': VIPeR,
     'cuhk01': CUHK01,
     'cuhk03': CUHK03,
+    'duke_my_gt': DukeMyGT,
     'market1501': Market1501,
     'dukemtmc': DukeMTMC,
 }

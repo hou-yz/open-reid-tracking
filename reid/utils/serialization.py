@@ -23,9 +23,10 @@ def write_json(obj, fpath):
 
 def save_checkpoint(state, is_best, fpath='checkpoint.pth.tar'):
     mkdir_if_missing(osp.dirname(fpath))
-    torch.save(state, fpath)
+    if int(state['epoch']) % 10 == 0:
+        torch.save(state, fpath)
     if is_best:
-        shutil.copy(fpath, osp.join(osp.dirname(fpath), 'model_best.pth.tar'))
+        torch.save(state, osp.join(osp.dirname(fpath), 'model_best.pth.tar'))
 
 
 def load_checkpoint(fpath):

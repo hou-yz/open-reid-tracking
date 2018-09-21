@@ -13,7 +13,14 @@ def _pluck(identities, indices, relabel=False):
         for camid, cam_images in enumerate(pid_images):
             for fname in cam_images:
                 name = osp.splitext(fname)[0]
-                x, y, _ = map(int, name.split('_'))
+                # x, y, _ = map(int, name.split('_'))
+                x, y, _ = name.split('_')
+                x = int(x)
+                if 'c' in y:
+                    y = int(y.split('c')[-1]) - 1
+                else:
+                    y = int(y)
+
                 assert pid == x and camid == y
                 if relabel:
                     ret.append((fname, index, camid))
@@ -52,8 +59,12 @@ class Dataset(object):
         if num_val >= num or num_val < 0:
             raise ValueError("num_val exceeds total identities {}"
                              .format(num))
-        train_pids = sorted(trainval_pids[:-num_val])
-        val_pids = sorted(trainval_pids[-num_val:])
+        if num_val:
+            train_pids = sorted(trainval_pids[:-num_val])
+            val_pids = sorted(trainval_pids[-num_val:])
+        else:
+            train_pids = sorted(trainval_pids)
+            val_pids = sorted([])
 
         self.meta = read_json(osp.join(self.root, 'meta.json'))
         identities = self.meta['identities']

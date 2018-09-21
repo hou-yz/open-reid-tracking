@@ -4,20 +4,29 @@ import torch
 from torch import nn
 from torch.nn import init
 from torch.autograd import Variable
+from torch.nn import functional as F
 from .resnet import *
 import torchvision
 
 
 class IDE_model(nn.Module):
-    def __init__(self, num_features=256, num_classes=0, norm=False, dropout=0):
+    def __init__(self, num_features=256, num_classes=0, norm=False, dropout=0, last_stride=2, output_feature=None):
         super(IDE_model, self).__init__()
         # Create IDE_only model
         self.num_features = num_features
         self.num_classes = num_classes
+        self.output_feature = output_feature
 
         # ResNet50: from 3*384*128 -> 2048*12*4 (Tensor T; of column vector f's)
         self.base = nn.Sequential(
             *list(resnet50(pretrained=True, cut_at_pooling=True, norm=norm, dropout=dropout).base.children())[:-2])
+
+        if last_stride != 2:
+            # decrease the downsampling rate
+            # change the stride2 conv layer in self.layer4 to stride=1
+            self.base[7][0].conv2.stride = last_stride
+            # change the downsampling layer in self.layer4 to stride=1
+            self.base[7][0].downsample[0].stride = last_stride
 
         ################################################################################################################
         '''Global Average Pooling: 2048*12*4 -> 2048*1*1'''
@@ -26,28 +35,33 @@ class IDE_model(nn.Module):
 
         # dropout after pool5 (or what left of it) at p=0.5
         self.dropout = dropout
-        self.drop_layer = nn.Dropout2d(self.dropout)
+        if self.dropout > 0:
+            self.drop_layer = nn.Dropout2d(self.dropout)
 
         ################################################################################################################
         '''feat & feat_bn'''
-        # 1*1 Conv(fc): 1*1*2048 -> 1*1*256 (g -> h)
-        self.one_one_conv = nn.Sequential(nn.Conv2d(2048, self.num_features, 1),
-                                          nn.BatchNorm2d(self.num_features),
-                                          nn.ReLU())
-        init.kaiming_normal(self.one_one_conv[0].weight, mode='fan_out')
-        init.constant(self.one_one_conv[0].bias, 0)
-        init.constant(self.one_one_conv[1].weight, 1)
-        init.constant(self.one_one_conv[1].bias, 0)
+        if self.num_features > 0:
+            # 1*1 Conv(fc): 1*1*2048 -> 1*1*256 (g -> h)
+            self.one_one_conv = nn.Sequential(nn.Conv2d(2048, self.num_features, 1),
+                                              nn.BatchNorm2d(self.num_features),
+                                              nn.ReLU())
+            init.kaiming_normal_(self.one_one_conv[0].weight, mode='fan_out')
+            init.constant_(self.one_one_conv[0].bias, 0)
+            init.constant_(self.one_one_conv[1].weight, 1)
+            init.constant_(self.one_one_conv[1].bias, 0)
+        # else:
+        #     # 128 dim pooling for triplet
+        #     self.classifier_pool = nn.AdaptiveAvgPool1d(128)
 
-        # fc + softmax:
+        # fc for softmax:
         if self.num_classes > 0:
             self.fc = nn.Linear(self.num_features, self.num_classes)
-            init.normal(self.fc.weight, std=0.001)
-            init.constant(self.fc.bias, 0)
+            init.normal_(self.fc.weight, std=0.001)
+            init.constant_(self.fc.bias, 0)
 
         pass
 
-    def forward(self, x):
+    def forward(self, x, eval_only=False):
         """
         Returns:
           h_s: each member with shape [N, c]
@@ -57,15 +71,28 @@ class IDE_model(nn.Module):
         x = self.base(x)
         x = self.global_avg_pool(x)
 
-        if self.dropout:
+        if self.output_feature == 'pool5' and eval_only:
+            x_s = x.view(x.shape[0], -1)
+            x_s = F.normalize(x_s)
+            return x_s, []
+
+        if self.dropout > 0:
             x = self.drop_layer(x)
 
-        x = self.one_one_conv(x).view(x.size()[0], -1)
-
-        prediction = self.fc(x)
-
+        if self.num_features > 0:
+            x = self.one_one_conv(x).view(x.shape[0], -1)
+        # else:
+        #     # 128 dim pooling for triplet
+        #     x = x.view(x.shape[0], 2048, -1).permute(0, 2, 1)
+        #     x = self.classifier_pool(x).permute(0, 2, 1)
         x_s = x.view(x.shape[0], -1)
+        if eval_only:
+            return x_s, []
+
         prediction_s = []
-        prediction_s.append(prediction)
+        # fc for softmax:
+        if self.num_classes > 0:
+            prediction = self.fc(x)
+            prediction_s.append(prediction)
 
         return x_s, prediction_s
