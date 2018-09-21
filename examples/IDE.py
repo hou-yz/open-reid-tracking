@@ -12,6 +12,10 @@ import torch
 from torch import nn
 from torch.backends import cudnn
 from torch.utils.data import DataLoader
+import matplotlib
+
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
 
 from reid import datasets
 from reid import models
@@ -50,7 +54,7 @@ def get_data(name, data_dir, height, width, batch_size, workers,
             mygt_icams = [mygt_icams]
         else:
             mygt_icams = list(range(1, 9))
-        dataset = datasets.create(name, root, iCams=mygt_icams, fps=fps)
+        dataset = datasets.create(name, root, iCams=mygt_icams, fps=fps, camstyle=camstyle > 0)
     else:
         dataset = datasets.create(name, root)
 
@@ -157,7 +161,7 @@ def main(args):
     # Redirect print to both console and log file
     if (not args.evaluate) and args.log:
         sys.stdout = Logger(
-            osp.join(args.logs_dir, 'log_{}.txt'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H:%M:%S'))))
+            osp.join(args.logs_dir, 'log_{}.txt'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S'))))
 
     # Create data loaders
     dataset, num_classes, train_loader, val_loader, test_loader, camstyle_loader = \
@@ -224,11 +228,32 @@ def main(args):
             for g in optimizer.param_groups:
                 g['lr'] = lr * g.get('lr_mult', 1)
 
+        # Draw Curve
+        x_epoch = []
+        fig = plt.figure()
+        ax0 = fig.add_subplot(121, title="loss")
+        ax1 = fig.add_subplot(122, title="prec")
+
+        loss_s = []
+        prec_s = []
+
+        def draw_curve(current_epoch, train_loss, train_prec):
+            x_epoch.append(current_epoch)
+            ax0.plot(x_epoch, train_loss, 'bo-', label='train')
+            ax1.plot(x_epoch, train_prec, 'bo-', label='train')
+            # ax0.plot(x_epoch, eval_loss, 'ro-', label='eval')
+            # ax1.plot(x_epoch, eval_prec, 'ro-', label='eval')
+            if current_epoch == 0:
+                ax0.legend()
+                ax1.legend()
+            fig.savefig(os.path.join(args.logs_dir, 'train_{}.jpg'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S'))))
+
         # Start training
         for epoch in range(start_epoch, args.epochs):
             t0 = time.time()
             adjust_lr(epoch)
-            trainer.train(epoch, train_loader, optimizer, fix_bn=args.fix_bn)
+            train_loss, train_prec = trainer.train(epoch, train_loader, optimizer, fix_bn=args.fix_bn)
+
             if epoch < args.start_save:
                 continue
 
@@ -246,6 +271,9 @@ def main(args):
                 'epoch': epoch + 1,
                 'best_top1': best_top1,
             }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
+            loss_s.append(train_loss)
+            prec_s.append(train_prec)
+            draw_curve(epoch, loss_s, prec_s)
 
             t1 = time.time()
             t_epoch = t1 - t0
@@ -279,7 +307,7 @@ if __name__ == '__main__':
                         help="train and val sets together for training, "
                              "val set alone for validation")
     parser.add_argument('--mygt_icams', type=int, default=0, help="specify if train on single iCam")
-    parser.add_argument('--mygt_fps', type=int, default=60,
+    parser.add_argument('--mygt_fps', type=int, default=1,
                         choices=[1, 6, 12, 30, 60], help="specify if train on single iCam")
     parser.add_argument('--re', type=float, default=0, help="random erasing")
     # model

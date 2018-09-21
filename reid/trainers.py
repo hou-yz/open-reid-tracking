@@ -96,6 +96,8 @@ class BaseTrainer(object):
                 prec_meter.val, sm_meter.val, dist_ap_meter.val, dist_an_meter.val, loss_meter.val, ))
             print(time_log + tri_log)
 
+        return losses.avg, precisions.avg
+
     def _parse_data(self, inputs):
         raise NotImplementedError
 
@@ -243,4 +245,3 @@ class CamStyleTrainer(BaseTrainer):
         targets_onehot.scatter_(1, targets, 0.9)
         targets_onehot.add_(0.1 / num_class)
         return targets_onehot
-
