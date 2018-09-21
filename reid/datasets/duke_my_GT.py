@@ -38,14 +38,14 @@ def _pluck(identities, indices, relabel=False):
 
 class DukeMyGT(Dataset):
 
-    def __init__(self, root, split_id=0, num_val=10, download=True, iCams=list(range(1, 9)), fps=60):
+    def __init__(self, root, split_id=0, num_val=10, download=True, iCams=list(range(1, 9)), fps=60, camstyle=False):
         super(DukeMyGT, self).__init__(root, split_id=split_id)
 
         camstyle_path = '/home/wangzd/Data/DukeMTMC/ALL_gt_bbox/gt_bbox_6_fps/allcam_camstyle_stargan4reid'
         self.camstyle = []
-        MTMC_dir = '/home/wangzd/Data/DukeMTMC/ALL_gt_bbox'
+        mygt_dir = '/home/wangzd/Data/DukeMTMC/ALL_gt_bbox'
         if download:
-            self.download(iCams, fps, MTMC_dir, camstyle_path)
+            self.download(iCams, fps, mygt_dir, camstyle_path, camstyle)
 
         # if not self._check_integrity():
         #     raise RuntimeError("Dataset not found or corrupted. " +
@@ -53,7 +53,7 @@ class DukeMyGT(Dataset):
 
         self.load(num_val)
 
-    def download(self, iCams, fps, MTMC_dir, camstyle_path):
+    def download(self, iCams, fps, mygt_dir, camstyle_path, camstyle):
         # if self._check_integrity():
         #     print("Files already downloaded and verified")
         #     return
@@ -64,52 +64,55 @@ class DukeMyGT(Dataset):
         from glob import glob
         from zipfile import ZipFile
 
-        market_raw_dir = osp.join(self.root, 'market_raw')
-        mkdir_if_missing(market_raw_dir)
-        # Download the raw zip file
-        fpath = osp.join(market_raw_dir, 'Market-1501-v15.09.15.zip')
-        # Extract the file
-        exdir = osp.join(market_raw_dir, 'Market-1501-v15.09.15')
+        reid_raw_dir = osp.join(self.root, 'reid_raw')
+        mkdir_if_missing(reid_raw_dir)
+        # reid zip file dir
+        fpath = osp.join(reid_raw_dir, 'DukeMTMC-reID.zip')
+        # Extract reid zip file
+        exdir = osp.join(reid_raw_dir, 'DukeMTMC-reID')
         if not osp.isdir(exdir):
             print("Extracting zip file")
             with ZipFile(fpath) as z:
-                z.extractall(path=market_raw_dir)
+                z.extractall(path=reid_raw_dir)
 
         # Format
         images_dir = osp.join(self.root, 'images')
         mkdir_if_missing(images_dir)
-        duke_raw_dir = osp.join(MTMC_dir, ('gt_bbox_' + str(fps) + '_fps'))
+        mygt_raw_dir = osp.join(mygt_dir, ('gt_bbox_' + str(fps) + '_fps'))
 
-        # 1501 identities (+1 for background) with 6 camera views each
-        # and more than 7000 ids from dukemtmc
-        identities = [[[] for _ in range(8 + 6)] for _ in range(10000)]
+        # 7k+ ids from mygt
+        # 7k+ ids from reid
+        # 7k+ ids from fake
+        identities = [[[] for _ in range(8)] for _ in range(30000)]
 
-        fake_identities = [[[] for _ in range(8)] for _ in range(8000)]
-
-        def market_register(subdir, pattern=re.compile(r'([-\d]+)_c(\d)')):
+        def reid_register(subdir, pattern=re.compile(r'([-\d]+)_c(\d)')):
             fpaths = sorted(glob(osp.join(exdir, subdir, '*.jpg')))
             pids = set()
             for fpath in fpaths:
                 fname = osp.basename(fpath)
                 pid, cam = map(int, pattern.search(fname).groups())
                 if pid == -1: continue  # junk images are just ignored
-                assert 0 <= pid <= 1501  # pid == 0 means background
-                assert 1 <= cam <= 6
-                cam = cam - 1 + 8
-                pid += 8000
+                assert 0 <= pid <= 8000  # pid == 0 means background
+                assert 1 <= cam <= 8
+                cam = cam - 1
+                pid += 10000
                 pids.add(pid)
                 fname = ('{:08d}_{:02d}_{:04d}.jpg'.format(pid, cam, len(identities[pid][cam])))
                 identities[pid][cam].append(fname)
-                shutil.copy(fpath, osp.join(images_dir, fname))
+                # only copy once
+                copy_flag = 1
+                if osp.isfile(osp.join(images_dir, fname)) and copy_flag:
+                    copy_flag = 0
+                if copy_flag:
+                    shutil.copy(fpath, osp.join(images_dir, fname))
             return pids
 
-        def duke_register(subdir, pattern=re.compile(r'([-\d]+)_c(\d)')):
+        def mygt_register(subdir, pattern=re.compile(r'([-\d]+)_c(\d)')):
             pids = set()
             for iCam in iCams:
                 cam_dir = 'camera' + str(iCam)
                 fpaths = sorted(glob(osp.join(subdir, cam_dir, '*.jpg')))
                 for fpath in fpaths:
-                    copy_flag = 1
                     fname = osp.basename(fpath)
                     pid, cam = map(int, pattern.search(fname).groups())
                     if pid == -1: continue  # junk images are just ignored
@@ -120,6 +123,7 @@ class DukeMyGT(Dataset):
                     # fname = ('{:08d}_{:02d}_{:04d}.jpg'.format(pid, cam, len(identities[pid][cam])))
                     identities[pid][cam].append(fname)
                     # only copy once
+                    copy_flag = 1
                     if osp.isfile(osp.join(images_dir, fname)) and copy_flag:
                         copy_flag = 0
                     if copy_flag:
@@ -129,14 +133,13 @@ class DukeMyGT(Dataset):
 
         def fake_register(subdir, trainval_pids):
             pids = set()
-            pid_pattern = re.compile(r'([-\d]+)_c(\d)')
-            cam_pattern = re.compile(r'fake_(\d)')  # use fakes transferred to iCam style
+            og_pattern = re.compile(r'([-\d]+)_c(\d)')
+            fake_cam_pattern = re.compile(r'fake_(\d)')  # use fakes transferred to iCam style
             fpaths = sorted(glob(osp.join(subdir, '*.jpg')))
             for fpath in fpaths:
-                copy_flag = 1
                 fname = osp.basename(fpath)
-                pid, source_cam = map(int, pid_pattern.search(fname).groups())
-                fake_cam = int(cam_pattern.search(fname).groups()[0])
+                pid, source_cam = map(int, og_pattern.search(fname).groups())
+                fake_cam = int(fake_cam_pattern.search(fname).groups()[0])
 
                 if pid == -1: continue  # junk images are just ignored
                 if fake_cam == source_cam: continue  # skip self transformed imgs
@@ -146,10 +149,12 @@ class DukeMyGT(Dataset):
                 assert 0 <= pid <= 8000  # pid == 0 means background
                 assert 1 <= fake_cam <= 8
                 fake_cam -= 1  # from range[1,8]to range[0,7]
+                pid += 20000
                 pids.add(pid)
                 # fname = ('{:08d}_{:02d}_{:04d}.jpg'.format(pid, cam, len(identities[pid][cam])))
-                fake_identities[pid][fake_cam].append(fname)
+                identities[pid][fake_cam].append(fname)
                 # only copy once
+                copy_flag = 1
                 if osp.isfile(osp.join(images_dir, fname)) and copy_flag:
                     copy_flag = 0
                 if copy_flag:
@@ -158,10 +163,13 @@ class DukeMyGT(Dataset):
 
             return pids
 
-        trainval_pids = duke_register(duke_raw_dir)
-        gallery_pids = market_register('bounding_box_test')
-        query_pids = market_register('query')
-        camstyle_pids = fake_register(camstyle_path, trainval_pids)
+        trainval_pids = mygt_register(mygt_raw_dir)
+        gallery_pids = reid_register('bounding_box_test')
+        query_pids = reid_register('query')
+        if camstyle:
+            camstyle_pids = fake_register(camstyle_path, trainval_pids)
+        else:
+            camstyle_pids = set()
         assert query_pids <= gallery_pids
         assert trainval_pids.isdisjoint(gallery_pids)
 
@@ -169,10 +177,6 @@ class DukeMyGT(Dataset):
         meta = {'name': 'DukeMyGT', 'shot': 'multiple', 'num_cameras': 14,
                 'identities': identities}
         write_json(meta, osp.join(self.root, 'meta.json'))
-
-        fake_meta = {'name': 'DukeCamStyleFake', 'shot': 'multiple', 'num_cameras': 14,
-                'fake_identities': fake_identities}
-        write_json(fake_meta, osp.join(self.root, 'fake_meta.json'))
 
         # Save the only training / test split
         splits = [{
@@ -208,14 +212,12 @@ class DukeMyGT(Dataset):
 
         self.meta = read_json(osp.join(self.root, 'meta.json'))
         identities = self.meta['identities']
-        self.fake_meta = read_json(osp.join(self.root, 'fake_meta.json'))
-        fake_identities = self.fake_meta['fake_identities']
         self.train = _pluck(identities, train_pids, relabel=True)
         self.val = _pluck(identities, val_pids, relabel=True)
         self.trainval = _pluck(identities, trainval_pids, relabel=True)
         self.query = _pluck(identities, self.split['query'])
         self.gallery = _pluck(identities, self.split['gallery'])
-        self.camstyle = _pluck(fake_identities, self.split['camstyle'], relabel=True)
+        self.camstyle = _pluck(identities, self.split['camstyle'], relabel=True)
         self.num_train_ids = len(train_pids)
         self.num_val_ids = len(val_pids)
         self.num_trainval_ids = len(trainval_pids)
@@ -234,5 +236,5 @@ class DukeMyGT(Dataset):
                   .format(len(self.split['query']), len(self.query)))
             print("  gallery  | {:5d} | {:8d}"
                   .format(len(self.split['gallery']), len(self.gallery)))
-            print("  camstyle  | {:5d} | {:8d}"
+            print("  camstyle | {:5d} | {:8d}"
                   .format(len(self.split['camstyle']), len(self.camstyle)))
