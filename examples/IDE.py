@@ -161,12 +161,12 @@ def main(args):
     cudnn.benchmark = True
     # Redirect print to both console and log file
     date_str = '{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S'))
-    # save opts
-    with open(osp.join(args.logs_dir, 'args_{}.json'.format(date_str)), 'w') as fp:
-        json.dump(vars(args), fp, indent=1)
     if (not args.evaluate) and args.log:
         sys.stdout = Logger(
             osp.join(args.logs_dir, 'log_{}.txt'.format(date_str)))
+        # save opts
+        with open(osp.join(args.logs_dir, 'args_{}.json'.format(date_str)), 'w') as fp:
+            json.dump(vars(args), fp, indent=1)
 
     # Create data loaders
     dataset, num_classes, train_loader, val_loader, test_loader, camstyle_loader = \
@@ -225,10 +225,10 @@ def main(args):
 
         # Schedule learning rate
         def adjust_lr(epoch):
-            if args.epochs == 60:
+            if args.epochs == 60 or args.epochs == 120:
                 step_size = 40
             else:
-                step_size = args.epochs / 2
+                step_size = args.epochs - 10
             lr = args.lr * (0.1 ** (epoch // step_size))
             for g in optimizer.param_groups:
                 g['lr'] = lr * g.get('lr_mult', 1)
@@ -257,6 +257,7 @@ def main(args):
         for epoch in range(start_epoch, args.epochs):
             t0 = time.time()
             adjust_lr(epoch)
+            # train_loss, train_prec = 0, 0
             train_loss, train_prec = trainer.train(epoch, train_loader, optimizer, fix_bn=args.fix_bn)
 
             if epoch < args.start_save:
@@ -275,7 +276,7 @@ def main(args):
                 'state_dict': model.module.state_dict(),
                 'epoch': epoch + 1,
                 'best_top1': best_top1,
-            }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
+            }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint_epoch{}.pth.tar'.format(epoch)))
             loss_s.append(train_loss)
             prec_s.append(train_prec)
             draw_curve(epoch, loss_s, prec_s)
