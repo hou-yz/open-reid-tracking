@@ -29,16 +29,10 @@ from reid.utils.serialization import load_checkpoint, save_checkpoint
 
 '''
     training on Duke GroundTruth        
-    eval on DukeGT                      
-    no eval set                         
-    test on 1501 query set              
-    fix bn in resnet                    check
-    random crop                         check
-    input size 256*128                  check
-    Resize instead of RectScale         check
-    RE                                  
-    1024dim feature                     check
-    dataloader from zzd                 check
+    eval on DukeGT               
+    fix bn in resnet by default         check
+    no crop for myGT by default         check
+    RE                                  check
 '''
 
 
@@ -338,7 +332,7 @@ if __name__ == '__main__':
                         help="train IDE model from start")
     parser.add_argument('--crop', action='store_true',
                         help="resize then crop, default: False")
-    parser.add_argument('--fix_bn', type=str2bool, default=0,
+    parser.add_argument('--fix_bn', type=str2bool, default=1,
                         help="fix (skip training) BN in base network")
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
     parser.add_argument('--evaluate', action='store_true',

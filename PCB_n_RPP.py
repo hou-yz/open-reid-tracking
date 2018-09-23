@@ -34,8 +34,9 @@ from reid.utils.serialization import load_checkpoint, save_checkpoint
 '''
     ideas for better training from Dr. Yifan Sun
     
+    train resnet BN by default                              check
     no crop                                                 check
-    batch_size = 64                                         check
+    batch_size = 64 , lr = 0.1                              check
     dropout -- possible at layer: pool5                     check
     skip step-3 in RPP training                             check
     RPP classifier -- 2048 -> 256 -> 6 (average pooling)    check
@@ -46,7 +47,7 @@ def str2bool(v):
     return v.lower() in ('true')
 
 
-def get_data(name, split_id, data_dir, height, width, batch_size, workers,
+def get_data(name, data_dir, height, width, batch_size, workers,
              combine_trainval, crop, mygt_icams, fps, re=0):
     root = osp.join(data_dir, name)
 
