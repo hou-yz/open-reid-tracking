@@ -119,8 +119,7 @@ def main(args):
     if args.dataset == 'detections':
         dataset_dir = osp.join(data_dir, ('det_bbox_OpenPose_' + args.det_time))
     else:
-        dataset_dir = osp.join(data_dir, '/home/wangzd/houyz/open-reid-PCB_n_RPP'
-                                         '/examples/data/dukemtmc/dukemtmc/raw/DukeMTMC-reID/bounding_box_test')
+        dataset_dir = '/home/wangzd/Data/DukeMTMC/ALL_gt_bbox/gt_bbox_1_fps/allcam'
     if args.mygt_icams != 0:
         mygt_icams = [args.mygt_icams]
     else:
@@ -201,7 +200,7 @@ if __name__ == '__main__':
     # data
     parser.add_argument('-d', '--dataset', type=str, default='reid_test',
                         choices=['detections', 'reid_test'])
-    parser.add_argument('-b', '--batch-size', type=int, default=128, help="batch size")
+    parser.add_argument('-b', '--batch-size', type=int, default=64, help="batch size")
     parser.add_argument('-j', '--num-workers', type=int, default=8)
     parser.add_argument('--height', type=int, default=256,
                         help="input height, default: 256 for resnet*")

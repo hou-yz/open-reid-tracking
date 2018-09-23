@@ -225,10 +225,12 @@ def main(args):
 
         # Schedule learning rate
         def adjust_lr(epoch):
-            if args.epochs == 60 or args.epochs == 120:
+            if args.epochs == 60:
                 step_size = 40
+            elif args.epochs == 20:
+                step_size = 10
             else:
-                step_size = args.epochs - 10
+                step_size = args.epochs // 3 * 2
             lr = args.lr * (0.1 ** (epoch // step_size))
             for g in optimizer.param_groups:
                 g['lr'] = lr * g.get('lr_mult', 1)
@@ -314,7 +316,7 @@ if __name__ == '__main__':
                              "val set alone for validation")
     parser.add_argument('--mygt_icams', type=int, default=0, help="specify if train on single iCam")
     parser.add_argument('--mygt_fps', type=int, default=1,
-                        choices=[1, 6, 12, 30, 60], help="specify if train on single iCam")
+                        choices=[1, 3, 6, 12, 30, 60], help="specify if train on single iCam")
     parser.add_argument('--re', type=float, default=0, help="random erasing")
     # model
     parser.add_argument('-a', '--arch', type=str, default='resnet50',
@@ -351,7 +353,6 @@ if __name__ == '__main__':
     # misc
     working_dir = osp.dirname(osp.abspath(__file__))
     parser.add_argument('--data-dir', type=str, metavar='PATH',
-                        default=osp.join(working_dir, 'data'))
-    parser.add_argument('--logs-dir', type=str, metavar='PATH',
-                        default=osp.join(working_dir, 'logs'))
+                        default='/home/wangzd/houyz/open-reid-PCB_n_RPP/data')  # default=osp.join(working_dir, 'data'))
+    parser.add_argument('--logs-dir', type=str, metavar='PATH')
     main(parser.parse_args())

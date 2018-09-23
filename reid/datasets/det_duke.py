@@ -46,18 +46,6 @@ class DetDuke(Dataset):
 
         duke_register()
 
-        # Save meta information into a json file
-        # meta = {'name': 'DukeTo1501', 'shot': 'multiple', 'num_cameras': 8,
-        #         'identities': self.indexs}
-        # write_json(meta, osp.join(self.root, 'meta.json'))
-
-        # Save the only training / test split
-        # splits = [{
-        #     'trainval': sorted(list(trainval_pids)),
-        #     'query': sorted(list(query_pids)),
-        #     'gallery': sorted(list(gallery_pids))}]
-        # write_json(splits, osp.join(self.root, 'splits.json'))
-
 
 class Preprocessor(object):
     def __init__(self, dataset, root=None, transform=None):
