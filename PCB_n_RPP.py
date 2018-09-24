@@ -12,6 +12,11 @@ import torch
 from torch import nn
 from torch.backends import cudnn
 from torch.utils.data import DataLoader
+import matplotlib
+
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
+import json
 
 from reid import datasets
 from reid import models
@@ -109,13 +114,19 @@ def get_data(name, data_dir, height, width, batch_size, workers,
     indices_eval_query = random.sample(range(len(dataset.query)), int(len(dataset.query) / 5))
     eval_set_query = list(dataset.query[i] for i in indices_eval_query)
 
-    test_loader = DataLoader(
-        Preprocessor(list(set(dataset.query) | set(dataset.gallery)),
+    query_loader = DataLoader(
+        Preprocessor(dataset.query,
                      root=dataset.images_dir, transform=test_transformer),
         batch_size=batch_size, num_workers=workers,
         shuffle=False, pin_memory=True)
 
-    return dataset, num_classes, train_loader, val_loader, test_loader
+    gallery_loader = DataLoader(
+        Preprocessor(dataset.gallery,
+                     root=dataset.images_dir, transform=test_transformer),
+        batch_size=batch_size, num_workers=workers,
+        shuffle=False, pin_memory=True)
+
+    return dataset, num_classes, train_loader, val_loader, query_loader, gallery_loader
 
 
 def checkpoint_loader(model, path, eval_only=False):
@@ -167,12 +178,16 @@ def main(args):
     cudnn.benchmark = True
 
     # Redirect print to both console and log file
+    date_str = '{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S'))
     if (not args.evaluate) and args.log:
         sys.stdout = Logger(
-            osp.join(args.logs_dir, 'log_{}.txt'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H:%M:%S'))))
+            osp.join(args.logs_dir, 'log_{}.txt'.format(date_str)))
+        # save opts
+        with open(osp.join(args.logs_dir, 'args_{}.json'.format(date_str)), 'w') as fp:
+            json.dump(vars(args), fp, indent=1)
 
     # Create data loaders
-    dataset, num_classes, train_loader, val_loader, test_loader = \
+    dataset, num_classes, train_loader, val_loader, query_loader, gallery_loader = \
         get_data(args.dataset, args.data_dir, args.height,
                  args.width, args.batch_size, args.num_workers,
                  args.combine_trainval, args.crop, args.mygt_icams, args.mygt_fps, args.re)
@@ -195,10 +210,10 @@ def main(args):
     # Evaluator
     evaluator = Evaluator(model)
     if args.evaluate:
-        print("Validation:")
-        evaluator.evaluate(val_loader, dataset.val, dataset.val, eval_only=True)
+        # print("Validation:")
+        # evaluator.evaluate(val_loader, dataset.val, dataset.val, eval_only=True)
         print("Test:")
-        evaluator.evaluate(test_loader, dataset.query, dataset.gallery, eval_only=True)
+        evaluator.evaluate(query_loader, gallery_loader, dataset.query, dataset.gallery, eval_only=True)
         return
 
     # Criterion
@@ -231,25 +246,44 @@ def main(args):
             if args.epochs == 60:
                 step_size = 40
             else:
-                step_size = args.epochs / 2
+                step_size = args.epochs // 3 * 2
             lr = args.lr * (0.1 ** (epoch // step_size))
             for g in optimizer.param_groups:
                 g['lr'] = lr * g.get('lr_mult', 1)
+
+        # Draw Curve
+        x_epoch = []
+        fig = plt.figure()
+        ax0 = fig.add_subplot(121, title="loss")
+        ax1 = fig.add_subplot(122, title="prec")
+
+        loss_s = []
+        prec_s = []
+
+        def draw_curve(current_epoch, train_loss, train_prec):
+            x_epoch.append(current_epoch)
+            ax0.plot(x_epoch, train_loss, 'bo-', label='train')
+            ax1.plot(x_epoch, train_prec, 'bo-', label='train')
+            # ax0.plot(x_epoch, eval_loss, 'ro-', label='eval')
+            # ax1.plot(x_epoch, eval_prec, 'ro-', label='eval')
+            if current_epoch == 0:
+                ax0.legend()
+                ax1.legend()
+            fig.savefig(os.path.join(args.logs_dir, 'train_{}.jpg'.format(date_str)))
 
         # Start training
         for epoch in range(start_epoch, args.epochs):
             t0 = time.time()
             adjust_lr(epoch)
-            trainer.train(epoch, train_loader, optimizer, fix_bn=args.fix_bn)
+            # train_loss, train_prec = 0, 0
+            train_loss, train_prec = trainer.train(epoch, train_loader, optimizer, fix_bn=args.fix_bn)
+
             if epoch < args.start_save:
                 continue
-
-            print("Validation:")
-            # skip evaluate for separate iCam training
-            if args.mygt_icams == 0:
-                top1 = evaluator.evaluate(val_loader, dataset.val, dataset.val, eval_only=True)
-            else:
-                top1 = 50
+            # skip evaluate
+            # print("Validation:")
+            # top1_eval = evaluator.evaluate(val_loader, dataset.val, dataset.val, eval_only=True)
+            top1 = 50
 
             is_best = top1 >= best_top1
             best_top1 = max(top1, best_top1)
@@ -259,6 +293,9 @@ def main(args):
                 'best_top1': best_top1,
                 'rpp': False,
             }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
+            loss_s.append(train_loss)
+            prec_s.append(train_prec)
+            draw_curve(epoch, loss_s, prec_s)
 
             t1 = time.time()
             t_epoch = t1 - t0
@@ -270,7 +307,7 @@ def main(args):
         print('Test with best model:')
         model, _, _ = checkpoint_loader(model, osp.join(args.logs_dir, 'model_best.pth.tar'), eval_only=True)
 
-        evaluator.evaluate(test_loader, dataset.query, dataset.gallery, eval_only=True)
+        evaluator.evaluate(query_loader, gallery_loader, dataset.query, dataset.gallery, eval_only=True)
         pass
     if args.train_RPP:
         '''
@@ -348,7 +385,7 @@ def main(args):
                                                           eval_only=True)
         print("=> Start epoch {}  best top1 {:.1%}".format(start_epoch, best_top1))
 
-        evaluator.evaluate(test_loader, dataset.query, dataset.gallery, eval_only=True)
+        evaluator.evaluate(query_loader, gallery_loader, dataset.query, dataset.gallery, eval_only=True)
     pass
 
 

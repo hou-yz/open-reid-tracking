@@ -102,8 +102,14 @@ def get_data(name, data_dir, height, width, batch_size, workers,
     indices_eval_query = random.sample(range(len(dataset.query)), int(len(dataset.query) / 5))
     eval_set_query = list(dataset.query[i] for i in indices_eval_query)
 
-    test_loader = DataLoader(
-        Preprocessor(list(set(dataset.query) | set(dataset.gallery)),
+    query_loader = DataLoader(
+        Preprocessor(dataset.query,
+                     root=dataset.images_dir, transform=test_transformer),
+        batch_size=batch_size, num_workers=workers,
+        shuffle=False, pin_memory=True)
+
+    gallery_loader = DataLoader(
+        Preprocessor(dataset.gallery,
                      root=dataset.images_dir, transform=test_transformer),
         batch_size=batch_size, num_workers=workers,
         shuffle=False, pin_memory=True)
@@ -117,7 +123,7 @@ def get_data(name, data_dir, height, width, batch_size, workers,
             batch_size=camstyle, num_workers=workers,
             shuffle=True, pin_memory=True, drop_last=True)
 
-    return dataset, num_classes, train_loader, val_loader, test_loader, camstyle_loader
+    return dataset, num_classes, train_loader, val_loader, query_loader, gallery_loader, camstyle_loader
 
 
 def checkpoint_loader(model, path, eval_only=False):
@@ -163,7 +169,7 @@ def main(args):
             json.dump(vars(args), fp, indent=1)
 
     # Create data loaders
-    dataset, num_classes, train_loader, val_loader, test_loader, camstyle_loader = \
+    dataset, num_classes, train_loader, val_loader, query_loader, gallery_loader, camstyle_loader = \
         get_data(args.dataset, args.data_dir, args.height,
                  args.width, args.batch_size, args.num_workers,
                  args.combine_trainval, args.crop, args.mygt_icams, args.mygt_fps, args.camstyle, args.re)
@@ -189,7 +195,7 @@ def main(args):
         # print("Validation:")
         # evaluator.evaluate(val_loader, dataset.val, dataset.val, eval_only=True)
         print("Test:")
-        evaluator.evaluate(test_loader, dataset.query, dataset.gallery, eval_only=True)
+        evaluator.evaluate(query_loader, gallery_loader, dataset.query, dataset.gallery, eval_only=True)
         return
 
     # Criterion
@@ -259,12 +265,11 @@ def main(args):
             if epoch < args.start_save:
                 continue
 
-            print("Validation:")
-            # skip evaluate for separate iCam training
-            if args.mygt_icams == 0:
-                top1_eval = evaluator.evaluate(val_loader, dataset.val, dataset.val, eval_only=True)
-            else:
-                top1_eval = 50
+
+            # skip evaluate
+            # print("Validation:")
+            # top1_eval = evaluator.evaluate(val_loader, dataset.val, dataset.val, eval_only=True)
+            top1_eval = 50
 
             is_best = top1_eval >= best_top1
             best_top1 = max(top1_eval, best_top1)
@@ -290,7 +295,7 @@ def main(args):
                                                           eval_only=True)
         print("=> Start epoch {}  best top1 {:.1%}".format(start_epoch, best_top1))
 
-        evaluator.evaluate(test_loader, dataset.query, dataset.gallery, eval_only=True)
+        evaluator.evaluate(query_loader, gallery_loader, dataset.query, dataset.gallery, eval_only=True)
 
 
 if __name__ == '__main__':
