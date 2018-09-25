@@ -195,7 +195,7 @@ def main(args):
     # Create model
     model = models.create('pcb', num_features=args.features,
                           dropout=args.dropout, num_classes=num_classes, last_stride=args.last_stride,
-                          output_feature=args.output_feature)
+                          output_feature=args.output_feature, share_conv=args.share_conv)
 
     # Load from checkpoint
     start_epoch = best_top1 = 0
@@ -245,6 +245,8 @@ def main(args):
         def adjust_lr(epoch):
             if args.epochs == 60:
                 step_size = 40
+            elif args.epochs == 50:
+                step_size = 30
             else:
                 step_size = args.epochs // 3 * 2
             lr = args.lr * (0.1 ** (epoch // step_size))
@@ -292,7 +294,7 @@ def main(args):
                 'epoch': epoch + 1,
                 'best_top1': best_top1,
                 'rpp': False,
-            }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
+            }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint_epoch{}.pth.tar'.format(epoch)))
             loss_s.append(train_loss)
             prec_s.append(train_prec)
             draw_curve(epoch, loss_s, prec_s)
@@ -409,11 +411,13 @@ if __name__ == '__main__':
                         choices=[1, 6, 12, 30, 60], help="specify if train on single iCam")
     parser.add_argument('--re', type=float, default=0, help="random erasing")
     # model
+    parser.add_argument('--share_conv', type=str2bool, default=0,
+                        help="share 1x1 conv in PCB")
     parser.add_argument('-a', '--arch', type=str, default='resnet50',
                         choices=models.names())
     parser.add_argument('--features', type=int, default=256)
     parser.add_argument('--dropout', type=float, default=0.5)
-    parser.add_argument('-s', '--last_stride', type=int, default=2,
+    parser.add_argument('-s', '--last_stride', type=int, default=1,
                         choices=[1, 2])
     parser.add_argument('--output_feature', type=str, default='fc',
                         choices=['pool5', 'fc'])

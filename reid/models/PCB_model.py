@@ -9,16 +9,17 @@ import torchvision
 
 
 class PCB_model(nn.Module):
-    def __init__(self, num_parts=6, num_features=256, num_classes=0, norm=False, dropout=0, last_stride=2,
-                 reduced_dim=256, output_feature=None):
+    def __init__(self, num_stripes=6, num_features=256, num_classes=0, norm=False, dropout=0, last_stride=2,
+                 reduced_dim=256, share_conv=False, output_feature=None):
         super(PCB_model, self).__init__()
         # Create PCB_only model
-        self.num_parts = num_parts
+        self.num_stripes = num_stripes
         self.num_features = num_features
         self.num_classes = num_classes
         self.rpp = False
         self.reduced_dim = reduced_dim
         self.output_feature = output_feature
+        self.share_conv = share_conv
 
         # ResNet50: from 3*384*128 -> 2048*24*8 (Tensor T; of column vector f's)
         self.base = nn.Sequential(
@@ -46,24 +47,38 @@ class PCB_model(nn.Module):
 
         #############################################  PCB  ############################################################
         '''feat & feat_bn'''
+        # 1*1 Conv: 6*1*2048 -> 6*1*256 (g -> h)
         if self.num_features > 0:
-            # 1*1 Conv: 6*1*2048 -> 6*1*256 (g -> h)
-            self.PCB_conv_channel_reduce = nn.Sequential(nn.Conv2d(2048, self.num_features, kernel_size=1),
-                                                         nn.BatchNorm2d(self.num_features),
-                                                         nn.ReLU())
-            init.kaiming_normal_(self.PCB_conv_channel_reduce[0].weight, mode='fan_out')
-            init.constant_(self.PCB_conv_channel_reduce[0].bias, 0)
-            init.constant_(self.PCB_conv_channel_reduce[1].weight, 1)
-            init.constant_(self.PCB_conv_channel_reduce[1].bias, 0)
-        #############################################  RPP  ############################################################
+            if self.share_conv:
+                self.local_conv = nn.Sequential(
+                    nn.Conv2d(2048, self.num_features, kernel_size=1),
+                    nn.BatchNorm2d(self.num_features),
+                    nn.ReLU(inplace=True))
+                init.kaiming_normal_(self.local_conv[0].weight, mode='fan_out')
+                init.constant_(self.local_conv[0].bias, 0)
+                init.constant_(self.local_conv[1].weight, 1)
+                init.constant_(self.local_conv[1].bias, 0)
+            else:
+                self.local_conv_list = nn.ModuleList()
+                for _ in range(self.num_stripes):
+                    local_conv = nn.Sequential(
+                        nn.Conv1d(2048, self.num_features, kernel_size=1),
+                        nn.BatchNorm1d(self.num_features),
+                        nn.ReLU(inplace=True))
+                    init.kaiming_normal_(local_conv[0].weight, mode='fan_out')
+                    init.constant_(local_conv[0].bias, 0)
+                    init.constant_(local_conv[1].weight, 1)
+                    init.constant_(local_conv[1].bias, 0)
+                    self.local_conv_list.append(local_conv)
 
+        #############################################  RPP  ############################################################
         '''RPP: Refined part pooling'''
         # first, extract each f's; then,
         # get sampling weights from each f's [2048*1*1]
         # avg pooling along the channel dimension for a [256*1*1]
         self.classifier_pool = nn.AdaptiveAvgPool1d(self.num_features)
         # 6 classifier for f:[256*1*1] -> weight_s:[6*1*1]
-        self.sampling_weight_layer = nn.Sequential(nn.Conv1d(self.num_features, self.num_parts, kernel_size=1),
+        self.sampling_weight_layer = nn.Sequential(nn.Conv1d(self.num_features, self.num_stripes, kernel_size=1),
                                                    nn.Softmax(dim=1))
         init.kaiming_normal_(self.sampling_weight_layer[0].weight, mode='fan_out')
         init.constant_(self.sampling_weight_layer[0].bias, 0)  # return a [N,6,24,8] tensor
@@ -73,7 +88,7 @@ class PCB_model(nn.Module):
         # 6 branches of fc's:
         if self.num_classes > 0:
             self.fc_s = nn.ModuleList()
-            for _ in range(self.num_parts):
+            for _ in range(self.num_stripes):
                 fc = nn.Linear(self.num_features, self.num_classes)
                 init.normal_(fc.weight, std=0.001)
                 init.constant_(fc.bias, 0)
@@ -104,23 +119,30 @@ class PCB_model(nn.Module):
             f_s = x.view(f_shape[0], f_shape[1], f_shape[2] * f_shape[3])
             f_s = (self.classifier_pool(f_s.permute(0, 2, 1)).permute(0, 2, 1))
             weight_s = self.sampling_weight_layer(f_s).permute(0, 2, 1)
-            g_s = torch.matmul(f_s, weight_s).view(f_shape[0], self.reduced_dim, self.num_parts, 1)
+            g_s = torch.matmul(f_s, weight_s).view(f_shape[0], self.reduced_dim, self.num_stripes, 1)
             pass
 
-        assert g_s.size(2) == self.num_parts
+        assert g_s.size(2) == self.num_stripes
 
         # h_s [N, 256, 6, 1]
-        h_s = self.PCB_conv_channel_reduce[0](x)
-        x_s = self.PCB_conv_channel_reduce(x)
+        if self.share_conv:
+            x_s = self.local_conv(x)
+            x_s = [x_s[:, :, i, :] for i in range(self.num_stripes)]
+        else:
+            x_s = []
+            for i in range(self.num_stripes):
+                h = self.local_conv_list[i](x[:, :, i, :])
+                x_s.append(h)
+        h_s = torch.stack(x_s, dim=2)
 
         prediction_s = []
-        for i in range(self.num_parts):
+        for i in range(self.num_stripes):
             # 4d vector h -> 2d vector h
-            x = x_s[:, :, i, :].squeeze(2)
+            x = x_s[i].view(f_shape[0], -1)
             prediction_s.append(self.fc_s[i](x))
 
         if self.output_feature == 'pool5':
-            x_s = g_s.view(f_shape[0], -1) / g_s.norm()
+            x_s = g_s.view(f_shape[0], -1)  # / g_s.norm()
         else:
-            x_s = h_s.view(f_shape[0], -1) / h_s.norm()
+            x_s = h_s.view(f_shape[0], -1)  # / h_s.norm()
         return x_s, prediction_s
