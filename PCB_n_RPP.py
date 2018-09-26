@@ -411,7 +411,7 @@ if __name__ == '__main__':
                         choices=[1, 6, 12, 30, 60], help="specify if train on single iCam")
     parser.add_argument('--re', type=float, default=0, help="random erasing")
     # model
-    parser.add_argument('--share_conv', type=str2bool, default=0,
+    parser.add_argument('--share_conv', type=str2bool, default=1,
                         help="share 1x1 conv in PCB")
     parser.add_argument('-a', '--arch', type=str, default='resnet50',
                         choices=models.names())
