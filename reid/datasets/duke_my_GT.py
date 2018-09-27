@@ -7,7 +7,7 @@ from ..utils.osutils import mkdir_if_missing
 from ..utils.serialization import read_json, write_json
 
 
-def _pluck(identities, indices, relabel=False):
+def _pluck(identities, indices, relabel=False, relabel_offset=0):
     ret = []
     for index, pid in enumerate(indices):
         pid_images = identities[pid]
@@ -30,7 +30,7 @@ def _pluck(identities, indices, relabel=False):
                     assert pid == x and camid == y
                 # keep intergrity of the trainval set
                 if relabel:
-                    ret.append((fname, index, camid))
+                    ret.append((fname, index + relabel_offset, camid))
                 else:
                     ret.append((fname, pid, camid))
     return ret
@@ -38,7 +38,7 @@ def _pluck(identities, indices, relabel=False):
 
 class DukeMyGT(Dataset):
 
-    def __init__(self, root, split_id=0, num_val=10, download=True, iCams=list(range(1, 9)), fps=60, camstyle=False):
+    def __init__(self, root, split_id=0, download=True, iCams=list(range(1, 9)), fps=60, camstyle=False):
         super(DukeMyGT, self).__init__(root, split_id=split_id)
 
         camstyle_path = '/home/wangzd/Data/DukeMTMC/ALL_gt_bbox/gt_bbox_6_fps/allcam_camstyle_stargan4reid'
@@ -51,7 +51,7 @@ class DukeMyGT(Dataset):
         #     raise RuntimeError("Dataset not found or corrupted. " +
         #                        "You can use download=True to download it.")
 
-        self.load(num_val)
+        self.load(camstyle=camstyle)
 
     def download(self, iCams, fps, mygt_dir, camstyle_path, camstyle):
         # if self._check_integrity():
@@ -142,8 +142,8 @@ class DukeMyGT(Dataset):
                 fake_cam = int(fake_cam_pattern.search(fname).groups()[0])
 
                 if pid == -1: continue  # junk images are just ignored
-                if fake_cam == source_cam: continue  # skip self transformed imgs
-                if pid not in trainval_pids: continue  # skip imgs not in trainval
+                if fake_cam == source_cam: continue  # skip self-transformed imgs
+                # if pid not in trainval_pids: continue  # skip imgs not in trainval
                 if fake_cam not in iCams: continue  # skip imgs not belong to iCams list
 
                 assert 0 <= pid <= 8000  # pid == 0 means background
@@ -187,7 +187,7 @@ class DukeMyGT(Dataset):
         }]
         write_json(splits, osp.join(self.root, 'splits.json'))
 
-    def load(self, num_val=0.3, verbose=True):
+    def load(self, camstyle=False, verbose=True):
         splits = read_json(osp.join(self.root, 'splits.json'))
         if self.split_id >= len(splits):
             raise ValueError("split_id exceeds total splits {}"
@@ -197,18 +197,8 @@ class DukeMyGT(Dataset):
         # Randomly split train / val
         trainval_pids = np.asarray(self.split['trainval'])
         np.random.shuffle(trainval_pids)
-        num = len(trainval_pids)
-        if isinstance(num_val, float):
-            num_val = int(round(num * num_val))
-        if num_val >= num or num_val < 0:
-            raise ValueError("num_val exceeds total identities {}"
-                             .format(num))
-        if num_val:
-            train_pids = sorted(trainval_pids[:-num_val])
-            val_pids = sorted(trainval_pids[-num_val:])
-        else:
-            train_pids = sorted(trainval_pids)
-            val_pids = sorted([])
+        train_pids = sorted(trainval_pids)
+        val_pids = sorted([])
 
         self.meta = read_json(osp.join(self.root, 'meta.json'))
         identities = self.meta['identities']
@@ -217,21 +207,21 @@ class DukeMyGT(Dataset):
         self.trainval = _pluck(identities, trainval_pids, relabel=True)
         self.query = _pluck(identities, self.split['query'])
         self.gallery = _pluck(identities, self.split['gallery'])
-        self.camstyle = _pluck(identities, self.split['camstyle'], relabel=True)
-        self.num_train_ids = len(train_pids)
+        self.camstyle = _pluck(identities, self.split['camstyle'], relabel=True, relabel_offset=len(trainval_pids))
+        self.num_train_ids = len(train_pids) + len(self.split['camstyle']) * camstyle
         self.num_val_ids = len(val_pids)
-        self.num_trainval_ids = len(trainval_pids)
+        self.num_trainval_ids = len(trainval_pids) + len(self.split['camstyle']) * camstyle
 
         if verbose:
             print(self.__class__.__name__, "dataset loaded")
             print("  subset   | # ids | # images")
             print("  ---------------------------")
             print("  train    | {:5d} | {:8d}"
-                  .format(self.num_train_ids, len(self.train)))
+                  .format(len(train_pids), len(self.train)))
             print("  val      | {:5d} | {:8d}"
-                  .format(self.num_val_ids, len(self.val)))
+                  .format(len(val_pids), len(self.val)))
             print("  trainval | {:5d} | {:8d}"
-                  .format(self.num_trainval_ids, len(self.trainval)))
+                  .format(len(trainval_pids), len(self.trainval)))
             print("  query    | {:5d} | {:8d}"
                   .format(len(self.split['query']), len(self.query)))
             print("  gallery  | {:5d} | {:8d}"
