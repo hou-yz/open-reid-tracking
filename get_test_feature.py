@@ -119,7 +119,8 @@ def main(args):
     if args.dataset == 'detections':
         dataset_dir = osp.join(data_dir, ('det_bbox_OpenPose_' + args.det_time))
     else:
-        dataset_dir = '/home/wangzd/Data/DukeMTMC/ALL_gt_bbox/gt_bbox_1_fps/allcam'
+        dataset_dir = '/home/wangzd/Data/DukeMTMC/ALL_gt_bbox/gt_bbox_1_fps/allcam'  # gt @ 1fps
+        # dataset_dir = '/home/wangzd/houyz/open-reid-PCB_n_RPP/data/dukemtmc/dukemtmc/raw/DukeMTMC-reID/bounding_box_test'  # reid
     if args.mygt_icams != 0:
         mygt_icams = [args.mygt_icams]
     else:
