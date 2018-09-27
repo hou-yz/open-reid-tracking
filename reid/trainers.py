@@ -198,6 +198,8 @@ class CamStyleTrainer(BaseTrainer):
                               losses.val, losses.avg,
                               precisions.val, precisions.avg))
 
+        return losses.avg, precisions.avg
+
     def _parse_data(self, inputs):
         imgs, _, pids, _ = inputs
         inputs = Variable(imgs.cuda())
