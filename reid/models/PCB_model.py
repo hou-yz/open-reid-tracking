@@ -9,7 +9,7 @@ import torchvision
 
 
 class PCB_model(nn.Module):
-    def __init__(self, num_stripes=6, num_features=256, num_classes=0, norm=False, dropout=0, last_stride=2,
+    def __init__(self, num_stripes=6, num_features=256, num_classes=0, norm=False, dropout=0, last_stride=1,
                  reduced_dim=256, share_conv=True, output_feature=None):
         super(PCB_model, self).__init__()
         # Create PCB_only model
