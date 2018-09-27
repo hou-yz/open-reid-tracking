@@ -74,31 +74,17 @@ class PCB_model(nn.Module):
 
         out0 = x.view(x.size(0), -1)
         out0 = x / x.norm(2, 1).unsqueeze(1).expand_as(x)
+        if self.dropout:
+            x=self.drop_layer(x)
         x = self.local_conv(x)
         out1 = x / x.norm(2, 1).unsqueeze(1).expand_as(x)
         x = self.feat_bn2d(x)
         x = F.relu(x)  # relu for local_conv feature
 
-        # x_s = x.chunk(self.num_stripes, 2)
-        # prediction_s = []
-        # for i in range(self.num_stripes):
-        #     # 4d vector h -> 2d vector h
-        #     x = x_s[i].view(f_shape[0], -1)
-        #     prediction_s.append(self.fc_s[i](x))
-        # return out1, prediction_s
-        x = x.chunk(6, 2)
-        x0 = x[0].contiguous().view(x[0].size(0), -1)
-        x1 = x[1].contiguous().view(x[1].size(0), -1)
-        x2 = x[2].contiguous().view(x[2].size(0), -1)
-        x3 = x[3].contiguous().view(x[3].size(0), -1)
-        x4 = x[4].contiguous().view(x[4].size(0), -1)
-        x5 = x[5].contiguous().view(x[5].size(0), -1)
-
-        c0 = self.fc_s[0](x0)
-        c1 = self.fc_s[1](x1)
-        c2 = self.fc_s[2](x2)
-        c3 = self.fc_s[3](x3)
-        c4 = self.fc_s[4](x4)
-        c5 = self.fc_s[5](x5)
-        return out1, (c0, c1, c2, c3, c4, c5)
-
+        x_s = x.chunk(self.num_stripes, 2)
+        prediction_s = []
+        for i in range(self.num_stripes):
+            # 4d vector h -> 2d vector h
+            x = x_s[i].view(f_shape[0], -1)
+            prediction_s.append(self.fc_s[i](x))
+        return out1, tuple(prediction_s)
