@@ -7,8 +7,9 @@ from ..utils.osutils import mkdir_if_missing
 from ..utils.serialization import read_json, write_json
 
 
-def _pluck(identities, indices, relabel=False, relabel_offset=0):
+def _pluck(identities, indices, relabel=False, resume_hash_table={}, hash_pid_offset=0):
     ret = []
+    hash_table = {}
     for index, pid in enumerate(indices):
         pid_images = identities[pid]
         for camid, cam_images in enumerate(pid_images):
@@ -30,10 +31,21 @@ def _pluck(identities, indices, relabel=False, relabel_offset=0):
                     assert pid == x and camid == y
                 # keep intergrity of the trainval set
                 if relabel:
-                    ret.append((fname, index + relabel_offset, camid))
+                    if not resume_hash_table:
+                        ret.append((fname, index, camid))  # relabel freely
+                        hash_table[pid - hash_pid_offset] = index
+                    else:
+                        if pid not in resume_hash_table.keys():
+                            ind = len(resume_hash_table)
+                            resume_hash_table[pid - hash_pid_offset] = ind
+                        ret.append((fname, resume_hash_table[pid], camid))
+
+
                 else:
                     ret.append((fname, pid, camid))
-    return ret
+    if not resume_hash_table:
+        resume_hash_table = hash_table
+    return ret, resume_hash_table
 
 
 class DukeMyGT(Dataset):
@@ -202,15 +214,15 @@ class DukeMyGT(Dataset):
 
         self.meta = read_json(osp.join(self.root, 'meta.json'))
         identities = self.meta['identities']
-        self.train = _pluck(identities, train_pids, relabel=True)
-        self.val = _pluck(identities, val_pids, relabel=True)
-        self.trainval = _pluck(identities, trainval_pids, relabel=True)
-        self.query = _pluck(identities, self.split['query'])
-        self.gallery = _pluck(identities, self.split['gallery'])
-        self.camstyle = _pluck(identities, self.split['camstyle'], relabel=True, relabel_offset=len(trainval_pids))
-        self.num_train_ids = len(train_pids) + len(self.split['camstyle']) * camstyle
+        self.camstyle, hash_table = _pluck(identities, self.split['camstyle'], relabel=True, hash_pid_offset=20000)
+        self.train, hash_table = _pluck(identities, train_pids, relabel=True, resume_hash_table=hash_table)
+        self.val = {}
+        self.trainval = self.train
+        self.query, _ = _pluck(identities, self.split['query'])
+        self.gallery, _ = _pluck(identities, self.split['gallery'])
+        self.num_train_ids = len(train_pids) * (1 - camstyle) + len(hash_table) * camstyle
         self.num_val_ids = len(val_pids)
-        self.num_trainval_ids = len(trainval_pids) + len(self.split['camstyle']) * camstyle
+        self.num_trainval_ids = len(trainval_pids) * (1 - camstyle) + len(hash_table) * camstyle
 
         if verbose:
             print(self.__class__.__name__, "dataset loaded")
