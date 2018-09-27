@@ -4,6 +4,7 @@ import torch
 from torch import nn
 from torch.nn import init
 from torch.autograd import Variable
+from torch.nn import functional as F
 from .resnet import *
 import torchvision
 
@@ -40,50 +41,13 @@ class PCB_model(nn.Module):
         self.dropout = dropout
         if self.dropout > 0:
             self.drop_layer = nn.Dropout2d(self.dropout)
-
-        '''channel reduce: 2048*24*8 -> 256*24*8'''
-        # avg pooling along the channel dimension for a [256*1*1]
-        self.RPP_pool_channel_reduce = nn.AdaptiveAvgPool1d(self.reduced_dim)
-
-        #############################################  PCB  ############################################################
-        '''feat & feat_bn'''
-        # 1*1 Conv: 6*1*2048 -> 6*1*256 (g -> h)
-        if self.num_features > 0:
-            if self.share_conv:
-                self.local_conv = nn.Sequential(
-                    nn.Conv2d(2048, self.num_features, kernel_size=1),
-                    nn.BatchNorm2d(self.num_features),
-                    nn.ReLU(inplace=True))
-                init.kaiming_normal_(self.local_conv[0].weight, mode='fan_out')
-                init.constant_(self.local_conv[0].bias, 0)
-                init.constant_(self.local_conv[1].weight, 1)
-                init.constant_(self.local_conv[1].bias, 0)
-            else:
-                self.local_conv_list = nn.ModuleList()
-                for _ in range(self.num_stripes):
-                    local_conv = nn.Sequential(
-                        nn.Conv1d(2048, self.num_features, kernel_size=1),
-                        nn.BatchNorm1d(self.num_features),
-                        nn.ReLU(inplace=True))
-                    init.kaiming_normal_(local_conv[0].weight, mode='fan_out')
-                    init.constant_(local_conv[0].bias, 0)
-                    init.constant_(local_conv[1].weight, 1)
-                    init.constant_(local_conv[1].bias, 0)
-                    self.local_conv_list.append(local_conv)
-
-        #############################################  RPP  ############################################################
-        '''RPP: Refined part pooling'''
-        # first, extract each f's; then,
-        # get sampling weights from each f's [2048*1*1]
-        # avg pooling along the channel dimension for a [256*1*1]
-        self.classifier_pool = nn.AdaptiveAvgPool1d(self.num_features)
-        # 6 classifier for f:[256*1*1] -> weight_s:[6*1*1]
-        self.sampling_weight_layer = nn.Sequential(nn.Conv1d(self.num_features, self.num_stripes, kernel_size=1),
-                                                   nn.Softmax(dim=1))
-        init.kaiming_normal_(self.sampling_weight_layer[0].weight, mode='fan_out')
-        init.constant_(self.sampling_weight_layer[0].bias, 0)  # return a [N,6,24,8] tensor
-
-        ################################################################################################################
+        out_planes = 2048
+        self.local_conv = nn.Conv2d(out_planes, self.num_features, kernel_size=1, padding=0, bias=False)
+        init.kaiming_normal_(self.local_conv.weight, mode='fan_out')
+        # init.constant(self.local_conv.bias,0)
+        self.feat_bn2d = nn.BatchNorm2d(self.num_features)  # may not be used, not working on caffe
+        init.constant_(self.feat_bn2d.weight, 1)  # initialize BN, may not be used
+        init.constant_(self.feat_bn2d.bias, 0)  # iniitialize BN, may not be used
 
         # 6 branches of fc's:
         if self.num_classes > 0:
@@ -93,11 +57,6 @@ class PCB_model(nn.Module):
                 init.normal_(fc.weight, std=0.001)
                 init.constant_(fc.bias, 0)
                 self.fc_s.append(fc)
-
-        pass
-
-    def enable_RPP(self):
-        self.rpp = True
 
     def forward(self, x):
         """
@@ -110,39 +69,36 @@ class PCB_model(nn.Module):
         f_shape = x.size()
 
         # g_s [N, 2048, 6, 1]
-        if not self.rpp:
-            x = self.avg_pool(x)
-            g_s = x
-            if self.dropout:
-                x = self.drop_layer(x)
-        else:
-            f_s = x.view(f_shape[0], f_shape[1], f_shape[2] * f_shape[3])
-            f_s = (self.classifier_pool(f_s.permute(0, 2, 1)).permute(0, 2, 1))
-            weight_s = self.sampling_weight_layer(f_s).permute(0, 2, 1)
-            g_s = torch.matmul(f_s, weight_s).view(f_shape[0], self.reduced_dim, self.num_stripes, 1)
-            pass
+        x = self.avg_pool(x)
+        # ========================================================================#
 
-        assert g_s.size(2) == self.num_stripes
+        out0 = x.view(x.size(0), -1)
+        out0 = x / x.norm(2, 1).unsqueeze(1).expand_as(x)
+        x = self.local_conv(x)
+        out1 = x / x.norm(2, 1).unsqueeze(1).expand_as(x)
+        x = self.feat_bn2d(x)
+        x = F.relu(x)  # relu for local_conv feature
 
-        # h_s [N, 256, 6, 1]
-        if self.share_conv:
-            x_s = self.local_conv(x)
-            x_s = [x_s[:, :, i, :] for i in range(self.num_stripes)]
-        else:
-            x_s = []
-            for i in range(self.num_stripes):
-                h = self.local_conv_list[i](x[:, :, i, :])
-                x_s.append(h)
-        h_s = torch.stack(x_s, dim=2)
+        # x_s = x.chunk(self.num_stripes, 2)
+        # prediction_s = []
+        # for i in range(self.num_stripes):
+        #     # 4d vector h -> 2d vector h
+        #     x = x_s[i].view(f_shape[0], -1)
+        #     prediction_s.append(self.fc_s[i](x))
+        # return out1, prediction_s
+        x = x.chunk(6, 2)
+        x0 = x[0].contiguous().view(x[0].size(0), -1)
+        x1 = x[1].contiguous().view(x[1].size(0), -1)
+        x2 = x[2].contiguous().view(x[2].size(0), -1)
+        x3 = x[3].contiguous().view(x[3].size(0), -1)
+        x4 = x[4].contiguous().view(x[4].size(0), -1)
+        x5 = x[5].contiguous().view(x[5].size(0), -1)
 
-        prediction_s = []
-        for i in range(self.num_stripes):
-            # 4d vector h -> 2d vector h
-            x = x_s[i].view(f_shape[0], -1)
-            prediction_s.append(self.fc_s[i](x))
+        c0 = self.fc_s[0](x0)
+        c1 = self.fc_s[1](x1)
+        c2 = self.fc_s[2](x2)
+        c3 = self.fc_s[3](x3)
+        c4 = self.fc_s[4](x4)
+        c5 = self.fc_s[5](x5)
+        return out1, (c0, c1, c2, c3, c4, c5)
 
-        if self.output_feature == 'pool5':
-            x_s = g_s.view(f_shape[0], -1)  # / g_s.norm()
-        else:
-            x_s = h_s.view(f_shape[0], -1)  # / h_s.norm()
-        return x_s, prediction_s
