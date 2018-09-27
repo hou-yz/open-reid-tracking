@@ -17,7 +17,6 @@ from reid.loss import TripletLoss
 from reid.utils.data.sampler import RandomIdentitySampler
 from reid import datasets
 from reid import models
-from reid.dist_metric import DistanceMetric
 from reid.trainers import Trainer
 from reid.evaluators import Evaluator
 from reid.utils.data import transforms as T
