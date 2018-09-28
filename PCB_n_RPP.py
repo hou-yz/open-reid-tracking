@@ -195,7 +195,7 @@ def main(args):
     # Create model
     model = models.create('pcb', num_features=args.features,
                           dropout=args.dropout, num_classes=num_classes, last_stride=args.last_stride,
-                          output_feature=args.output_feature, share_conv=args.share_conv)
+                          output_feature=args.output_feature)
 
     # Load from checkpoint
     start_epoch = best_top1 = 0
@@ -210,8 +210,6 @@ def main(args):
     # Evaluator
     evaluator = Evaluator(model)
     if args.evaluate:
-        # print("Validation:")
-        # evaluator.evaluate(val_loader, dataset.val, dataset.val, eval_only=True)
         print("Test:")
         evaluator.evaluate(query_loader, gallery_loader, dataset.query, dataset.gallery, eval_only=True)
         return
@@ -266,8 +264,6 @@ def main(args):
             x_epoch.append(current_epoch)
             ax0.plot(x_epoch, train_loss, 'bo-', label='train')
             ax1.plot(x_epoch, train_prec, 'bo-', label='train')
-            # ax0.plot(x_epoch, eval_loss, 'ro-', label='eval')
-            # ax1.plot(x_epoch, eval_prec, 'ro-', label='eval')
             if current_epoch == 0:
                 ax0.legend()
                 ax1.legend()
@@ -283,8 +279,6 @@ def main(args):
             if epoch < args.start_save:
                 continue
             # skip evaluate
-            # print("Validation:")
-            # top1_eval = evaluator.evaluate(val_loader, dataset.val, dataset.val, eval_only=True)
             top1 = 50
 
             is_best = top1 >= best_top1
@@ -411,10 +405,6 @@ if __name__ == '__main__':
                         choices=[1, 6, 12, 30, 60], help="specify if train on single iCam")
     parser.add_argument('--re', type=float, default=0, help="random erasing")
     # model
-    parser.add_argument('--share_conv', type=str2bool, default=1,
-                        help="share 1x1 conv in PCB")
-    parser.add_argument('-a', '--arch', type=str, default='resnet50',
-                        choices=models.names())
     parser.add_argument('--features', type=int, default=256)
     parser.add_argument('--dropout', type=float, default=0.5)
     parser.add_argument('-s', '--last_stride', type=int, default=1,

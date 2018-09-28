@@ -192,8 +192,6 @@ def main(args):
     # Evaluator
     evaluator = Evaluator(model)
     if args.evaluate:
-        # print("Validation:")
-        # evaluator.evaluate(val_loader, dataset.val, dataset.val, eval_only=True)
         print("Test:")
         evaluator.evaluate(query_loader, gallery_loader, dataset.query, dataset.gallery, eval_only=True)
         return
@@ -248,8 +246,6 @@ def main(args):
             x_epoch.append(current_epoch)
             ax0.plot(x_epoch, train_loss, 'bo-', label='train')
             ax1.plot(x_epoch, train_prec, 'bo-', label='train')
-            # ax0.plot(x_epoch, eval_loss, 'ro-', label='eval')
-            # ax1.plot(x_epoch, eval_prec, 'ro-', label='eval')
             if current_epoch == 0:
                 ax0.legend()
                 ax1.legend()
@@ -267,8 +263,6 @@ def main(args):
 
 
             # skip evaluate
-            # print("Validation:")
-            # top1_eval = evaluator.evaluate(val_loader, dataset.val, dataset.val, eval_only=True)
             top1_eval = 50
 
             is_best = top1_eval >= best_top1
@@ -318,8 +312,6 @@ if __name__ == '__main__':
                         choices=[1, 3, 6, 12, 30, 60], help="specify if train on single iCam")
     parser.add_argument('--re', type=float, default=0, help="random erasing")
     # model
-    parser.add_argument('-a', '--arch', type=str, default='resnet50',
-                        choices=models.names())
     parser.add_argument('--features', type=int, default=1024)
     parser.add_argument('--dropout', type=float, default=0.5)
     parser.add_argument('-s', '--last_stride', type=int, default=2,
