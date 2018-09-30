@@ -114,13 +114,13 @@ def main(args):
 
     # Redirect print to both console and log file
 
-    data_dir = '/home/wangzd/Data/DukeMTMC/ALL_det_bbox'
+    data_dir = osp.expanduser('~/Data/DukeMTMC/ALL_det_bbox')
 
     if args.dataset == 'detections':
         dataset_dir = osp.join(data_dir, ('det_bbox_OpenPose_' + args.det_time))
     else:
-        dataset_dir = '/home/wangzd/Data/DukeMTMC/ALL_gt_bbox/gt_bbox_1_fps/allcam'  # gt @ 1fps
-        # dataset_dir = '/home/wangzd/houyz/open-reid-PCB_n_RPP/data/dukemtmc/dukemtmc/raw/DukeMTMC-reID/bounding_box_test'  # reid
+        dataset_dir = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/gt_bbox_1_fps/allcam')  # gt @ 1fps
+        # dataset_dir = osp.expanduser('~/houyz/open-reid-PCB_n_RPP/data/dukemtmc/dukemtmc/raw/DukeMTMC-reID/bounding_box_test')  # reid
     if args.mygt_icams != 0:
         mygt_icams = [args.mygt_icams]
     else:

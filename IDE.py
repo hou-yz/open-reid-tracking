@@ -344,6 +344,6 @@ if __name__ == '__main__':
     # misc
     working_dir = osp.dirname(osp.abspath(__file__))
     parser.add_argument('--data-dir', type=str, metavar='PATH',
-                        default='/home/wangzd/houyz/open-reid-PCB_n_RPP/data')  # default=osp.join(working_dir, 'data'))
+                       default=osp.join(working_dir, 'data'))
     parser.add_argument('--logs-dir', type=str, metavar='PATH')
     main(parser.parse_args())

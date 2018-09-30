@@ -53,9 +53,9 @@ class DukeMyGT(Dataset):
     def __init__(self, root, split_id=0, download=True, iCams=list(range(1, 9)), fps=60, camstyle=False):
         super(DukeMyGT, self).__init__(root, split_id=split_id)
 
-        camstyle_path = '/home/wangzd/Data/DukeMTMC/ALL_gt_bbox/gt_bbox_6_fps/allcam_camstyle_stargan4reid'
+        camstyle_path = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/gt_bbox_6_fps/allcam_camstyle_stargan4reid')
         self.camstyle = []
-        mygt_dir = '/home/wangzd/Data/DukeMTMC/ALL_gt_bbox'
+        mygt_dir = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox')
         if download:
             self.download(iCams, fps, mygt_dir, camstyle_path, camstyle)
 
