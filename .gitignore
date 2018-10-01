@@ -234,3 +234,4 @@ IDE_sigma.pt
 reid/models/PCB_model - Copy.py
 ~$pcb_rpp_result.xlsx
 *.h5
+*.sh

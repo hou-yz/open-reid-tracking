@@ -5,6 +5,7 @@ import os
 
 import numpy as np
 import time
+import json
 import random
 import sys
 import torch
@@ -15,7 +16,7 @@ from torch.utils.data import DataLoader
 from reid.datasets.det_duke import *
 from reid import models
 from reid.utils.data import transforms as T
-from reid.utils.logging import Logger
+from reid.utils.osutils import mkdir_if_missing
 from reid.utils.serialization import load_checkpoint, save_checkpoint
 
 from collections import OrderedDict
@@ -159,13 +160,14 @@ def main(args):
     tic = time.time()
     # write file
     if args.dataset == 'detections':
-        folder_name = '/home/wangzd/Data/DukeMTMC/L0-features/' + "det_features_{}". \
+        folder_name = osp.expanduser('~/Data/DukeMTMC/L0-features/') + "det_features_{}". \
             format(args.l0_name) + '_' + args.det_time
-        if not os.path.isdir(folder_name):
-            os.mkdir(folder_name)
-            pass
+        mkdir_if_missing(folder_name)
+        with open(osp.join(folder_name, 'args.json'), 'w') as fp:
+            json.dump(vars(args), fp, indent=1)
         for cam in range(8):
             output_fname = folder_name + '/features%d.h5' % (cam + 1)
+            mkdir_if_missing(os.path.dirname(output_fname))
             if args.mygt_icams != 0 and cam + 1 != args.mygt_icams:
                 continue
 
@@ -174,14 +176,15 @@ def main(args):
                 f.create_dataset('emb', data=mat_data, dtype=float)
                 pass
     else:
-        folder_name = '/home/wangzd/houyz/DeepCC/experiments/' + args.l0_name
-        if not os.path.isdir(folder_name):
-            os.mkdir(folder_name)
-            pass
+        folder_name = osp.abspath(osp.join(working_dir, os.pardir)) + '/DeepCC/experiments/' + args.l0_name
+        mkdir_if_missing(folder_name)
+        with open(osp.join(folder_name, 'args.json'), 'w') as fp:
+            json.dump(vars(args), fp, indent=1)
         if args.mygt_icams == 0:
             output_fname = folder_name + '/features.h5'
         else:
             output_fname = folder_name + '/features_icam' + str(args.mygt_icams) + '.h5'
+        mkdir_if_missing(os.path.dirname(output_fname))
 
         with h5py.File(output_fname, 'w') as f:
             # asciiList = [n.encode("ascii", "ignore") for n in f_names[cam]]

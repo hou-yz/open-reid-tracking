@@ -5,7 +5,7 @@ from glob import glob
 import csv
 import re
 
-fpaths = sorted(glob(osp.join('/home/wangzd/Data/DukeMTMC/ALL_gt_bbox/gt_bbox_1_fps/allcam', '*.jpg')))
+fpaths = sorted(glob(osp.join(osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/gt_bbox_1_fps/allcam'), '*.jpg')))
 res = []
 
 pattern = re.compile(r'([-\d]+)_c(\d)')
