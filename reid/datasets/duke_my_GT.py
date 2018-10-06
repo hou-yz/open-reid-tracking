@@ -50,14 +50,15 @@ def _pluck(identities, indices, relabel=False, resume_hash_table={}, hash_pid_of
 
 class DukeMyGT(Dataset):
 
-    def __init__(self, root, split_id=0, download=True, iCams=list(range(1, 9)), fps=60, camstyle=False):
+    def __init__(self, root, split_id=0, download=True, iCams=list(range(1, 9)), fps=60, camstyle=False,
+                 camstyle_pooling=1):
         super(DukeMyGT, self).__init__(root, split_id=split_id)
 
-        camstyle_path = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/gt_bbox_6_fps/allcam_camstyle_stargan4reid')
+        camstyle_path = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/gt_bbox_1_fps/allcam_camstyle_stargan4reid')
         self.camstyle = []
         mygt_dir = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox')
         if download:
-            self.download(iCams, fps, mygt_dir, camstyle_path, camstyle)
+            self.download(iCams, fps, mygt_dir, camstyle_path, camstyle, camstyle_pooling)
 
         # if not self._check_integrity():
         #     raise RuntimeError("Dataset not found or corrupted. " +
@@ -65,7 +66,7 @@ class DukeMyGT(Dataset):
 
         self.load(camstyle=camstyle)
 
-    def download(self, iCams, fps, mygt_dir, camstyle_path, camstyle):
+    def download(self, iCams, fps, mygt_dir, camstyle_path, camstyle, camstyle_pooling=1):
         # if self._check_integrity():
         #     print("Files already downloaded and verified")
         #     return
@@ -143,20 +144,22 @@ class DukeMyGT(Dataset):
                 pass
             return pids
 
-        def fake_register(subdir, trainval_pids):
+        def fake_register(subdir, trainval_pids, pooling=1, ):
             pids = set()
-            og_pattern = re.compile(r'([-\d]+)_c(\d)')
+            og_pattern = re.compile(r'([-\d]+)_c(\d)_f(\d+)')
             fake_cam_pattern = re.compile(r'fake_(\d)')  # use fakes transferred to iCam style
             fpaths = sorted(glob(osp.join(subdir, '*.jpg')))
             for fpath in fpaths:
                 fname = osp.basename(fpath)
-                pid, source_cam = map(int, og_pattern.search(fname).groups())
+                pid, source_cam, frame = map(int, og_pattern.search(fname).groups())
                 fake_cam = int(fake_cam_pattern.search(fname).groups()[0])
 
                 if pid == -1: continue  # junk images are just ignored
                 if fake_cam == source_cam: continue  # skip self-transformed imgs
                 # if pid not in trainval_pids: continue  # skip imgs not in trainval
                 if fake_cam not in iCams: continue  # skip imgs not belong to iCams list
+                if (frame % 211) % pooling != 0:
+                    continue  # use prime_number 211 to hash the frame number first, then do the pooling
 
                 assert 0 <= pid <= 8000  # pid == 0 means background
                 assert 1 <= fake_cam <= 8
@@ -179,7 +182,7 @@ class DukeMyGT(Dataset):
         gallery_pids = reid_register('bounding_box_test')
         query_pids = reid_register('query')
         if camstyle:
-            camstyle_pids = fake_register(camstyle_path, trainval_pids)
+            camstyle_pids = fake_register(camstyle_path, trainval_pids, camstyle_pooling)
         else:
             camstyle_pids = set()
         assert query_pids <= gallery_pids
@@ -240,3 +243,4 @@ class DukeMyGT(Dataset):
                   .format(len(self.split['gallery']), len(self.gallery)))
             print("  camstyle | {:5d} | {:8d}"
                   .format(len(self.split['camstyle']), len(self.camstyle)))
+        pass

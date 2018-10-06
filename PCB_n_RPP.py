@@ -241,12 +241,10 @@ def main(args):
 
         # Schedule learning rate
         def adjust_lr(epoch):
-            if args.epochs == 60:
-                step_size = 40
-            elif args.epochs == 50:
+            if args.epochs == 50:
                 step_size = 30
             else:
-                step_size = args.epochs // 3 * 2
+                step_size = args.step_size
             lr = args.lr * (0.1 ** (epoch // step_size))
             for g in optimizer.param_groups:
                 g['lr'] = lr * g.get('lr_mult', 1)
@@ -430,6 +428,7 @@ if __name__ == '__main__':
     parser.add_argument('--evaluate', action='store_true',
                         help="evaluation only")
     parser.add_argument('--epochs', type=int, default=60)
+    parser.add_argument('--step-size',type=int, default=40)
     parser.add_argument('--start_save', type=int, default=0,
                         help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)

@@ -41,7 +41,7 @@ def str2bool(v):
 
 
 def get_data(name, data_dir, height, width, batch_size, workers,
-             combine_trainval, crop, mygt_icams, fps, camstyle=0, re=0):
+             combine_trainval, crop, mygt_icams, fps, camstyle=0, re=0, fake_pooling=1):
     root = osp.join(data_dir, name)
 
     if name == 'duke_my_gt':
@@ -49,7 +49,8 @@ def get_data(name, data_dir, height, width, batch_size, workers,
             mygt_icams = [mygt_icams]
         else:
             mygt_icams = list(range(1, 9))
-        dataset = datasets.create(name, root, iCams=mygt_icams, fps=fps, camstyle=camstyle > 0)
+        dataset = datasets.create(name, root, iCams=mygt_icams, fps=fps, camstyle=camstyle > 0,
+                                  camstyle_pooling=fake_pooling)
     else:
         dataset = datasets.create(name, root)
 
@@ -172,7 +173,8 @@ def main(args):
     dataset, num_classes, train_loader, val_loader, query_loader, gallery_loader, camstyle_loader = \
         get_data(args.dataset, args.data_dir, args.height,
                  args.width, args.batch_size, args.num_workers,
-                 args.combine_trainval, args.crop, args.mygt_icams, args.mygt_fps, args.camstyle, args.re)
+                 args.combine_trainval, args.crop, args.mygt_icams, args.mygt_fps, args.camstyle, args.re,
+                 args.fake_pooling)
 
     # Create model
     model = models.create('ide', num_features=args.features,
@@ -223,12 +225,10 @@ def main(args):
 
         # Schedule learning rate
         def adjust_lr(epoch):
-            if args.epochs == 60:
-                step_size = 40
-            elif args.epochs == 20:
+            if args.epochs == 20:
                 step_size = 10
             else:
-                step_size = args.epochs // 3 * 2
+                step_size = args.step_size
             lr = args.lr * (0.1 ** (epoch // step_size))
             for g in optimizer.param_groups:
                 g['lr'] = lr * g.get('lr_mult', 1)
@@ -260,7 +260,6 @@ def main(args):
 
             if epoch < args.start_save:
                 continue
-
 
             # skip evaluate
             top1_eval = 50
@@ -335,15 +334,17 @@ if __name__ == '__main__':
     parser.add_argument('--evaluate', action='store_true',
                         help="evaluation only")
     parser.add_argument('--epochs', type=int, default=60)
+    parser.add_argument('--step-size', type=int, default=40)
     parser.add_argument('--start_save', type=int, default=0,
                         help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--print-freq', type=int, default=1)
     # camstyle batchsize
     parser.add_argument('--camstyle', type=int, default=0)
+    parser.add_argument('--fake_pooling', type=int, default=1)
     # misc
     working_dir = osp.dirname(osp.abspath(__file__))
     parser.add_argument('--data-dir', type=str, metavar='PATH',
-                       default=osp.join(working_dir, 'data'))
+                        default=osp.join(working_dir, 'data'))
     parser.add_argument('--logs-dir', type=str, metavar='PATH')
     main(parser.parse_args())
