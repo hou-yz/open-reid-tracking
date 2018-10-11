@@ -30,13 +30,13 @@ class DetDuke(Dataset):
         # and more than 7000 ids from dukemtmc
         self.indexs = []
 
-        def duke_register(pattern=re.compile(r'c(\d+)_f(\d+)_(\d)')):
+        def duke_register(pattern=re.compile(r'c(\d+)_f(\d+)')):
             if subdir:
                 for iCam in iCams:
                     fpaths = sorted(glob(osp.join(self.root, 'camera' + str(iCam), '*.jpg')))
                     for fpath in fpaths:
-                        fname = osp.basename(fpath)
-                        cam, frame, i = map(int, pattern.search(fname).groups())
+                        fname = osp.join('camera' + str(iCam), osp.basename(fpath))
+                        cam, frame = map(int, pattern.search(fname).groups())
                         assert cam == iCam
                         self.indexs.append(fname)
             else:
@@ -44,7 +44,7 @@ class DetDuke(Dataset):
                 for fpath in fpaths:
                     fname = osp.basename(fpath)
                     if len(iCams) < 8:
-                        cam, frame, i = map(int, pattern.search(fname).groups())
+                        cam, frame = map(int, pattern.search(fname).groups())
                         assert 1 <= cam <= 8
                         # cam -= 1  # from range[1,8]to range[0,7]
                         if cam not in iCams:
