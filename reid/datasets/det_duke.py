@@ -11,17 +11,16 @@ from PIL import Image
 
 
 class DetDuke(Dataset):
-    def __init__(self, root, iCams=list(range(1, 9)), download=True):
+    def __init__(self, root, iCams=list(range(1, 9)), subdir=False):
         super(DetDuke, self).__init__(root)
 
-        if download:
-            self.download(iCams)
+        self.download(iCams, subdir)
         pass
 
     def __len__(self):
         return len(self.indexs)  # len(glob.glob1(self.root, "*.jpg"))
 
-    def download(self, iCams):
+    def download(self, iCams, subdir):
         import re
         import hashlib
         import shutil
@@ -32,16 +31,25 @@ class DetDuke(Dataset):
         self.indexs = []
 
         def duke_register(pattern=re.compile(r'c(\d+)_f(\d+)_(\d)')):
-            fpaths = sorted(glob(osp.join(self.root, '*.jpg')))
-            for fpath in fpaths:
-                fname = osp.basename(fpath)
-                if len(iCams) < 8:
-                    cam, frame, i = map(int, pattern.search(fname).groups())
-                    assert 1 <= cam <= 8
-                    # cam -= 1  # from range[1,8]to range[0,7]
-                    if cam not in iCams:
-                        continue
-                self.indexs.append(fname)
+            if subdir:
+                for iCam in iCams:
+                    fpaths = sorted(glob(osp.join(self.root, 'camera' + str(iCam), '*.jpg')))
+                    for fpath in fpaths:
+                        fname = osp.basename(fpath)
+                        cam, frame, i = map(int, pattern.search(fname).groups())
+                        assert cam == iCam
+                        self.indexs.append(fname)
+            else:
+                fpaths = sorted(glob(osp.join(self.root, '*.jpg')))
+                for fpath in fpaths:
+                    fname = osp.basename(fpath)
+                    if len(iCams) < 8:
+                        cam, frame, i = map(int, pattern.search(fname).groups())
+                        assert 1 <= cam <= 8
+                        # cam -= 1  # from range[1,8]to range[0,7]
+                        if cam not in iCams:
+                            continue
+                    self.indexs.append(fname)
                 # shutil.copy(fpath, osp.join(images_dir, fname))
 
         duke_register()

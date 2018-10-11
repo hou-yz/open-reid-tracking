@@ -38,9 +38,8 @@ def checkpoint_loader(model, path, eval_only=False):
     model_dict = model.state_dict()
     # 1. filter out unnecessary keys
     pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
-    if eval_only and 'fc.weight' in pretrained_dict:
-        del pretrained_dict['fc.weight']
-        del pretrained_dict['fc.bias']
+    del pretrained_dict['fc.weight']
+    del pretrained_dict['fc.bias']
     # 2. overwrite entries in the existing state dict
     model_dict.update(pretrained_dict)
     # 3. load the new state dict
@@ -115,22 +114,26 @@ def main(args):
 
     # Redirect print to both console and log file
 
-    data_dir = osp.expanduser('~/Data/DukeMTMC/ALL_det_bbox')
-
-    if args.dataset == 'detections':
-        dataset_dir = osp.join(data_dir, ('det_bbox_OpenPose_' + args.det_time))
-    else:
-        dataset_dir = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/gt_bbox_1_fps/allcam')  # gt @ 1fps
-        # dataset_dir = osp.expanduser('~/houyz/open-reid-PCB_n_RPP/data/dukemtmc/dukemtmc/raw/DukeMTMC-reID/bounding_box_test')  # reid
     if args.mygt_icams != 0:
         mygt_icams = [args.mygt_icams]
     else:
         mygt_icams = list(range(1, 9))
 
+    data_dir = osp.expanduser('~/Data/DukeMTMC/ALL_det_bbox')
     if args.dataset == 'detections':
-        dataset = DetDuke(dataset_dir, mygt_icams)
+        dataset_dir = osp.join(data_dir, ('det_bbox_OpenPose_' + args.det_time))
+    elif args.dataset == 'reid_test':
+        dataset_dir = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/gt_bbox_1_fps')  # gt @ 1fps
+        # dataset_dir = osp.expanduser('~/houyz/open-reid-PCB_n_RPP/data/dukemtmc/dukemtmc/raw/DukeMTMC-reID/bounding_box_test')  # reid
     else:
-        dataset = DetDuke(dataset_dir)
+        dataset_dir = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/gt_bbox_60_fps')
+
+    if args.dataset == 'detections':
+        dataset = DetDuke(dataset_dir, mygt_icams, False)
+    elif args.dataset == 'reid_test':
+        dataset = DetDuke(dataset_dir, mygt_icams, True)
+    else:
+        dataset = DetDuke(dataset_dir, mygt_icams, True)
 
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     test_transformer = T.Compose([
@@ -175,7 +178,7 @@ def main(args):
                 mat_data = np.vstack(lines[cam])
                 f.create_dataset('emb', data=mat_data, dtype=float)
                 pass
-    else:
+    elif args.dataset == 'reid_test':
         folder_name = osp.abspath(osp.join(working_dir, os.pardir)) + '/DeepCC/experiments/' + args.l0_name
         mkdir_if_missing(folder_name)
         with open(osp.join(folder_name, 'args.json'), 'w') as fp:
@@ -194,6 +197,21 @@ def main(args):
             mat_data = np.vstack(lines)
             f.create_dataset('emb', data=mat_data, dtype=float)
             pass
+    else:
+        folder_name = osp.expanduser('~/Data/DukeMTMC/L0-features/') + "gt_features_{}".format(args.l0_name)
+        mkdir_if_missing(folder_name)
+        with open(osp.join(folder_name, 'args.json'), 'w') as fp:
+            json.dump(vars(args), fp, indent=1)
+        for cam in range(8):
+            output_fname = folder_name + '/features%d.h5' % (cam + 1)
+            mkdir_if_missing(os.path.dirname(output_fname))
+            if args.mygt_icams != 0 and cam + 1 != args.mygt_icams:
+                continue
+
+            with h5py.File(output_fname, 'w') as f:
+                mat_data = np.vstack(lines[cam])
+                f.create_dataset('emb', data=mat_data, dtype=float)
+                pass
     toc = time.time() - tic
     print('*************** write file takes time: {:^10.2f} *********************\n'.format(toc))
     pass
@@ -203,7 +221,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Softmax loss classification")
     # data
     parser.add_argument('-d', '--dataset', type=str, default='reid_test',
-                        choices=['detections', 'reid_test'])
+                        choices=['detections', 'reid_test', 'gt'])
     parser.add_argument('-b', '--batch-size', type=int, default=64, help="batch size")
     parser.add_argument('-j', '--num-workers', type=int, default=8)
     parser.add_argument('--height', type=int, default=256,
