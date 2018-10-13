@@ -210,7 +210,7 @@ def main(args):
                 continue
 
             with h5py.File(output_fname, 'w') as f:
-                mat_data = np.vstack(lines[cam])
+                mat_data = np.vstack(lines)
                 f.create_dataset('emb', data=mat_data, dtype=float)
                 pass
     toc = time.time() - tic
