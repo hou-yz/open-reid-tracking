@@ -54,8 +54,9 @@ def checkpoint_loader(model, path, eval_only=False):
     return model, start_epoch
 
 
-def extract_features(model, data_loader, args, print_freq=100, subdir=False):
+def extract_features(model, data_loader, args, subdir=False):
     model.eval()
+    print_freq = 100
     batch_time = AverageMeter()
     data_time = AverageMeter()
 
