@@ -54,7 +54,7 @@ def checkpoint_loader(model, path, eval_only=False):
     return model, start_epoch
 
 
-def extract_features(model, data_loader, args, print_freq=100, OpenPose_det=True):
+def extract_features(model, data_loader, args, print_freq=100, detailed=True):
     model.eval()
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -62,7 +62,7 @@ def extract_features(model, data_loader, args, print_freq=100, OpenPose_det=True
     # f_names = [[] for _ in range(8)]
     # features = [[] for _ in range(8)]
 
-    if OpenPose_det:
+    if detailed:
         lines = [[] for _ in range(8)]
     else:
         lines = []
@@ -81,7 +81,7 @@ def extract_features(model, data_loader, args, print_freq=100, OpenPose_det=True
 
         outputs = extract_cnn_feature(model, imgs, eval_only=True)
         for fname, output in zip(fnames, outputs):
-            if OpenPose_det:
+            if detailed:
                 pattern = re.compile(r'c(\d)_f(\d+)')
                 cam, frame = map(int, pattern.search(fname).groups())
                 # f_names[cam - 1].append(fname)
@@ -157,7 +157,7 @@ def main(args):
     print('*************** initialization takes time: {:^10.2f} *********************\n'.format(toc))
 
     tic = time.time()
-    lines = extract_features(model, data_loader, args, OpenPose_det=(args.dataset == 'detections'))
+    lines = extract_features(model, data_loader, args, detailed=(args.dataset != 'reid_test'))
     toc = time.time() - tic
     print('*************** compute features takes time: {:^10.2f} *********************\n'.format(toc))
 
