@@ -54,7 +54,7 @@ def checkpoint_loader(model, path, eval_only=False):
     return model, start_epoch
 
 
-def extract_features(model, data_loader, args, print_freq=100, detailed=True):
+def extract_features(model, data_loader, args, print_freq=100, subdir=False):
     model.eval()
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -62,26 +62,16 @@ def extract_features(model, data_loader, args, print_freq=100, detailed=True):
     # f_names = [[] for _ in range(8)]
     # features = [[] for _ in range(8)]
 
-    if detailed:
+    if not subdir:
         lines = [[] for _ in range(8)]
     else:
         lines = []
 
     end = time.time()
     for i, (imgs, fnames) in enumerate(data_loader):
-        # data_time.update(time.time() - end)
-        # if args.mygt_icams != 0 and OpenPose_det:
-        #     pattern = re.compile(r'c(\d)_f(\d+)')
-        #     start_cam, _ = map(int, pattern.search(fnames[0]).groups())
-        #     end_cam, _ = map(int, pattern.search(fnames[-1]).groups())
-        #     if start_cam > args.mygt_icams or end_cam < args.mygt_icams:
-        #         continue
-
-        pass
-
         outputs = extract_cnn_feature(model, imgs, eval_only=True)
         for fname, output in zip(fnames, outputs):
-            if detailed:
+            if not subdir:
                 pattern = re.compile(r'c(\d)_f(\d+)')
                 cam, frame = map(int, pattern.search(fname).groups())
                 # f_names[cam - 1].append(fname)
@@ -91,7 +81,8 @@ def extract_features(model, data_loader, args, print_freq=100, detailed=True):
             else:
                 pattern = re.compile(r'(\d+)_c(\d+)_f(\d+)')
                 pid, cam, frame = map(int, pattern.search(fname).groups())
-                line = output.numpy()
+                # line = output.numpy()
+                line = np.concatenate([np.array([pid, cam, frame]), output.numpy()])
                 lines.append(line)
         batch_time.update(time.time() - end)
         end = time.time()
@@ -122,19 +113,22 @@ def main(args):
 
     data_dir = osp.expanduser('~/Data/DukeMTMC/ALL_det_bbox')
     if args.dataset == 'detections':
+        subdir = False
         dataset_dir = osp.join(data_dir, ('det_bbox_OpenPose_' + args.det_time))
     elif args.dataset == 'reid_test':
+        subdir = True
         dataset_dir = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/gt_bbox_1_fps')  # gt @ 1fps
         # dataset_dir = osp.expanduser('~/houyz/open-reid-PCB_n_RPP/data/dukemtmc/dukemtmc/raw/DukeMTMC-reID/bounding_box_test')  # reid
     else:
+        subdir = True
         dataset_dir = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/gt_bbox_60_fps')
 
     if args.dataset == 'detections':
-        dataset = DetDuke(dataset_dir, mygt_icams, False)
+        dataset = DetDuke(dataset_dir, mygt_icams, subdir)
     elif args.dataset == 'reid_test':
-        dataset = DetDuke(dataset_dir, mygt_icams, True)
+        dataset = DetDuke(dataset_dir, mygt_icams, subdir)
     else:
-        dataset = DetDuke(dataset_dir, mygt_icams, True)
+        dataset = DetDuke(dataset_dir, mygt_icams, subdir)
 
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     test_transformer = T.Compose([
@@ -157,7 +151,7 @@ def main(args):
     print('*************** initialization takes time: {:^10.2f} *********************\n'.format(toc))
 
     tic = time.time()
-    lines = extract_features(model, data_loader, args, detailed=(args.dataset != 'reid_test'))
+    lines = extract_features(model, data_loader, args, subdir)
     toc = time.time() - tic
     print('*************** compute features takes time: {:^10.2f} *********************\n'.format(toc))
 
@@ -179,8 +173,11 @@ def main(args):
                 mat_data = np.vstack(lines[cam])
                 f.create_dataset('emb', data=mat_data, dtype=float)
                 pass
-    elif args.dataset == 'reid_test':
-        folder_name = osp.abspath(osp.join(working_dir, os.pardir)) + '/DeepCC/experiments/' + args.l0_name
+    else:
+        if args.dataset == 'reid_test':
+            folder_name = osp.abspath(osp.join(working_dir, os.pardir)) + '/DeepCC/experiments/' + args.l0_name
+        else:
+            folder_name = osp.expanduser('~/Data/DukeMTMC/L0-features/') + "gt_features_{}".format(args.l0_name)
         mkdir_if_missing(folder_name)
         with open(osp.join(folder_name, 'args.json'), 'w') as fp:
             json.dump(vars(args), fp, indent=1)
@@ -198,21 +195,7 @@ def main(args):
             mat_data = np.vstack(lines)
             f.create_dataset('emb', data=mat_data, dtype=float)
             pass
-    else:
-        folder_name = osp.expanduser('~/Data/DukeMTMC/L0-features/') + "gt_features_{}".format(args.l0_name)
-        mkdir_if_missing(folder_name)
-        with open(osp.join(folder_name, 'args.json'), 'w') as fp:
-            json.dump(vars(args), fp, indent=1)
-        for cam in range(8):
-            output_fname = folder_name + '/features%d.h5' % (cam + 1)
-            mkdir_if_missing(os.path.dirname(output_fname))
-            if args.mygt_icams != 0 and cam + 1 != args.mygt_icams:
-                continue
 
-            with h5py.File(output_fname, 'w') as f:
-                mat_data = np.vstack(lines)
-                f.create_dataset('emb', data=mat_data, dtype=float)
-                pass
     toc = time.time() - tic
     print('*************** write file takes time: {:^10.2f} *********************\n'.format(toc))
     pass
