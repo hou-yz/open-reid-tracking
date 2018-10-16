@@ -18,6 +18,17 @@ class BaseTrainer(object):
         self.model = model
         self.criterion = criterion
 
+    def train(self, epoch, data_loader, optimizer):
+        raise NotImplementedError
+
+    def _parse_data(self, inputs):
+        raise NotImplementedError
+
+    def _forward(self, inputs, targets):
+        raise NotImplementedError
+
+
+class Trainer(BaseTrainer):
     def train(self, epoch, data_loader, optimizer, fix_bn=False, print_freq=10):
         self.model.train()
 
@@ -98,14 +109,6 @@ class BaseTrainer(object):
 
         return losses.avg, precisions.avg
 
-    def _parse_data(self, inputs):
-        raise NotImplementedError
-
-    def _forward(self, inputs, targets):
-        raise NotImplementedError
-
-
-class Trainer(BaseTrainer):
     def _parse_data(self, inputs):
         imgs, _, pids, _ = inputs
         inputs = [Variable(imgs)]

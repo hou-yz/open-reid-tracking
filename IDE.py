@@ -100,8 +100,8 @@ def get_data(name, data_dir, height, width, batch_size, workers,
         shuffle=False, pin_memory=True)
 
     # slimmer & faster query
-    indices_eval_query = random.sample(range(len(dataset.query)), int(len(dataset.query) / 5))
-    eval_set_query = list(dataset.query[i] for i in indices_eval_query)
+    # indices_eval_query = random.sample(range(len(dataset.query)), int(len(dataset.query) / 5))
+    # eval_set_query = list(dataset.query[i] for i in indices_eval_query)
 
     query_loader = DataLoader(
         Preprocessor(dataset.query,
