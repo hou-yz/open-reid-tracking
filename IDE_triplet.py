@@ -12,6 +12,11 @@ import torch
 from torch import nn
 from torch.backends import cudnn
 from torch.utils.data import DataLoader
+import matplotlib
+
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
+import json
 
 from reid.loss import TripletLoss
 from reid.utils.data.sampler import RandomIdentitySampler
@@ -43,9 +48,7 @@ def get_data(name, split_id, data_dir, height, width, batch_size, num_instances,
                    else dataset.num_train_ids)
 
     train_transformer = T.Compose([
-        T.Resize((288, 144), interpolation=3),
-        T.RandomCrop((256, 128)),
-        # T.Resize((height, width), interpolation=3),
+        T.RandomSizedRectCrop(height, width, interpolation=3),
         T.RandomHorizontalFlip(),
         T.ToTensor(),
         normalizer,
@@ -75,16 +78,19 @@ def get_data(name, split_id, data_dir, height, width, batch_size, num_instances,
     # indices_eval_query = random.sample(range(len(dataset.query)), int(len(dataset.query) / 5))
     # eval_set_query = list(dataset.query[i] for i in indices_eval_query)
 
-    # full query
-    eval_set_query = dataset.query
-
-    test_loader = DataLoader(
-        Preprocessor(list(set(eval_set_query) | set(dataset.gallery)),
+    query_loader = DataLoader(
+        Preprocessor(dataset.query,
                      root=dataset.images_dir, transform=test_transformer),
         batch_size=batch_size, num_workers=workers,
         shuffle=False, pin_memory=True)
 
-    return dataset, num_classes, train_loader, val_loader, test_loader, eval_set_query,
+    gallery_loader = DataLoader(
+        Preprocessor(dataset.gallery,
+                     root=dataset.images_dir, transform=test_transformer),
+        batch_size=batch_size, num_workers=workers,
+        shuffle=False, pin_memory=True)
+
+    return dataset, num_classes, train_loader, val_loader, query_loader, gallery_loader
 
 
 def checkpoint_loader(model, path, eval_only=False):
@@ -99,7 +105,7 @@ def checkpoint_loader(model, path, eval_only=False):
     model_dict = model.state_dict()
     # 1. filter out unnecessary keys
     pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
-    if eval_only and 'fc.weight' in pretrained_dict:
+    if 'fc.weight' in pretrained_dict:
         del pretrained_dict['fc.weight']
         del pretrained_dict['fc.bias']
     # 2. overwrite entries in the existing state dict
@@ -121,21 +127,29 @@ def main(args):
     torch.manual_seed(args.seed)
     cudnn.benchmark = True
     # Redirect print to both console and log file
+    date_str = '{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S'))
     if (not args.evaluate) and args.log:
         sys.stdout = Logger(
-            osp.join(args.logs_dir, 'log_{}.txt'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H:%M:%S'))))
+            osp.join(args.logs_dir, 'log_{}.txt'.format(date_str)))
+        # save opts
+        with open(osp.join(args.logs_dir, 'args_{}.json'.format(date_str)), 'w') as fp:
+            json.dump(vars(args), fp, indent=1)
 
     # Create data loaders
     assert args.num_instances > 1, "num_instances should be greater than 1"
     assert args.batch_size % args.num_instances == 0, 'num_instances should divide batch_size'
-    dataset, num_classes, train_loader, val_loader, test_loader, eval_set_query = \
+    dataset, num_classes, train_loader, val_loader, query_loader, gallery_loader = \
         get_data(args.dataset, args.split, args.data_dir, args.height,
                  args.width, args.batch_size, args.num_instances, args.num_workers,
                  args.combine_trainval, args.re)
 
     # Create model for triplet (num_classes = 0)
-    model = models.create('ide', num_features=args.features,
-                          dropout=args.dropout, num_classes=0, last_stride=args.last_stride, output_feature=args.output_feature)
+    # model = models.create('ide', num_features=args.features,
+    #                       dropout=args.dropout, num_classes=0, last_stride=args.last_stride,
+    #                       output_feature=args.output_feature)
+
+    model = models.create(args.arch, num_features=1024,
+                          dropout=args.dropout, num_classes=args.features)
 
     # Load from checkpoint
     start_epoch = best_top1 = 0
@@ -148,18 +162,11 @@ def main(args):
               .format(start_epoch, best_top1))
     model = nn.DataParallel(model).cuda()
 
-    # Distance metric
-    metric = DistanceMetric(algorithm=args.dist_metric)
-
     # Evaluator
     evaluator = Evaluator(model)
     if args.evaluate:
-        metric.train(model, train_loader)
-        # print("Validation:")
-        # evaluator.evaluate(val_loader, dataset.val, dataset.val, eval_only=True, metric=metric)
         print("Test:")
-        evaluator.evaluate(test_loader, eval_set_query, dataset.gallery,
-                           metric=metric, eval_only=True)
+        evaluator.evaluate(query_loader, gallery_loader, dataset.query, dataset.gallery, eval_only=True)
         return
 
     # Criterion
@@ -167,16 +174,16 @@ def main(args):
 
     if args.train:
         # Optimizer
-        if hasattr(model.module, 'base'):  # low learning_rate the base network (aka. ResNet-50)
-            base_param_ids = set(map(id, model.module.base.parameters()))
-            new_params = [p for p in model.parameters() if
-                          id(p) not in base_param_ids]
-            param_groups = [
-                {'params': model.module.base.parameters(), 'base_lr_mult': 1},
-                {'params': new_params, 'base_lr_mult': 10}]
-        else:
-            param_groups = model.parameters()
-        optimizer = torch.optim.Adam(param_groups, lr=args.base_lr,
+        # if hasattr(model.module, 'base'):  # low learning_rate the base network (aka. ResNet-50)
+        #     base_param_ids = set(map(id, model.module.base.parameters()))
+        #     new_params = [p for p in model.parameters() if
+        #                   id(p) not in base_param_ids]
+        #     param_groups = [
+        #         {'params': model.module.base.parameters(), 'lr_mult': 0.1},
+        #         {'params': new_params, 'lr_mult': 1.0}]
+        # else:
+        #     param_groups = model.parameters()
+        optimizer = torch.optim.Adam(model.parameters(), lr=args.lr,
                                      weight_decay=args.weight_decay)
 
         # Trainer
@@ -184,74 +191,59 @@ def main(args):
 
         # Schedule learning rate
         def adjust_lr(epoch):
-            """
-            Decay exponentially in the later phase of training. All parameters in the
-            optimizer share the same learning rate.
-
-            Args:
-                optimizer: a pytorch `Optimizer` object
-                base_lr: starting learning rate
-                ep: current epoch, ep >= 1
-                total_ep: total number of epochs to train
-                start_decay_at_ep: start decaying at the BEGINNING of this epoch
-
-            Example:
-                base_lr = 2e-4
-                total_ep = 300
-                start_decay_at_ep = 201
-                It means the learning rate starts at 2e-4 and begins decaying after 200
-                epochs. And training stops after 300 epochs.
-
-            NOTE:
-                It is meant to be called at the BEGINNING of an epoch.
-            """
+            lr = args.lr if epoch <= 100 else \
+                args.lr * (0.001 ** ((epoch - 100) / 50.0))
             for g in optimizer.param_groups:
-                if epoch < args.start_decay_at_ep:
-                    base_lr = args.base_lr
-                else:
-                    base_lr = (args.base_lr * (0.001 ** (float(epoch + 1 - args.start_decay_at_ep)
-                                                         / (args.epochs + 1 - args.start_decay_at_ep))))
-                for g in optimizer.param_groups:
-                    g['lr'] = base_lr * g.get('base_lr_mult', 1)
-                    if g.get('base_lr_mult', 1) > 1:
-                        pass
-            if epoch >= args.start_decay_at_ep:
-                print('=====> base_lr adjusted to {:.10f}'.format(g['lr']).rstrip('0'))
+                g['lr'] = lr * g.get('lr_mult', 1)
+
+
+        # Draw Curve
+        x_epoch = []
+        fig = plt.figure()
+        ax0 = fig.add_subplot(121, title="loss")
+        ax1 = fig.add_subplot(122, title="prec")
+
+        loss_s = []
+        prec_s = []
+
+        def draw_curve(current_epoch, train_loss, train_prec):
+            x_epoch.append(current_epoch)
+            ax0.plot(x_epoch, train_loss, 'bo-', label='train')
+            ax1.plot(x_epoch, train_prec, 'bo-', label='train')
+            if current_epoch == 0:
+                ax0.legend()
+                ax1.legend()
+            fig.savefig(os.path.join(args.logs_dir, 'train_{}.jpg'.format(date_str)))
 
         # Start training
         for epoch in range(start_epoch, args.epochs):
             adjust_lr(epoch)
-            trainer.train(epoch, train_loader, optimizer, args.fix_base_bn)
+            train_loss, train_prec = trainer.train(epoch, train_loader, optimizer, args.fix_base_bn)
             if epoch < args.start_save:
                 continue
 
-            if epoch % 5 == 0:
-                print("Validation:")
-                top1_eval = evaluator.evaluate(val_loader, dataset.val, dataset.val,
-                                               metric=metric, eval_only=True)
-                # print("Test:")
-                # top1_test = evaluator.evaluate(test_loader, eval_set_query, dataset.gallery,
-                #                                metric=metric, eval_only=True)
+            # print("Test:")
+            # top1_test = evaluator.evaluate(query_loader, gallery_loader, dataset.query, dataset.gallery, eval_only=True)
+            # skip evaluate
+            top1_eval = 50
+            is_best = top1_eval >= best_top1
+            best_top1 = max(top1_eval, best_top1)
+            save_checkpoint({
+                'state_dict': model.module.state_dict(),
+                'epoch': epoch + 1,
+                'best_top1': best_top1,
+            }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint_epoch{}.pth.tar'.format(epoch)))
 
-                is_best = top1_eval >= best_top1
-                best_top1 = max(top1_eval, best_top1)
-                save_checkpoint({
-                    'state_dict': model.module.state_dict(),
-                    'epoch': epoch + 1,
-                    'best_top1': best_top1,
-                }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
-                print('\n * Finished epoch {:3d}  top1_eval: {:5.1%}  best_eval: {:5.1%} \n'.
-                      format(epoch, top1_eval, best_top1, ' *' if is_best else ''))
-
+            loss_s.append(train_loss)
+            prec_s.append(train_prec)
+            draw_curve(epoch, loss_s, prec_s)
             pass
 
         # Final test
         print('Test with best model:')
         model, _, _ = checkpoint_loader(model, osp.join(args.logs_dir, 'model_best.pth.tar'), eval_only=True)
 
-        metric.train(model, train_loader)
-        evaluator.evaluate(test_loader, eval_set_query, dataset.gallery,
-                           metric=metric, eval_only=True)
+        evaluator.evaluate(query_loader, gallery_loader, dataset.query, dataset.gallery, eval_only=True)
 
 
 if __name__ == '__main__':
@@ -260,7 +252,7 @@ if __name__ == '__main__':
     # data
     parser.add_argument('-d', '--dataset', type=str, default='market1501',
                         choices=datasets.names())
-    parser.add_argument('-b', '--batch-size', type=int, default=128, help="batch size")
+    parser.add_argument('-b', '--batch-size', type=int, default=256, help="batch size")
     parser.add_argument('-j', '--num-workers', type=int, default=8)
     parser.add_argument('--split', type=int, default=0)
     parser.add_argument('--height', type=int, default=256,
@@ -278,15 +270,17 @@ if __name__ == '__main__':
     # model
     parser.add_argument('-a', '--arch', type=str, default='resnet50',
                         choices=models.names())
-    parser.add_argument('--features', type=int, default=0)
+    parser.add_argument('--features', type=int, default=1024)
     parser.add_argument('--dropout', type=float, default=0)
     parser.add_argument('-s', '--last_stride', type=int, default=2,
                         choices=[1, 2])
+    parser.add_argument('--output_feature', type=str, default='fc',
+                        choices=['pool5', 'fc'])
     # loss
-    parser.add_argument('--margin', type=float, default=0.3,
-                        help="margin of the triplet loss, default: 0.3")
+    parser.add_argument('--margin', type=float, default=0.5,
+                        help="margin of the triplet loss, default: 0.5")
     # optimizer
-    parser.add_argument('--base_lr', type=float, default=0.0002,
+    parser.add_argument('--lr', type=float, default=0.0002,
                         help="learning rate of new parameters, for pretrained "
                              "parameters it is 10 times smaller than this")
     parser.add_argument('--weight-decay', type=float, default=5e-4)
@@ -296,8 +290,7 @@ if __name__ == '__main__':
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
     parser.add_argument('--evaluate', action='store_true',
                         help="evaluation only")
-    parser.add_argument('--epochs', type=int, default=300)
-    parser.add_argument('--start_decay_at_ep', type=int, default=150)
+    parser.add_argument('--epochs', type=int, default=150)
     parser.add_argument('--start_save', type=int, default=0,
                         help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)
@@ -314,5 +307,4 @@ if __name__ == '__main__':
                         default=osp.join(working_dir, 'data'))
     parser.add_argument('--logs-dir', type=str, metavar='PATH',
                         default=osp.join(working_dir, 'logs'))
-    parser.add_argument('--output_feature', type=str, default=None)
     main(parser.parse_args())
