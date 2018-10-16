@@ -63,10 +63,7 @@ def extract_features(model, data_loader, args, subdir=False):
     # f_names = [[] for _ in range(8)]
     # features = [[] for _ in range(8)]
 
-    if not subdir:
-        lines = [[] for _ in range(8)]
-    else:
-        lines = []
+    lines = [[] for _ in range(8)]
 
     end = time.time()
     for i, (imgs, fnames) in enumerate(data_loader):
@@ -78,13 +75,12 @@ def extract_features(model, data_loader, args, subdir=False):
                 # f_names[cam - 1].append(fname)
                 # features[cam - 1].append(output.numpy())
                 line = np.concatenate([np.array([cam, frame]), output.numpy()])
-                lines[cam - 1].append(line)
             else:
                 pattern = re.compile(r'(\d+)_c(\d+)_f(\d+)')
                 pid, cam, frame = map(int, pattern.search(fname).groups())
                 # line = output.numpy()
                 line = np.concatenate([np.array([pid, cam, frame]), output.numpy()])
-                lines.append(line)
+            lines[cam - 1].append(line)
         batch_time.update(time.time() - end)
         end = time.time()
 
@@ -161,41 +157,42 @@ def main(args):
     if args.dataset == 'detections':
         folder_name = osp.expanduser('~/Data/DukeMTMC/L0-features/') + "det_features_{}". \
             format(args.l0_name) + '_' + args.det_time
-        mkdir_if_missing(folder_name)
-        with open(osp.join(folder_name, 'args.json'), 'w') as fp:
-            json.dump(vars(args), fp, indent=1)
-        for cam in range(8):
-            output_fname = folder_name + '/features%d.h5' % (cam + 1)
-            mkdir_if_missing(os.path.dirname(output_fname))
-            if args.mygt_icams != 0 and cam + 1 != args.mygt_icams:
-                continue
-
-            with h5py.File(output_fname, 'w') as f:
-                mat_data = np.vstack(lines[cam])
-                f.create_dataset('emb', data=mat_data, dtype=float)
-                pass
+    elif args.dataset == 'reid_test':
+        folder_name = osp.abspath(osp.join(working_dir, os.pardir)) + '/DeepCC/experiments/' + args.l0_name
     else:
-        if args.dataset == 'reid_test':
-            folder_name = osp.abspath(osp.join(working_dir, os.pardir)) + '/DeepCC/experiments/' + args.l0_name
-        else:
-            folder_name = osp.expanduser('~/Data/DukeMTMC/L0-features/') + "gt_features_{}".format(args.l0_name)
-        mkdir_if_missing(folder_name)
-        with open(osp.join(folder_name, 'args.json'), 'w') as fp:
-            json.dump(vars(args), fp, indent=1)
-        if args.mygt_icams == 0:
-            output_fname = folder_name + '/features.h5'
-        else:
-            output_fname = folder_name + '/features_icam' + str(args.mygt_icams) + '.h5'
+        folder_name = osp.expanduser('~/Data/DukeMTMC/L0-features/') + "gt_features_{}".format(args.l0_name)
+
+    mkdir_if_missing(folder_name)
+    with open(osp.join(folder_name, 'args.json'), 'w') as fp:
+        json.dump(vars(args), fp, indent=1)
+    for cam in range(8):
+        output_fname = folder_name + '/features%d.h5' % (cam + 1)
         mkdir_if_missing(os.path.dirname(output_fname))
+        if args.mygt_icams != 0 and cam + 1 != args.mygt_icams:
+            continue
 
         with h5py.File(output_fname, 'w') as f:
-            # asciiList = [n.encode("ascii", "ignore") for n in f_names[cam]]
-            # f.create_dataset('f_names', (len(asciiList), 1), 'S10', asciiList)
-            # emb = np.vstack(features[cam])
-            # f.create_dataset('emb', data=emb, dtype=float)
-            mat_data = np.vstack(lines)
+            mat_data = np.vstack(lines[cam])
             f.create_dataset('emb', data=mat_data, dtype=float)
             pass
+    # else:
+    #
+    #     with open(osp.join(folder_name, 'args.json'), 'w') as fp:
+    #         json.dump(vars(args), fp, indent=1)
+    #     if args.mygt_icams == 0:
+    #         output_fname = folder_name + '/features.h5'
+    #     else:
+    #         output_fname = folder_name + '/features_icam' + str(args.mygt_icams) + '.h5'
+    #     mkdir_if_missing(os.path.dirname(output_fname))
+    #
+    #     with h5py.File(output_fname, 'w') as f:
+    #         # asciiList = [n.encode("ascii", "ignore") for n in f_names[cam]]
+    #         # f.create_dataset('f_names', (len(asciiList), 1), 'S10', asciiList)
+    #         # emb = np.vstack(features[cam])
+    #         # f.create_dataset('emb', data=emb, dtype=float)
+    #         mat_data = np.vstack(lines)
+    #         f.create_dataset('emb', data=mat_data, dtype=float)
+    #         pass
 
     toc = time.time() - tic
     print('*************** write file takes time: {:^10.2f} *********************\n'.format(toc))
