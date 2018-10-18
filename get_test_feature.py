@@ -175,25 +175,7 @@ def main(args):
             mat_data = np.vstack(lines[cam])
             f.create_dataset('emb', data=mat_data, dtype=float)
             pass
-    # else:
-    #
-    #     with open(osp.join(folder_name, 'args.json'), 'w') as fp:
-    #         json.dump(vars(args), fp, indent=1)
-    #     if args.mygt_icams == 0:
-    #         output_fname = folder_name + '/features.h5'
-    #     else:
-    #         output_fname = folder_name + '/features_icam' + str(args.mygt_icams) + '.h5'
-    #     mkdir_if_missing(os.path.dirname(output_fname))
-    #
-    #     with h5py.File(output_fname, 'w') as f:
-    #         # asciiList = [n.encode("ascii", "ignore") for n in f_names[cam]]
-    #         # f.create_dataset('f_names', (len(asciiList), 1), 'S10', asciiList)
-    #         # emb = np.vstack(features[cam])
-    #         # f.create_dataset('emb', data=emb, dtype=float)
-    #         mat_data = np.vstack(lines)
-    #         f.create_dataset('emb', data=mat_data, dtype=float)
-    #         pass
-
+    
     toc = time.time() - tic
     print('*************** write file takes time: {:^10.2f} *********************\n'.format(toc))
     pass
