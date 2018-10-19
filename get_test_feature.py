@@ -134,14 +134,14 @@ def main(args):
             # T.RandomHorizontalFlip(),
             T.ToTensor(),
             normalizer,
-            T.RandomErasing(EPSILON=re), ])
+            T.RandomErasing(EPSILON=args.re), ])
     else:
         test_transformer = T.Compose([
             T.RectScale(args.height, args.width),
             # T.RandomHorizontalFlip(),
             T.ToTensor(),
             normalizer,
-            T.RandomErasing(EPSILON=re), ])
+            T.RandomErasing(EPSILON=args.re), ])
     data_loader = DataLoader(Preprocessor(dataset, root=dataset_dir, transform=test_transformer),
                              batch_size=args.batch_size, num_workers=args.num_workers,
                              shuffle=False, pin_memory=True)
