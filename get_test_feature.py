@@ -128,11 +128,20 @@ def main(args):
         dataset = DetDuke(dataset_dir, mygt_icams, subdir)
 
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    test_transformer = T.Compose([
-        T.RectScale(args.height, args.width, interpolation=3),
-        T.ToTensor(),
-        normalizer,
-    ])
+    if args.crop:  # default: False
+        test_transformer = T.Compose([
+            T.RandomSizedRectCrop(args.height, args.width),
+            # T.RandomHorizontalFlip(),
+            T.ToTensor(),
+            normalizer,
+            T.RandomErasing(EPSILON=re), ])
+    else:
+        test_transformer = T.Compose([
+            T.RectScale(args.height, args.width),
+            # T.RandomHorizontalFlip(),
+            T.ToTensor(),
+            normalizer,
+            T.RandomErasing(EPSILON=re), ])
     data_loader = DataLoader(Preprocessor(dataset, root=dataset_dir, transform=test_transformer),
                              batch_size=args.batch_size, num_workers=args.num_workers,
                              shuffle=False, pin_memory=True)
@@ -161,6 +170,10 @@ def main(args):
         folder_name = osp.abspath(osp.join(working_dir, os.pardir)) + '/DeepCC/experiments/' + args.l0_name
     else:
         folder_name = osp.expanduser('~/Data/DukeMTMC/L0-features/') + "gt_features_{}".format(args.l0_name)
+    if args.re:
+        folder_name += '_RE'
+    if args.crop:
+        folder_name += '_CROP'
 
     mkdir_if_missing(folder_name)
     with open(osp.join(folder_name, 'args.json'), 'w') as fp:
@@ -175,7 +188,7 @@ def main(args):
             mat_data = np.vstack(lines[cam])
             f.create_dataset('emb', data=mat_data, dtype=float)
             pass
-    
+
     toc = time.time() - tic
     print('*************** write file takes time: {:^10.2f} *********************\n'.format(toc))
     pass
@@ -210,4 +223,8 @@ if __name__ == '__main__':
     parser.add_argument('--det_time', type=str, metavar='PATH',
                         default='trainval_mini')
     parser.add_argument('--mygt_icams', type=int, default=0, help="specify if train on single iCam")
+    # data jittering
+    parser.add_argument('--re', type=float, default=0, help="random erasing")
+    parser.add_argument('--crop', action='store_true',
+                        help="resize then crop, default: False")
     main(parser.parse_args())
