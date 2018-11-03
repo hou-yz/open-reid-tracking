@@ -54,7 +54,7 @@ def checkpoint_loader(model, path, eval_only=False):
     return model, start_epoch
 
 
-def extract_features(model, data_loader, args, subdir=False):
+def extract_features(model, data_loader, is_detection=True):
     model.eval()
     print_freq = 100
     batch_time = AverageMeter()
@@ -69,7 +69,7 @@ def extract_features(model, data_loader, args, subdir=False):
     for i, (imgs, fnames) in enumerate(data_loader):
         outputs = extract_cnn_feature(model, imgs, eval_only=True)
         for fname, output in zip(fnames, outputs):
-            if not subdir:
+            if is_detection:
                 pattern = re.compile(r'c(\d)_f(\d+)')
                 cam, frame = map(int, pattern.search(fname).groups())
                 # f_names[cam - 1].append(fname)
@@ -110,22 +110,22 @@ def main(args):
 
     data_dir = osp.expanduser('~/Data/DukeMTMC/ALL_det_bbox')
     if args.dataset == 'detections':
-        subdir = False
+        is_detection = True
         dataset_dir = osp.join(data_dir, ('det_bbox_OpenPose_' + args.det_time))
     elif args.dataset == 'reid_test':
-        subdir = True
+        is_detection = False
         dataset_dir = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/trainval/gt_bbox_1_fps')  # gt @ 1fps
         # dataset_dir = osp.expanduser('~/houyz/open-reid-PCB_n_RPP/data/dukemtmc/dukemtmc/raw/DukeMTMC-reID/bounding_box_test')  # reid
     else:
-        subdir = True
+        is_detection = False
         dataset_dir = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/trainval/gt_bbox_60_fps')
 
     if args.dataset == 'detections':
-        dataset = DetDuke(dataset_dir, mygt_icams, subdir)
+        dataset = DetDuke(dataset_dir, mygt_icams, is_detection)
     elif args.dataset == 'reid_test':
-        dataset = DetDuke(dataset_dir, mygt_icams, subdir)
+        dataset = DetDuke(dataset_dir, mygt_icams, is_detection)
     else:
-        dataset = DetDuke(dataset_dir, mygt_icams, subdir)
+        dataset = DetDuke(dataset_dir, mygt_icams, is_detection)
 
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     if args.crop:  # default: False
@@ -157,7 +157,7 @@ def main(args):
     print('*************** initialization takes time: {:^10.2f} *********************\n'.format(toc))
 
     tic = time.time()
-    lines = extract_features(model, data_loader, args, subdir)
+    lines = extract_features(model, data_loader, is_detection)
     toc = time.time() - tic
     print('*************** compute features takes time: {:^10.2f} *********************\n'.format(toc))
 

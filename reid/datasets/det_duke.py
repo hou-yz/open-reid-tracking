@@ -11,16 +11,16 @@ from PIL import Image
 
 
 class DetDuke(Dataset):
-    def __init__(self, root, iCams=list(range(1, 9)), subdir=False):
+    def __init__(self, root, iCams=list(range(1, 9)), is_detection=True):
         super(DetDuke, self).__init__(root)
 
-        self.download(iCams, subdir)
+        self.download(iCams, is_detection)
         pass
 
     def __len__(self):
         return len(self.indexs)  # len(glob.glob1(self.root, "*.jpg"))
 
-    def download(self, iCams, subdir):
+    def download(self, iCams, is_detection):
         import re
         import hashlib
         import shutil
@@ -31,7 +31,7 @@ class DetDuke(Dataset):
         self.indexs = []
 
         def duke_register(pattern=re.compile(r'c(\d+)_f(\d+)')):
-            if subdir:
+            if not is_detection:
                 for iCam in iCams:
                     fpaths = sorted(glob(osp.join(self.root, 'camera' + str(iCam), '*.jpg')))
                     for fpath in fpaths:
