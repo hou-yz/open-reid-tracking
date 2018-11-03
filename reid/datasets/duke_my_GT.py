@@ -51,12 +51,16 @@ def _pluck(identities, indices, relabel=False, resume_hash_table={}, hash_pid_of
 class DukeMyGT(Dataset):
 
     def __init__(self, root, split_id=0, download=True, iCams=list(range(1, 9)), fps=60, camstyle=False,
-                 camstyle_pooling=1):
+                 camstyle_pooling=1, trainval=False):
         super(DukeMyGT, self).__init__(root, split_id=split_id)
 
         camstyle_path = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/gt_bbox_1_fps/allcam_camstyle_stargan4reid')
         self.camstyle = []
-        mygt_dir = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox')
+        if not trainval:
+            mygt_dir = '~/Data/DukeMTMC/ALL_gt_bbox/train'
+        else:
+            mygt_dir = '~/Data/DukeMTMC/ALL_gt_bbox/trainval'
+        mygt_dir = osp.expanduser(mygt_dir)
         if download:
             self.download(iCams, fps, mygt_dir, camstyle_path, camstyle, camstyle_pooling)
 

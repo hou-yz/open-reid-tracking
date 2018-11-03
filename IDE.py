@@ -50,7 +50,7 @@ def get_data(name, data_dir, height, width, batch_size, workers,
         else:
             mygt_icams = list(range(1, 9))
         dataset = datasets.create(name, root, iCams=mygt_icams, fps=fps, camstyle=camstyle > 0,
-                                  camstyle_pooling=fake_pooling)
+                                  camstyle_pooling=fake_pooling, trainval=combine_trainval)
     else:
         dataset = datasets.create(name, root)
 

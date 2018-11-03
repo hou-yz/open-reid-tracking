@@ -114,11 +114,11 @@ def main(args):
         dataset_dir = osp.join(data_dir, ('det_bbox_OpenPose_' + args.det_time))
     elif args.dataset == 'reid_test':
         subdir = True
-        dataset_dir = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/gt_bbox_1_fps')  # gt @ 1fps
+        dataset_dir = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/trainval/gt_bbox_1_fps')  # gt @ 1fps
         # dataset_dir = osp.expanduser('~/houyz/open-reid-PCB_n_RPP/data/dukemtmc/dukemtmc/raw/DukeMTMC-reID/bounding_box_test')  # reid
     else:
         subdir = True
-        dataset_dir = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/gt_bbox_60_fps')
+        dataset_dir = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/trainval/gt_bbox_60_fps')
 
     if args.dataset == 'detections':
         dataset = DetDuke(dataset_dir, mygt_icams, subdir)
@@ -221,7 +221,7 @@ if __name__ == '__main__':
     parser.add_argument('--l0_name', type=str, metavar='PATH',
                         default='ide_2048_')
     parser.add_argument('--det_time', type=str, metavar='PATH',
-                        default='trainval_mini')
+                        default='trainval_mini',choices=['trainval','trainval_mini','val'])
     parser.add_argument('--mygt_icams', type=int, default=0, help="specify if train on single iCam")
     # data jittering
     parser.add_argument('--re', type=float, default=0, help="random erasing")
