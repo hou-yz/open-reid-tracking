@@ -221,7 +221,7 @@ if __name__ == '__main__':
     parser.add_argument('--l0_name', type=str, metavar='PATH',
                         default='ide_2048_')
     parser.add_argument('--det_time', type=str, metavar='PATH',
-                        default='trainval_mini',choices=['trainval','trainval_mini','val'])
+                        default='trainval_mini', choices=['trainval', 'trainval_mini', 'val', 'test_all'])
     parser.add_argument('--mygt_icams', type=int, default=0, help="specify if train on single iCam")
     # data jittering
     parser.add_argument('--re', type=float, default=0, help="random erasing")
