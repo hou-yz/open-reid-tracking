@@ -53,7 +53,7 @@ class PCB_model(nn.Module):
                 init.constant_(fc.bias, 0)
                 self.fc_s.append(fc)
 
-    def forward(self, x):
+    def forward(self, x, eval_only=False):
         """
         Returns:
           h_s: each member with shape [N, c]
@@ -61,7 +61,6 @@ class PCB_model(nn.Module):
         """
         # Tensor T [N, 2048, 24, 8]
         x = self.base(x)
-        f_shape = x.size()
 
         # g_s [N, 2048, 6, 1]
         x = self.avg_pool(x)
@@ -76,11 +75,12 @@ class PCB_model(nn.Module):
 
         x_s = x.chunk(self.num_stripes, 2)
         prediction_s = []
-        for i in range(self.num_stripes):
-            # 4d vector h -> 2d vector h
-            x = x_s[i].view(f_shape[0], -1)
-            prediction_s.append(self.fc_s[i](x))
+        if not eval_only:
+            for i in range(self.num_stripes):
+                # 4d vector h -> 2d vector h
+                x = x_s[i].view(x.shape[0], -1)
+                prediction_s.append(self.fc_s[i](x))
         if self.output_feature == 'pool5':
-            return out0, tuple(prediction_s)
+            return out0.view(x.shape[0], -1), tuple(prediction_s)
         else:
-            return out1, tuple(prediction_s)
+            return out1.view(x.shape[0], -1), tuple(prediction_s)

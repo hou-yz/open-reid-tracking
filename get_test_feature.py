@@ -146,7 +146,7 @@ def main(args):
                              batch_size=args.batch_size, num_workers=args.num_workers,
                              shuffle=False, pin_memory=True)
     # Create model
-    model = models.create('ide', num_features=args.features,
+    model = models.create(args.arch, num_features=args.features,
                           dropout=args.dropout, num_classes=0, last_stride=args.last_stride,
                           output_feature=args.output_feature)
     # Load from checkpoint
@@ -197,6 +197,8 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Softmax loss classification")
     # data
+    parser.add_argument('-a', '--arch', type=str, default='ide',
+                        choices=['ide', 'pcb'])
     parser.add_argument('-d', '--dataset', type=str, default='reid_test',
                         choices=['detections', 'reid_test', 'gt'])
     parser.add_argument('-b', '--batch-size', type=int, default=64, help="batch size")
@@ -221,7 +223,7 @@ if __name__ == '__main__':
     parser.add_argument('--l0_name', type=str, metavar='PATH',
                         default='ide_2048_')
     parser.add_argument('--det_time', type=str, metavar='PATH',
-                        default='trainval_mini',choices=['trainval','trainval_mini','val'])
+                        default='trainval_mini', choices=['trainval', 'trainval_mini', 'val', 'test_all'])
     parser.add_argument('--mygt_icams', type=int, default=0, help="specify if train on single iCam")
     # data jittering
     parser.add_argument('--re', type=float, default=0, help="random erasing")
