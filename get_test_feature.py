@@ -54,15 +54,56 @@ def checkpoint_loader(model, path, eval_only=False):
     return model, start_epoch
 
 
-def extract_features(model, data_loader, is_detection=True):
+def save_file(lines, args, if_created):
+    # write file
+    if args.dataset == 'detections':
+        folder_name = osp.expanduser('~/Data/DukeMTMC/L0-features/') + "det_features_{}". \
+            format(args.l0_name) + '_' + args.det_time
+    elif args.dataset == 'reid_test':
+        folder_name = osp.abspath(osp.join(working_dir, os.pardir)) + '/DeepCC/experiments/' + args.l0_name
+    else:
+        folder_name = osp.expanduser('~/Data/DukeMTMC/L0-features/') + "gt_features_{}".format(args.l0_name)
+    if args.re:
+        folder_name += '_RE'
+    if args.crop:
+        folder_name += '_CROP'
+
+    mkdir_if_missing(folder_name)
+    with open(osp.join(folder_name, 'args.json'), 'w') as fp:
+        json.dump(vars(args), fp, indent=1)
+    for cam in range(8):
+        output_fname = folder_name + '/features%d.h5' % (cam + 1)
+        mkdir_if_missing(os.path.dirname(output_fname))
+        if args.mygt_icams != 0 and cam + 1 != args.mygt_icams:
+            continue
+        if not lines[cam]:
+            continue
+
+        if not if_created[cam]:
+            with h5py.File(output_fname, 'w') as f:
+                mat_data = np.vstack(lines[cam])
+                f.create_dataset('emb', data=mat_data, dtype=float, maxshape=(None, None))
+                pass
+            if_created[cam] = 1
+        else:
+            with h5py.File(output_fname, 'a') as f:
+                mat_data = np.vstack(lines[cam])
+                f['emb'].resize((f['emb'].shape[0] + mat_data.shape[0]), axis=0)
+                f['emb'][-mat_data.shape[0]:] = mat_data
+                pass
+
+    return if_created
+
+
+def extract_features(model, data_loader, args, is_detection=True):
     model.eval()
-    print_freq = 100
+    print_freq = 1000
     batch_time = AverageMeter()
     data_time = AverageMeter()
 
     # f_names = [[] for _ in range(8)]
     # features = [[] for _ in range(8)]
-
+    if_created = [0 for _ in range(8)]
     lines = [[] for _ in range(8)]
 
     end = time.time()
@@ -92,7 +133,12 @@ def extract_features(model, data_loader, is_detection=True):
                           batch_time.val, batch_time.avg,
                           data_time.val, data_time.avg))
 
-    return lines
+            if_created = save_file(lines, args, if_created)
+
+            lines = [[] for _ in range(8)]
+
+    save_file(lines, args, if_created)
+    return
 
 
 def main(args):
@@ -120,12 +166,7 @@ def main(args):
         is_detection = False
         dataset_dir = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/trainval/gt_bbox_60_fps')
 
-    if args.dataset == 'detections':
-        dataset = DetDuke(dataset_dir, mygt_icams, is_detection)
-    elif args.dataset == 'reid_test':
-        dataset = DetDuke(dataset_dir, mygt_icams, is_detection)
-    else:
-        dataset = DetDuke(dataset_dir, mygt_icams, is_detection)
+    dataset = DetDuke(dataset_dir, mygt_icams, is_detection)
 
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     if args.crop:  # default: False
@@ -157,37 +198,11 @@ def main(args):
     print('*************** initialization takes time: {:^10.2f} *********************\n'.format(toc))
 
     tic = time.time()
-    lines = extract_features(model, data_loader, is_detection)
+    extract_features(model, data_loader, args, is_detection)
     toc = time.time() - tic
     print('*************** compute features takes time: {:^10.2f} *********************\n'.format(toc))
 
     tic = time.time()
-    # write file
-    if args.dataset == 'detections':
-        folder_name = osp.expanduser('~/Data/DukeMTMC/L0-features/') + "det_features_{}". \
-            format(args.l0_name) + '_' + args.det_time
-    elif args.dataset == 'reid_test':
-        folder_name = osp.abspath(osp.join(working_dir, os.pardir)) + '/DeepCC/experiments/' + args.l0_name
-    else:
-        folder_name = osp.expanduser('~/Data/DukeMTMC/L0-features/') + "gt_features_{}".format(args.l0_name)
-    if args.re:
-        folder_name += '_RE'
-    if args.crop:
-        folder_name += '_CROP'
-
-    mkdir_if_missing(folder_name)
-    with open(osp.join(folder_name, 'args.json'), 'w') as fp:
-        json.dump(vars(args), fp, indent=1)
-    for cam in range(8):
-        output_fname = folder_name + '/features%d.h5' % (cam + 1)
-        mkdir_if_missing(os.path.dirname(output_fname))
-        if args.mygt_icams != 0 and cam + 1 != args.mygt_icams:
-            continue
-
-        with h5py.File(output_fname, 'w') as f:
-            mat_data = np.vstack(lines[cam])
-            f.create_dataset('emb', data=mat_data, dtype=float)
-            pass
 
     toc = time.time() - tic
     print('*************** write file takes time: {:^10.2f} *********************\n'.format(toc))
