@@ -49,7 +49,7 @@ def get_data(name, data_dir, height, width, batch_size, workers,
             mygt_icams = [mygt_icams]
         else:
             mygt_icams = list(range(1, 9))
-        dataset = datasets.create(name, root, iCams=mygt_icams, fps=fps, trainval=combine_trainval)
+        dataset = datasets.create(name, root, duke_my_GT=True, iCams=mygt_icams, fps=fps, trainval=combine_trainval)
     else:
         dataset = datasets.create(name, root)
 
