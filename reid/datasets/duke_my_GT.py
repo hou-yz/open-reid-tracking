@@ -148,7 +148,7 @@ class DukeMyGT(Dataset):
                 pass
             return pids
 
-        def fake_register(subdir, trainval_pids, pooling=1, ):
+        def fake_register(subdir, train_pids, pooling=1, ):
             pids = set()
             og_pattern = re.compile(r'([-\d]+)_c(\d)_f(\d+)')
             fake_cam_pattern = re.compile(r'fake_(\d)')  # use fakes transferred to iCam style
@@ -160,7 +160,7 @@ class DukeMyGT(Dataset):
 
                 if pid == -1: continue  # junk images are just ignored
                 if fake_cam == source_cam: continue  # skip self-transformed imgs
-                # if pid not in trainval_pids: continue  # skip imgs not in trainval
+                # if pid not in train_pids: continue  # skip imgs not in train
                 if fake_cam not in iCams: continue  # skip imgs not belong to iCams list
                 if (frame % 211) % pooling != 0:
                     continue  # use prime_number 211 to hash the frame number first, then do the pooling
@@ -182,24 +182,24 @@ class DukeMyGT(Dataset):
 
             return pids
 
-        trainval_pids = mygt_register(mygt_raw_dir)
+        train_pids = mygt_register(mygt_raw_dir)
         gallery_pids = reid_register('bounding_box_test')
         query_pids = reid_register('query')
         if camstyle:
-            camstyle_pids = fake_register(camstyle_path, trainval_pids, camstyle_pooling)
+            camstyle_pids = fake_register(camstyle_path, train_pids, camstyle_pooling)
         else:
             camstyle_pids = set()
         assert query_pids <= gallery_pids
-        assert trainval_pids.isdisjoint(gallery_pids)
+        assert train_pids.isdisjoint(gallery_pids)
 
         # Save meta information into a json file
-        meta = {'name': 'DukeMyGT', 'shot': 'multiple', 'num_cameras': 14,
+        meta = {'name': 'DukeMyGT', 'shot': 'multiple', 'num_cameras': 8,
                 'identities': identities}
         write_json(meta, osp.join(self.root, 'meta.json'))
 
         # Save the only training / test split
         splits = [{
-            'trainval': sorted(list(trainval_pids)),
+            'train': sorted(list(train_pids)),
             'query': sorted(list(query_pids)),
             'gallery': sorted(list(gallery_pids)),
             'camstyle': sorted(list(camstyle_pids))
@@ -214,22 +214,16 @@ class DukeMyGT(Dataset):
         self.split = splits[self.split_id]
 
         # Randomly split train / val
-        trainval_pids = np.asarray(self.split['trainval'])
-        np.random.shuffle(trainval_pids)
-        train_pids = sorted(trainval_pids)
-        val_pids = sorted([])
+        train_pids = np.asarray(self.split['train'])
+        np.random.shuffle(train_pids)
 
         self.meta = read_json(osp.join(self.root, 'meta.json'))
         identities = self.meta['identities']
         self.camstyle, hash_table = _pluck(identities, self.split['camstyle'], relabel=True, hash_pid_offset=20000)
         self.train, hash_table = _pluck(identities, train_pids, relabel=True, resume_hash_table=hash_table)
-        self.val = {}
-        self.trainval = self.train
         self.query, _ = _pluck(identities, self.split['query'])
         self.gallery, _ = _pluck(identities, self.split['gallery'])
         self.num_train_ids = len(train_pids) * (1 - camstyle) + len(hash_table) * camstyle
-        self.num_val_ids = len(val_pids)
-        self.num_trainval_ids = len(trainval_pids) * (1 - camstyle) + len(hash_table) * camstyle
 
         if verbose:
             print(self.__class__.__name__, "dataset loaded")
@@ -237,10 +231,6 @@ class DukeMyGT(Dataset):
             print("  ---------------------------")
             print("  train    | {:5d} | {:8d}"
                   .format(len(train_pids), len(self.train)))
-            print("  val      | {:5d} | {:8d}"
-                  .format(len(val_pids), len(self.val)))
-            print("  trainval | {:5d} | {:8d}"
-                  .format(len(trainval_pids), len(self.trainval)))
             print("  query    | {:5d} | {:8d}"
                   .format(len(self.split['query']), len(self.query)))
             print("  gallery  | {:5d} | {:8d}"
