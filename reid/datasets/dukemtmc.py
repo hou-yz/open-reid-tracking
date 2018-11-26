@@ -8,14 +8,15 @@ import re
 
 class DukeMTMC(object):
 
-    def __init__(self, root, has_subdir=False, duke_my_GT=False, iCams=list(range(1, 9)), fps=1, trainval=False):
+    def __init__(self, root, duke_my_GT=False, iCams=list(range(1, 9)), fps=1, trainval=False):
         if duke_my_GT:
             if not trainval:
                 train_dir = '~/Data/DukeMTMC/ALL_gt_bbox/train'
             else:
                 train_dir = '~/Data/DukeMTMC/ALL_gt_bbox/trainval'
-            val_dir = '~/Data/DukeMTMC/ALL_gt_bbox/train'
-            self.train_path = osp.join(osp.expanduser(train_dir), ('gt_bbox_{}_fps'.format(fps)))
+            val_dir = '~/Data/DukeMTMC/ALL_gt_bbox/val'
+            self.images_dir = osp.join(osp.expanduser(train_dir), ('gt_bbox_{}_fps'.format(fps)))
+            self.train_path = self.images_dir
             self.gallery_path = osp.join(osp.expanduser(val_dir), ('gt_bbox_{}_fps'.format(fps)))
             self.query_path = osp.join(osp.expanduser(val_dir), ('gt_bbox_{}_fps'.format(fps)))
         else:
@@ -27,7 +28,7 @@ class DukeMTMC(object):
         self.train, self.query, self.gallery, self.camstyle = [], [], [], []
         self.num_train_ids, self.num_query_ids, self.num_gallery_ids, self.num_camstyle_ids = 0, 0, 0, 0
 
-        self.has_subdir = has_subdir
+        self.has_subdir = duke_my_GT
         self.iCams = iCams
         self.load()
 
@@ -44,6 +45,8 @@ class DukeMTMC(object):
         for fpath in fpaths:
             fname = osp.basename(fpath)
             pid, cam = map(int, pattern.search(fname).groups())
+            if has_subdir:
+                fname = osp.join('camera' + str(cam), osp.basename(fpath))
             if pid == -1: continue
             if relabel:
                 if pid not in all_pids:
@@ -58,9 +61,9 @@ class DukeMTMC(object):
 
     def load(self):
         self.train, self.num_train_ids = self.preprocess(self.train_path, True, self.has_subdir)
-        self.gallery, self.num_gallery_ids = self.preprocess(self.gallery_path, False)
-        self.query, self.num_query_ids = self.preprocess(self.query_path, False)
-        self.camstyle, self.num_camstyle_ids = self.preprocess(self.camstyle_path)
+        self.gallery, self.num_gallery_ids = self.preprocess(self.gallery_path, False, self.has_subdir)
+        self.query, self.num_query_ids = self.preprocess(self.query_path, False, self.has_subdir)
+        self.camstyle, self.num_camstyle_ids = self.preprocess(self.camstyle_path, True, self.has_subdir)
 
         print(self.__class__.__name__, "dataset loaded")
         print("  subset   | # ids | # images")

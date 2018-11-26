@@ -7,7 +7,7 @@ from .market1501 import Market1501
 
 
 __factory = {
-    # 'duke_my_gt': DukeMyGT,
+    'duke_my_gt': DukeMTMC,
     'market1501': Market1501,
     'dukemtmc': DukeMTMC,
 }

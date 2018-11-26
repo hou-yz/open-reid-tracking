@@ -61,7 +61,7 @@ def get_data(name, data_dir, height, width, batch_size, workers,
             mygt_icams = [mygt_icams]
         else:
             mygt_icams = list(range(1, 9))
-        dataset = datasets.create('dukemtmc', root, iCams=mygt_icams, fps=fps, trainval=combine_trainval)
+        dataset = datasets.create(name, root, duke_my_GT=True, iCams=mygt_icams, fps=fps, trainval=combine_trainval)
     else:
         dataset = datasets.create(name, root)
 
@@ -398,7 +398,7 @@ if __name__ == '__main__':
                         help="train and val sets together for training, "
                              "val set alone for validation")
     parser.add_argument('--mygt_icams', type=int, default=0, help="specify if train on single iCam")
-    parser.add_argument('--mygt_fps', type=int, default=60,
+    parser.add_argument('--mygt_fps', type=int, default=1,
                         choices=[1, 6, 12, 30, 60], help="specify if train on single iCam")
     parser.add_argument('--re', type=float, default=0, help="random erasing")
     # model
