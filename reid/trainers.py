@@ -124,7 +124,8 @@ class Trainer(BaseTrainer):
                 for pred in prediction_s:
                     loss += self.criterion(pred, targets)
                 if isinstance(self.model.module, PCB_model):
-                    loss /= self.model.module.num_stripes
+                    # loss /= self.model.module.num_stripes
+                    pass
                 prediction = prediction_s[0]
                 prec, = accuracy(prediction.data, targets.data)
             else:

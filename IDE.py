@@ -41,7 +41,7 @@ def str2bool(v):
 
 
 def get_data(name, data_dir, height, width, batch_size, workers,
-             combine_trainval, crop, mygt_icams, fps, camstyle=0, re=0, fake_pooling=1):
+             combine_trainval, crop, mygt_icams, fps, re=0, camstyle=0):
     root = osp.join(data_dir, name)
 
     if name == 'duke_my_gt':
@@ -49,17 +49,15 @@ def get_data(name, data_dir, height, width, batch_size, workers,
             mygt_icams = [mygt_icams]
         else:
             mygt_icams = list(range(1, 9))
-        dataset = datasets.create(name, root, iCams=mygt_icams, fps=fps, camstyle=camstyle > 0,
-                                  camstyle_pooling=fake_pooling, trainval=combine_trainval)
+        dataset = datasets.create('dukemtmc', root, iCams=mygt_icams, fps=fps, trainval=combine_trainval)
     else:
         dataset = datasets.create(name, root)
 
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],
                              std=[0.229, 0.224, 0.225])
 
-    train_set = dataset.trainval if combine_trainval else dataset.train
-    num_classes = (dataset.num_trainval_ids if combine_trainval
-                   else dataset.num_train_ids)
+    train_set = dataset.train
+    num_classes = dataset.num_train_ids
 
     if crop:  # default: False
         train_transformer = T.Compose([
@@ -88,30 +86,22 @@ def get_data(name, data_dir, height, width, batch_size, workers,
     ])
 
     train_loader = DataLoader(
-        Preprocessor(train_set, root=dataset.images_dir,
+        Preprocessor(train_set, root=dataset.train_path,
                      transform=train_transformer),
         batch_size=batch_size, num_workers=workers,
         shuffle=True, pin_memory=True, drop_last=True)
 
-    val_loader = DataLoader(
-        Preprocessor(dataset.val, root=dataset.images_dir,
-                     transform=test_transformer),
-        batch_size=batch_size, num_workers=workers,
-        shuffle=False, pin_memory=True)
-
     # slimmer & faster query
-    # indices_eval_query = random.sample(range(len(dataset.query)), int(len(dataset.query) / 5))
-    # eval_set_query = list(dataset.query[i] for i in indices_eval_query)
+    indices_eval_query = random.sample(range(len(dataset.query)), int(len(dataset.query) / 5))
+    eval_set_query = list(dataset.query[i] for i in indices_eval_query)
 
     query_loader = DataLoader(
-        Preprocessor(dataset.query,
-                     root=dataset.images_dir, transform=test_transformer),
+        Preprocessor(dataset.query, root=dataset.query_path, transform=test_transformer),
         batch_size=batch_size, num_workers=workers,
         shuffle=False, pin_memory=True)
 
     gallery_loader = DataLoader(
-        Preprocessor(dataset.gallery,
-                     root=dataset.images_dir, transform=test_transformer),
+        Preprocessor(dataset.gallery, root=dataset.gallery_path, transform=test_transformer),
         batch_size=batch_size, num_workers=workers,
         shuffle=False, pin_memory=True)
 
@@ -119,12 +109,11 @@ def get_data(name, data_dir, height, width, batch_size, workers,
         camstyle_loader = None
     else:
         camstyle_loader = DataLoader(
-            Preprocessor(dataset.camstyle, root=dataset.images_dir,
+            Preprocessor(dataset.camstyle, root=dataset.camstyle_path,
                          transform=train_transformer),
             batch_size=camstyle, num_workers=workers,
             shuffle=True, pin_memory=True, drop_last=True)
-
-    return dataset, num_classes, train_loader, val_loader, query_loader, gallery_loader, camstyle_loader
+    return dataset, num_classes, train_loader, query_loader, gallery_loader, camstyle_loader
 
 
 def checkpoint_loader(model, path, eval_only=False):
@@ -170,11 +159,10 @@ def main(args):
             json.dump(vars(args), fp, indent=1)
 
     # Create data loaders
-    dataset, num_classes, train_loader, val_loader, query_loader, gallery_loader, camstyle_loader = \
+    dataset, num_classes, train_loader, query_loader, gallery_loader, camstyle_loader = \
         get_data(args.dataset, args.data_dir, args.height,
                  args.width, args.batch_size, args.num_workers,
-                 args.combine_trainval, args.crop, args.mygt_icams, args.mygt_fps, args.camstyle, args.re,
-                 args.fake_pooling)
+                 args.combine_trainval, args.crop, args.mygt_icams, args.mygt_fps, args.re, args.camstyle)
 
     # Create model
     model = models.create('ide', num_features=args.features,
@@ -311,7 +299,7 @@ if __name__ == '__main__':
                         choices=[1, 3, 6, 12, 30, 60], help="specify if train on single iCam")
     parser.add_argument('--re', type=float, default=0, help="random erasing")
     # model
-    parser.add_argument('--features', type=int, default=1024)
+    parser.add_argument('--features', type=int, default=256)
     parser.add_argument('--dropout', type=float, default=0.5)
     parser.add_argument('-s', '--last_stride', type=int, default=2,
                         choices=[1, 2])

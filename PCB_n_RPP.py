@@ -53,7 +53,7 @@ def str2bool(v):
 
 
 def get_data(name, data_dir, height, width, batch_size, workers,
-             combine_trainval, crop, mygt_icams, fps, re=0):
+             combine_trainval, crop, mygt_icams, fps, re=0, camstyle=0):
     root = osp.join(data_dir, name)
 
     if name == 'duke_my_gt':
@@ -61,16 +61,15 @@ def get_data(name, data_dir, height, width, batch_size, workers,
             mygt_icams = [mygt_icams]
         else:
             mygt_icams = list(range(1, 9))
-        dataset = datasets.create(name, root, iCams=mygt_icams, fps=fps)
+        dataset = datasets.create('dukemtmc', root, iCams=mygt_icams, fps=fps, trainval=combine_trainval)
     else:
         dataset = datasets.create(name, root)
 
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],
                              std=[0.229, 0.224, 0.225])
 
-    train_set = dataset.trainval if combine_trainval else dataset.train
-    num_classes = (dataset.num_trainval_ids if combine_trainval
-                   else dataset.num_train_ids)
+    train_set = dataset.train
+    num_classes = dataset.num_train_ids
 
     if crop:  # default: False
         train_transformer = T.Compose([
@@ -99,34 +98,34 @@ def get_data(name, data_dir, height, width, batch_size, workers,
     ])
 
     train_loader = DataLoader(
-        Preprocessor(train_set, root=dataset.images_dir,
+        Preprocessor(train_set, root=dataset.train_path,
                      transform=train_transformer),
         batch_size=batch_size, num_workers=workers,
         shuffle=True, pin_memory=True, drop_last=True)
-
-    val_loader = DataLoader(
-        Preprocessor(dataset.val, root=dataset.images_dir,
-                     transform=test_transformer),
-        batch_size=batch_size, num_workers=workers,
-        shuffle=False, pin_memory=True)
 
     # slimmer & faster query
     indices_eval_query = random.sample(range(len(dataset.query)), int(len(dataset.query) / 5))
     eval_set_query = list(dataset.query[i] for i in indices_eval_query)
 
     query_loader = DataLoader(
-        Preprocessor(dataset.query,
-                     root=dataset.images_dir, transform=test_transformer),
+        Preprocessor(dataset.query, root=dataset.query_path, transform=test_transformer),
         batch_size=batch_size, num_workers=workers,
         shuffle=False, pin_memory=True)
 
     gallery_loader = DataLoader(
-        Preprocessor(dataset.gallery,
-                     root=dataset.images_dir, transform=test_transformer),
+        Preprocessor(dataset.gallery, root=dataset.gallery_path, transform=test_transformer),
         batch_size=batch_size, num_workers=workers,
         shuffle=False, pin_memory=True)
 
-    return dataset, num_classes, train_loader, val_loader, query_loader, gallery_loader
+    if camstyle <= 0:
+        camstyle_loader = None
+    else:
+        camstyle_loader = DataLoader(
+            Preprocessor(dataset.camstyle, root=dataset.camstyle_path,
+                         transform=train_transformer),
+            batch_size=camstyle, num_workers=workers,
+            shuffle=True, pin_memory=True, drop_last=True)
+    return dataset, num_classes, train_loader, query_loader, gallery_loader, camstyle_loader
 
 
 def checkpoint_loader(model, path, eval_only=False):
@@ -187,10 +186,10 @@ def main(args):
             json.dump(vars(args), fp, indent=1)
 
     # Create data loaders
-    dataset, num_classes, train_loader, val_loader, query_loader, gallery_loader = \
+    dataset, num_classes, train_loader, query_loader, gallery_loader, camstyle_loader = \
         get_data(args.dataset, args.data_dir, args.height,
                  args.width, args.batch_size, args.num_workers,
-                 args.combine_trainval, args.crop, args.mygt_icams, args.mygt_fps, args.re)
+                 args.combine_trainval, args.crop, args.mygt_icams, args.mygt_fps, args.re, args.camstyle)
 
     # Create model
     model = models.create('pcb', num_features=args.features,
@@ -359,7 +358,7 @@ def main(args):
             trainer.train(epoch, train_loader, optimizer)
             if epoch < args.start_save:
                 continue
-            top1 = evaluator.evaluate(val_loader, dataset.val, dataset.val)
+            top1 = 50
 
             is_best = top1 >= best_top1
             best_top1 = max(top1, best_top1)
@@ -428,11 +427,13 @@ if __name__ == '__main__':
     parser.add_argument('--evaluate', action='store_true',
                         help="evaluation only")
     parser.add_argument('--epochs', type=int, default=60)
-    parser.add_argument('--step-size',type=int, default=40)
+    parser.add_argument('--step-size', type=int, default=40)
     parser.add_argument('--start_save', type=int, default=0,
                         help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--print-freq', type=int, default=1)
+    # camstyle batchsize
+    parser.add_argument('--camstyle', type=int, default=0)
     # misc
     working_dir = osp.dirname(osp.abspath(__file__))
     parser.add_argument('--data-dir', type=str, metavar='PATH',

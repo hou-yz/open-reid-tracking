@@ -1,99 +1,75 @@
 from __future__ import print_function, absolute_import
 import os.path as osp
+import numpy as np
+import pdb
+from glob import glob
+import re
 
-from ..utils.data import Dataset
-from ..utils.osutils import mkdir_if_missing
-from ..utils.serialization import write_json
 
+class DukeMTMC(object):
 
-class DukeMTMC(Dataset):
-    url = 'https://drive.google.com/uc?id=0B0VOCNYh8HeRdnBPa2ZWaVBYSVk'
-    md5 = '2f93496f9b516d1ee5ef51c1d5e7d601'
-
-    def __init__(self, root, split_id=0, num_val=100, download=True):
-        super(DukeMTMC, self).__init__(root, split_id=split_id)
-
-        if download:
-            self.download()
-
-        if not self._check_integrity():
-            raise RuntimeError("Dataset not found or corrupted. " +
-                               "You can use download=True to download it.")
-
-        self.load(num_val)
-
-    def download(self):
-        if self._check_integrity():
-            print("Files already downloaded and verified")
-            return
-
-        import re
-        import hashlib
-        import shutil
-        from glob import glob
-        from zipfile import ZipFile
-
-        raw_dir = osp.join(self.root, 'raw')
-        mkdir_if_missing(raw_dir)
-
-        # Download the raw zip file
-        fpath = osp.join(raw_dir, 'DukeMTMC-reID.zip')
-        if osp.isfile(fpath) and \
-          hashlib.md5(open(fpath, 'rb').read()).hexdigest() == self.md5:
-            print("Using downloaded file: " + fpath)
+    def __init__(self, root, has_subdir=False, duke_my_GT=False, iCams=list(range(1, 9)), fps=1, trainval=False):
+        if duke_my_GT:
+            if not trainval:
+                train_dir = '~/Data/DukeMTMC/ALL_gt_bbox/train'
+            else:
+                train_dir = '~/Data/DukeMTMC/ALL_gt_bbox/trainval'
+            val_dir = '~/Data/DukeMTMC/ALL_gt_bbox/train'
+            self.train_path = osp.join(osp.expanduser(train_dir), ('gt_bbox_{}_fps'.format(fps)))
+            self.gallery_path = osp.join(osp.expanduser(val_dir), ('gt_bbox_{}_fps'.format(fps)))
+            self.query_path = osp.join(osp.expanduser(val_dir), ('gt_bbox_{}_fps'.format(fps)))
         else:
-            raise RuntimeError("Please download the dataset manually from {} "
-                               "to {}".format(self.url, fpath))
+            self.images_dir = osp.join(root)
+            self.train_path = osp.join(self.images_dir, 'bounding_box_train')
+            self.gallery_path = osp.join(self.images_dir, 'bounding_box_test')
+            self.query_path = osp.join(self.images_dir, 'query')
+        self.camstyle_path = osp.join(self.images_dir, 'bounding_box_train_camstyle')
+        self.train, self.query, self.gallery, self.camstyle = [], [], [], []
+        self.num_train_ids, self.num_query_ids, self.num_gallery_ids, self.num_camstyle_ids = 0, 0, 0, 0
 
-        # Extract the file
-        exdir = osp.join(raw_dir, 'DukeMTMC-reID')
-        if not osp.isdir(exdir):
-            print("Extracting zip file")
-            with ZipFile(fpath) as z:
-                z.extractall(path=raw_dir)
+        self.has_subdir = has_subdir
+        self.iCams = iCams
+        self.load()
 
-        # Format
-        images_dir = osp.join(self.root, 'images')
-        mkdir_if_missing(images_dir)
-
-        identities = []
+    def preprocess(self, path, relabel=True, has_subdir=False):
+        pattern = re.compile(r'([-\d]+)_c(\d)')
         all_pids = {}
-
-        def register(subdir, pattern=re.compile(r'([-\d]+)_c(\d)')):
-            fpaths = sorted(glob(osp.join(exdir, subdir, '*.jpg')))
-            pids = set()
-            for fpath in fpaths:
-                fname = osp.basename(fpath)
-                pid, cam = map(int, pattern.search(fname).groups())
-                assert 1 <= cam <= 8
-                cam -= 1
+        ret = []
+        if has_subdir:
+            fpaths = []
+            for iCam in self.iCams:
+                fpaths += sorted(glob(osp.join(path, 'camera' + str(iCam), '*.jpg')))
+        else:
+            fpaths = sorted(glob(osp.join(path, '*.jpg')))
+        for fpath in fpaths:
+            fname = osp.basename(fpath)
+            pid, cam = map(int, pattern.search(fname).groups())
+            if pid == -1: continue
+            if relabel:
                 if pid not in all_pids:
                     all_pids[pid] = len(all_pids)
-                pid = all_pids[pid]
-                pids.add(pid)
-                if pid >= len(identities):
-                    assert pid == len(identities)
-                    identities.append([[] for _ in range(8)])  # 8 camera views
-                fname = ('{:08d}_{:02d}_{:04d}.jpg'
-                         .format(pid, cam, len(identities[pid][cam])))
-                identities[pid][cam].append(fname)
-                shutil.copy(fpath, osp.join(images_dir, fname))
-            return pids
+            else:
+                if pid not in all_pids:
+                    all_pids[pid] = pid
+            pid = all_pids[pid]
+            cam -= 1
+            ret.append((fname, pid, cam))
+        return ret, int(len(all_pids))
 
-        trainval_pids = register('bounding_box_train')
-        gallery_pids = register('bounding_box_test')
-        query_pids = register('query')
-        assert query_pids <= gallery_pids
-        assert trainval_pids.isdisjoint(gallery_pids)
+    def load(self):
+        self.train, self.num_train_ids = self.preprocess(self.train_path, True, self.has_subdir)
+        self.gallery, self.num_gallery_ids = self.preprocess(self.gallery_path, False)
+        self.query, self.num_query_ids = self.preprocess(self.query_path, False)
+        self.camstyle, self.num_camstyle_ids = self.preprocess(self.camstyle_path)
 
-        # Save meta information into a json file
-        meta = {'name': 'DukeMTMC', 'shot': 'multiple', 'num_cameras': 8,
-                'identities': identities}
-        write_json(meta, osp.join(self.root, 'meta.json'))
-
-        # Save the only training / test split
-        splits = [{
-            'trainval': sorted(list(trainval_pids)),
-            'query': sorted(list(query_pids)),
-            'gallery': sorted(list(gallery_pids))}]
-        write_json(splits, osp.join(self.root, 'splits.json'))
+        print(self.__class__.__name__, "dataset loaded")
+        print("  subset   | # ids | # images")
+        print("  ---------------------------")
+        print("  train    | {:5d} | {:8d}"
+              .format(self.num_train_ids, len(self.train)))
+        print("  query    | {:5d} | {:8d}"
+              .format(self.num_query_ids, len(self.query)))
+        print("  gallery  | {:5d} | {:8d}"
+              .format(self.num_gallery_ids, len(self.gallery)))
+        print("  camstyle  | {:5d} | {:8d}"
+              .format(self.num_camstyle_ids, len(self.camstyle)))

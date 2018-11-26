@@ -1,95 +1,58 @@
 from __future__ import print_function, absolute_import
 import os.path as osp
+import numpy as np
+import pdb
+from glob import glob
+import re
 
-from ..utils.data import Dataset
-from ..utils.osutils import mkdir_if_missing
-from ..utils.serialization import write_json
 
+class Market1501(object):
 
-class Market1501(Dataset):
-    url = 'https://drive.google.com/file/d/0B8-rUzbwVRk0c054eEozWG9COHM/view'
-    md5 = '65005ab7d12ec1c44de4eeafe813e68a'
+    def __init__(self, root):
 
-    def __init__(self, root, split_id=0, num_val=100, download=True):
-        super(Market1501, self).__init__(root, split_id=split_id)
+        self.images_dir = osp.join(root)
+        self.train_path = osp.join(self.images_dir, 'bounding_box_train')
+        self.gallery_path = osp.join(self.images_dir, 'bounding_box_test')
+        self.query_path = osp.join(self.images_dir, 'query')
+        self.camstyle_path = osp.join(self.images_dir, 'bounding_box_train_camstyle')
+        self.train, self.query, self.gallery, self.camstyle = [], [], [], []
+        self.num_train_ids, self.num_query_ids, self.num_gallery_ids, self.num_camstyle_ids = 0, 0, 0, 0
+        self.load()
 
-        if download:
-            self.download()
+    def preprocess(self, path, relabel=True):
+        pattern = re.compile(r'([-\d]+)_c(\d)')
+        all_pids = {}
+        ret = []
+        fpaths = sorted(glob(osp.join(path, '*.jpg')))
+        for fpath in fpaths:
+            fname = osp.basename(fpath)
+            pid, cam = map(int, pattern.search(fname).groups())
+            if pid == -1: continue
+            if relabel:
+                if pid not in all_pids:
+                    all_pids[pid] = len(all_pids)
+            else:
+                if pid not in all_pids:
+                    all_pids[pid] = pid
+            pid = all_pids[pid]
+            cam -= 1
+            ret.append((fname, pid, cam))
+        return ret, int(len(all_pids))
 
-        if not self._check_integrity():
-            raise RuntimeError("Dataset not found or corrupted. " +
-                               "You can use download=True to download it.")
+    def load(self):
+        self.train, self.num_train_ids = self.preprocess(self.train_path)
+        self.gallery, self.num_gallery_ids = self.preprocess(self.gallery_path, False)
+        self.query, self.num_query_ids = self.preprocess(self.query_path, False)
+        self.camstyle, self.num_camstyle_ids = self.preprocess(self.camstyle_path)
 
-        self.load(num_val)
-
-    def download(self):
-        if self._check_integrity():
-            print("Files already downloaded and verified")
-            return
-
-        import re
-        import hashlib
-        import shutil
-        from glob import glob
-        from zipfile import ZipFile
-
-        raw_dir = osp.join(self.root, 'raw')
-        mkdir_if_missing(raw_dir)
-
-        # Download the raw zip file
-        fpath = osp.join(raw_dir, 'Market-1501-v15.09.15.zip')
-        if osp.isfile(fpath) and \
-          hashlib.md5(open(fpath, 'rb').read()).hexdigest() == self.md5:
-            print("Using downloaded file: " + fpath)
-        else:
-            raise RuntimeError("Please download the dataset manually from {} "
-                               "to {}".format(self.url, fpath))
-
-        # Extract the file
-        exdir = osp.join(raw_dir, 'Market-1501-v15.09.15')
-        if not osp.isdir(exdir):
-            print("Extracting zip file")
-            with ZipFile(fpath) as z:
-                z.extractall(path=raw_dir)
-
-        # Format
-        images_dir = osp.join(self.root, 'images')
-        mkdir_if_missing(images_dir)
-
-        # 1501 identities (+1 for background) with 6 camera views each
-        identities = [[[] for _ in range(6)] for _ in range(1502)]
-
-        def register(subdir, pattern=re.compile(r'([-\d]+)_c(\d)')):
-            fpaths = sorted(glob(osp.join(exdir, subdir, '*.jpg')))
-            pids = set()
-            for fpath in fpaths:
-                fname = osp.basename(fpath)
-                pid, cam = map(int, pattern.search(fname).groups())
-                if pid == -1: continue  # junk images are just ignored
-                assert 0 <= pid <= 1501  # pid == 0 means background
-                assert 1 <= cam <= 6
-                cam -= 1
-                pids.add(pid)
-                fname = ('{:08d}_{:02d}_{:04d}.jpg'
-                         .format(pid, cam, len(identities[pid][cam])))
-                identities[pid][cam].append(fname)
-                shutil.copy(fpath, osp.join(images_dir, fname))
-            return pids
-
-        trainval_pids = register('bounding_box_train')
-        gallery_pids = register('bounding_box_test')
-        query_pids = register('query')
-        assert query_pids <= gallery_pids
-        assert trainval_pids.isdisjoint(gallery_pids)
-
-        # Save meta information into a json file
-        meta = {'name': 'Market1501', 'shot': 'multiple', 'num_cameras': 6,
-                'identities': identities}
-        write_json(meta, osp.join(self.root, 'meta.json'))
-
-        # Save the only training / test split
-        splits = [{
-            'trainval': sorted(list(trainval_pids)),
-            'query': sorted(list(query_pids)),
-            'gallery': sorted(list(gallery_pids))}]
-        write_json(splits, osp.join(self.root, 'splits.json'))
+        print(self.__class__.__name__, "dataset loaded")
+        print("  subset   | # ids | # images")
+        print("  ---------------------------")
+        print("  train    | {:5d} | {:8d}"
+              .format(self.num_train_ids, len(self.train)))
+        print("  query    | {:5d} | {:8d}"
+              .format(self.num_query_ids, len(self.query)))
+        print("  gallery  | {:5d} | {:8d}"
+              .format(self.num_gallery_ids, len(self.gallery)))
+        print("  camstyle  | {:5d} | {:8d}"
+              .format(self.num_camstyle_ids, len(self.camstyle)))
