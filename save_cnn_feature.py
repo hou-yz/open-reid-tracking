@@ -13,9 +13,11 @@ from torch import nn
 from torch.backends import cudnn
 from torch.utils.data import DataLoader
 
-from reid.datasets.det_duke import *
+# from reid.datasets.det_duke import *
+from reid.datasets import *
 from reid import models
 from reid.utils.data import transforms as T
+from reid.utils.data.preprocessor import Preprocessor
 from reid.utils.osutils import mkdir_if_missing
 from reid.utils.serialization import load_checkpoint, save_checkpoint
 
@@ -59,7 +61,7 @@ def save_file(lines, args, if_created):
     if args.dataset == 'detections':
         folder_name = osp.expanduser('~/Data/DukeMTMC/L0-features/') + "det_features_{}". \
             format(args.l0_name) + '_' + args.det_time
-    elif args.dataset == 'reid_test':
+    elif args.dataset == 'gt_test':
         folder_name = osp.abspath(osp.join(working_dir, os.pardir)) + '/DeepCC/experiments/' + args.l0_name
     else:
         folder_name = osp.expanduser('~/Data/DukeMTMC/L0-features/') + "gt_features_{}".format(args.l0_name)
@@ -107,7 +109,7 @@ def extract_features(model, data_loader, args, is_detection=True):
     lines = [[] for _ in range(8)]
 
     end = time.time()
-    for i, (imgs, fnames) in enumerate(data_loader):
+    for i, (imgs, fnames, _, _) in enumerate(data_loader):
         outputs = extract_cnn_feature(model, imgs, eval_only=True)
         for fname, output in zip(fnames, outputs):
             if is_detection:
@@ -156,17 +158,22 @@ def main(args):
 
     data_dir = osp.expanduser('~/Data/DukeMTMC/ALL_det_bbox')
     if args.dataset == 'detections':
-        is_detection = True
+        type = 'duke_det'
         dataset_dir = osp.join(data_dir, ('det_bbox_OpenPose_' + args.det_time))
-    elif args.dataset == 'reid_test':
-        is_detection = False
-        dataset_dir = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/trainval/gt_bbox_1_fps')  # gt @ 1fps
+        fps = None
+    elif args.dataset == 'gt_test':
+        type = 'duke_my_gt'
+        # dataset_dir = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/train/gt_bbox_1_fps')  # gt @ 1fps
         # dataset_dir = osp.expanduser('~/houyz/open-reid-PCB_n_RPP/data/dukemtmc/dukemtmc/raw/DukeMTMC-reID/bounding_box_test')  # reid
+        dataset_dir = None
+        fps = 1
     else:
-        is_detection = False
-        dataset_dir = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/trainval/gt_bbox_60_fps')
+        type = 'duke_my_gt'
+        # dataset_dir = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/train/gt_bbox_60_fps')
+        dataset_dir = None
+        fps = 60
 
-    dataset = DetDuke(dataset_dir, mygt_icams, is_detection)
+    dataset = DukeMTMC(dataset_dir, type=type, iCams=mygt_icams, fps=fps, trainval=False)
 
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     if args.crop:  # default: False
@@ -183,7 +190,7 @@ def main(args):
             T.ToTensor(),
             normalizer,
             T.RandomErasing(EPSILON=args.re), ])
-    data_loader = DataLoader(Preprocessor(dataset, root=dataset_dir, transform=test_transformer),
+    data_loader = DataLoader(Preprocessor(dataset.train, root=dataset.train_path, transform=test_transformer),
                              batch_size=args.batch_size, num_workers=args.num_workers,
                              shuffle=False, pin_memory=True)
     # Create model
@@ -198,14 +205,9 @@ def main(args):
     print('*************** initialization takes time: {:^10.2f} *********************\n'.format(toc))
 
     tic = time.time()
-    extract_features(model, data_loader, args, is_detection)
+    extract_features(model, data_loader, args, type == 'duke_det')
     toc = time.time() - tic
     print('*************** compute features takes time: {:^10.2f} *********************\n'.format(toc))
-
-    tic = time.time()
-
-    toc = time.time() - tic
-    print('*************** write file takes time: {:^10.2f} *********************\n'.format(toc))
     pass
 
 
@@ -214,8 +216,8 @@ if __name__ == '__main__':
     # data
     parser.add_argument('-a', '--arch', type=str, default='ide',
                         choices=['ide', 'pcb'])
-    parser.add_argument('-d', '--dataset', type=str, default='reid_test',
-                        choices=['detections', 'reid_test', 'gt'])
+    parser.add_argument('-d', '--dataset', type=str, default='gt_test',
+                        choices=['detections', 'gt_test', 'gt_all'])
     parser.add_argument('-b', '--batch-size', type=int, default=64, help="batch size")
     parser.add_argument('-j', '--num-workers', type=int, default=8)
     parser.add_argument('--height', type=int, default=256,
@@ -224,7 +226,7 @@ if __name__ == '__main__':
                         help="input width, default: 128 for resnet*")
     # model
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
-    parser.add_argument('--features', type=int, default=1024)
+    parser.add_argument('--features', type=int, default=256)
     parser.add_argument('--dropout', type=float, default=0.5)
     parser.add_argument('--output-feature', type=str, default='None')
     parser.add_argument('-s', '--last_stride', type=int, default=2,
@@ -238,7 +240,8 @@ if __name__ == '__main__':
     parser.add_argument('--l0_name', type=str, metavar='PATH',
                         default='ide_2048_')
     parser.add_argument('--det_time', type=str, metavar='PATH',
-                        default='trainval_mini', choices=['trainval', 'trainval_mini', 'val', 'test_all'])
+                        default='trainval_mini',
+                        choices=['trainval', 'trainval_mini', 'trainval_nano', 'val', 'test_all'])
     parser.add_argument('--mygt_icams', type=int, default=0, help="specify if train on single iCam")
     # data jittering
     parser.add_argument('--re', type=float, default=0, help="random erasing")

@@ -8,8 +8,8 @@ import re
 
 class DukeMTMC(object):
 
-    def __init__(self, root, duke_my_GT=False, iCams=list(range(1, 9)), fps=1, trainval=False):
-        if duke_my_GT:
+    def __init__(self, root, type='reid', iCams=list(range(1, 9)), fps=1, trainval=False):
+        if type == 'duke_my_gt':
             if not trainval:
                 train_dir = '~/Data/DukeMTMC/ALL_gt_bbox/train'
             else:
@@ -19,6 +19,11 @@ class DukeMTMC(object):
             self.train_path = self.images_dir
             self.gallery_path = osp.join(osp.expanduser(val_dir), ('gt_bbox_{}_fps'.format(fps)))
             self.query_path = osp.join(osp.expanduser(val_dir), ('gt_bbox_{}_fps'.format(fps)))
+        elif type == 'duke_det':
+            self.images_dir = osp.join(root)
+            self.train_path = self.images_dir
+            self.gallery_path = osp.join(self.images_dir, 'bounding_box_test')
+            self.query_path = osp.join(self.images_dir, 'query')
         else:
             self.images_dir = osp.join(root)
             self.train_path = osp.join(self.images_dir, 'bounding_box_train')
@@ -28,15 +33,18 @@ class DukeMTMC(object):
         self.train, self.query, self.gallery, self.camstyle = [], [], [], []
         self.num_train_ids, self.num_query_ids, self.num_gallery_ids, self.num_camstyle_ids = 0, 0, 0, 0
 
-        self.has_subdir = duke_my_GT
+        self.type = type
         self.iCams = iCams
         self.load()
 
-    def preprocess(self, path, relabel=True, has_subdir=False):
-        pattern = re.compile(r'([-\d]+)_c(\d)')
+    def preprocess(self, path, relabel=True, type='reid'):
+        if type == 'duke_det':
+            pattern = re.compile(r'c(\d+)_f(\d+)')
+        else:
+            pattern = re.compile(r'([-\d]+)_c(\d)')
         all_pids = {}
         ret = []
-        if has_subdir:
+        if type == 'duke_my_gt':
             fpaths = []
             for iCam in self.iCams:
                 fpaths += sorted(glob(osp.join(path, 'camera' + str(iCam), '*.jpg')))
@@ -44,8 +52,12 @@ class DukeMTMC(object):
             fpaths = sorted(glob(osp.join(path, '*.jpg')))
         for fpath in fpaths:
             fname = osp.basename(fpath)
-            pid, cam = map(int, pattern.search(fname).groups())
-            if has_subdir:
+            if type == 'duke_det':
+                cam, frame = map(int, pattern.search(fname).groups())
+                pid = 8000
+            else:
+                pid, cam = map(int, pattern.search(fname).groups())
+            if type == 'duke_my_gt':
                 fname = osp.join('camera' + str(cam), osp.basename(fpath))
             if pid == -1: continue
             if relabel:
@@ -60,10 +72,10 @@ class DukeMTMC(object):
         return ret, int(len(all_pids))
 
     def load(self):
-        self.train, self.num_train_ids = self.preprocess(self.train_path, True, self.has_subdir)
-        self.gallery, self.num_gallery_ids = self.preprocess(self.gallery_path, False, self.has_subdir)
-        self.query, self.num_query_ids = self.preprocess(self.query_path, False, self.has_subdir)
-        self.camstyle, self.num_camstyle_ids = self.preprocess(self.camstyle_path, True, self.has_subdir)
+        self.train, self.num_train_ids = self.preprocess(self.train_path, True, self.type)
+        self.gallery, self.num_gallery_ids = self.preprocess(self.gallery_path, False, self.type)
+        self.query, self.num_query_ids = self.preprocess(self.query_path, False, self.type)
+        self.camstyle, self.num_camstyle_ids = self.preprocess(self.camstyle_path, True, self.type)
 
         print(self.__class__.__name__, "dataset loaded")
         print("  subset   | # ids | # images")

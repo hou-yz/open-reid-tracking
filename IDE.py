@@ -49,14 +49,13 @@ def get_data(name, data_dir, height, width, batch_size, workers,
             mygt_icams = [mygt_icams]
         else:
             mygt_icams = list(range(1, 9))
-        dataset = datasets.create(name, root, duke_my_GT=True, iCams=mygt_icams, fps=fps, trainval=combine_trainval)
+        dataset = datasets.create(name, root, type='duke_my_gt', iCams=mygt_icams, fps=fps, trainval=combine_trainval)
     else:
         dataset = datasets.create(name, root)
 
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],
                              std=[0.229, 0.224, 0.225])
 
-    train_set = dataset.train
     num_classes = dataset.num_train_ids
 
     if crop:  # default: False
@@ -86,8 +85,7 @@ def get_data(name, data_dir, height, width, batch_size, workers,
     ])
 
     train_loader = DataLoader(
-        Preprocessor(train_set, root=dataset.train_path,
-                     transform=train_transformer),
+        Preprocessor(dataset.train, root=dataset.train_path, transform=train_transformer),
         batch_size=batch_size, num_workers=workers,
         shuffle=True, pin_memory=True, drop_last=True)
 
