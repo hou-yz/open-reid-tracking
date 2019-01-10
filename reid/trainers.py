@@ -8,7 +8,7 @@ from torch.autograd import Variable
 
 from .models import PCB_model, IDE_model
 from .evaluation_metrics import accuracy
-from .loss import OIMLoss, TripletLoss
+from .loss import TripletLoss
 from .utils.meters import AverageMeter
 
 
@@ -133,10 +133,6 @@ class Trainer(BaseTrainer):
                 prec, = accuracy(outputs.data, targets.data)
             prec = prec.item()
             pass
-        elif isinstance(self.criterion, OIMLoss):
-            loss, outputs = self.criterion(outputs, targets)
-            prec, = accuracy(outputs.data, targets.data)
-            prec = prec.item()
         elif isinstance(self.criterion, TripletLoss):
             if isinstance(self.model.module, PCB_model) or isinstance(self.model.module, IDE_model):
                 outputs = outputs[0]  # = x_s
