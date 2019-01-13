@@ -43,24 +43,36 @@ python3 examples/PCB_n_RPP.py --evaluate -d market1501 --resume logs/pcb_n_rpp/m
 ```
 
 
-## Installation
+# Current Results
 
-Install [PyTorch](http://pytorch.org/) (version >= 0.2.0). Although we support
-both python2 and python3, we recommend python3 for better performance.
+IDE-Raw with settings:
+- IDE model, cross-entropy loss
+- `stride = 2` in last conv block, NOT normalizing feature to unit length
+- `im_w x im_h = 128 x 256`, `batch_size = 64`
+- Only horizontal flipping used for data augmentation
+- SGD optimizer, 0.1x learning rate for `resnet-50` base, base learning rate 0.1, `momentum = 0.9`, `nestrov = true`, step decaying after 40 epochs. Train for 60 epochs in total.
 
-```shell
-git clone https://github.com/Cysu/open-reid.git
-cd open-reid
-python setup.py install
-```
 
-## Examples
+`Basis` settings:
+- `stride = 1` in last conv block, NOT normalizing feature to unit length
+- `im_w x im_h = 128 x 384`
+- Horizontal flipping and Random Erasing with `re = 0.5` used for data augmentation
 
-```shell
-python examples/softmax_loss.py -d market1501 -j 8 --combine-trainval --logs-dir logs/softmax/market1501
-```
+Triplet loss with settings:
+- IDE model, `stride = 2` or `stride = 1` in last conv block
+- NOT normalizing feature to unit length, with margin 0.3
+- Only horizontal flipping used for data augmentation
+- `im_w x im_h = 128 x 256`, `ims_per_id = 4`, `ids_per_batch = 32`
+- Adam optimizer, unifide learning rate for `resnet-50` base and `fc` feature layer , base learning rate 2e-4, decaying exponentially after 150 epochs. Train for 300 epochs in total.
 
-This is just a quick example. VIPeR dataset may not be large enough to train a deep neural network.
+The results are as follows. 
 
-Check about more [examples](https://cysu.github.io/open-reid/examples/training_id.html)
-and [benchmarks](https://cysu.github.io/open-reid/examples/benchmarks.html).
+|                       | mAP (%) | Rank-1 (%) |
+| ---                   | :---: | :---: |
+| Duke-Triplet-S2       | 59.76 | 76.26 |
+| Duke-Triplet-S1       | 63.58 | 78.10 |
+| Duke-Triplet-Basis    | 66.40 | 80.16 |
+| Duke-IDE-Raw          | 51.65 | 71.10 |
+| Duke-IDE-Basis        | 62.93 | 79.67 |
+
+**We see that `stride = 1` (higher spatial resolution before global pooling) has obvious improvement over `stride = 2` (original ResNet). I tried this inspired by paper [Beyond Part Models: Person Retrieval with Refined Part Pooling](https://arxiv.org/abs/1711.09349).**

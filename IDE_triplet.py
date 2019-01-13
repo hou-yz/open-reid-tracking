@@ -88,10 +88,6 @@ def get_data(name, data_dir, height, width, batch_size, num_instances, workers,
         sampler=RandomIdentitySampler(dataset.train, num_instances),
         pin_memory=True, drop_last=True)
 
-    # slimmer & faster query
-    indices_eval_query = random.sample(range(len(dataset.query)), int(len(dataset.query) / 5))
-    eval_set_query = list(dataset.query[i] for i in indices_eval_query)
-
     query_loader = DataLoader(
         Preprocessor(dataset.query, root=dataset.query_path, transform=test_transformer),
         batch_size=batch_size, num_workers=workers,
@@ -117,7 +113,7 @@ def checkpoint_loader(model, path, eval_only=False):
     model_dict = model.state_dict()
     # 1. filter out unnecessary keys
     pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
-    if eval_only:
+    if 'fc.weight' in pretrained_dict:
         del pretrained_dict['fc.weight']
         del pretrained_dict['fc.bias']
     # 2. overwrite entries in the existing state dict
@@ -141,8 +137,9 @@ def main(args):
     # Redirect print to both console and log file
     date_str = '{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S'))
     if (not args.evaluate) and args.log:
-        sys.stdout = Logger(
-            osp.join(args.logs_dir, 'log_{}.txt'.format(date_str)))
+        if args.logs_dir is None:
+            args.logs_dir = osp.dirname(args.resume)
+        sys.stdout = Logger(osp.join(args.logs_dir, 'log_{}.txt'.format(date_str)))
         # save opts
         with open(osp.join(args.logs_dir, 'args_{}.json'.format(date_str)), 'w') as fp:
             json.dump(vars(args), fp, indent=1)
@@ -194,16 +191,15 @@ def main(args):
         #         {'params': new_params, 'lr_mult': 1.0}]
         # else:
         #     param_groups = model.parameters()
-        optimizer = torch.optim.Adam(model.parameters(), lr=args.lr,
-                                     weight_decay=args.weight_decay)
+        optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
         # Trainer
         trainer = Trainer(model, criterion)
 
         # Schedule learning rate
         def adjust_lr(epoch):
-            lr = args.lr if epoch <= 100 else \
-                args.lr * (0.001 ** ((epoch - 100) / 50.0))
+            lr = args.lr if epoch <= args.step_size else \
+                args.lr * (0.001 ** (float(epoch - args.step_size) / (args.epochs - args.step_size)))
             for g in optimizer.param_groups:
                 g['lr'] = lr * g.get('lr_mult', 1)
 
@@ -262,7 +258,7 @@ if __name__ == '__main__':
     # data
     parser.add_argument('-d', '--dataset', type=str, default='market1501',
                         choices=datasets.names())
-    parser.add_argument('-b', '--batch-size', type=int, default=64, help="batch size")
+    parser.add_argument('-b', '--batch-size', type=int, default=128, help="batch size")
     parser.add_argument('-j', '--num-workers', type=int, default=8)
     parser.add_argument('--height', type=int, default=256,
                         help="input height, default: 256 for resnet*")
@@ -282,16 +278,16 @@ if __name__ == '__main__':
                              "default: 4")
     # model
     parser.add_argument('--features', type=int, default=256)
-    parser.add_argument('--dropout', type=float, default=0.5)
+    parser.add_argument('--dropout', type=float, default=0)
     parser.add_argument('-s', '--last_stride', type=int, default=2,
                         choices=[1, 2])
     parser.add_argument('--output_feature', type=str, default='fc',
                         choices=['pool5', 'fc'])
     # loss
-    parser.add_argument('--margin', type=float, default=0.5,
-                        help="margin of the triplet loss, default: 0.5")
+    parser.add_argument('--margin', type=float, default=0.3,
+                        help="margin of the triplet loss, default: 0.3")
     # optimizer
-    parser.add_argument('--lr', type=float, default=0.0002,
+    parser.add_argument('--lr', type=float, default=2e-4,
                         help="learning rate of new parameters, for pretrained "
                              "parameters it is 10 times smaller than this")
     parser.add_argument('--weight-decay', type=float, default=5e-4)
@@ -305,7 +301,8 @@ if __name__ == '__main__':
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
     parser.add_argument('--evaluate', action='store_true',
                         help="evaluation only")
-    parser.add_argument('--epochs', type=int, default=150)
+    parser.add_argument('--epochs', type=int, default=300)
+    parser.add_argument('--step-size', type=int, default=150)
     parser.add_argument('--start_save', type=int, default=0,
                         help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)

@@ -129,7 +129,7 @@ class TripletLoss(nn.Module):
             loss = self.ranking_loss(dist_an, dist_ap, y)
         else:
             loss = self.ranking_loss(dist_an - dist_ap, y)
-        prec = (dist_an.data > dist_ap.data).sum() * 1. / y.size(0)
+        prec = (dist_an.data > dist_ap.data).sum().float() / y.size(0)
 
         # n = inputs.size(0)
         # # Compute pairwise distance, replace by the official when merged
