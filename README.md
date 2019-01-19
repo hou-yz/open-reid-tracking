@@ -71,7 +71,7 @@ The results are as follows.
 | ---                   | :---: | :---: |
 | Duke-Triplet-S2       | 59.76 | 76.26 |
 | Duke-Triplet-S1       | 63.58 | 78.10 |
-| Duke-Triplet-Basis    | 66.40 | 80.16 |
+| Duke-Triplet-Basis    | 66.44 | 81.33 |
 | Duke-IDE-Raw          | 51.65 | 71.10 |
 | Duke-IDE-Basis        | 62.93 | 79.67 |
 
