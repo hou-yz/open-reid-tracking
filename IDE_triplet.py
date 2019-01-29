@@ -157,9 +157,6 @@ def main(args):
                           dropout=args.dropout, num_classes=0, last_stride=args.last_stride,
                           output_feature=args.output_feature)
 
-    # model = models.create(args.arch, num_features=1024,
-    #                       dropout=args.dropout, num_classes=args.features)
-
     # Load from checkpoint
     start_epoch = best_top1 = 0
     if args.resume:
@@ -182,15 +179,6 @@ def main(args):
 
     if args.train:
         # Optimizer
-        # if hasattr(model.module, 'base'):  # low learning_rate the base network (aka. ResNet-50)
-        #     base_param_ids = set(map(id, model.module.base.parameters()))
-        #     new_params = [p for p in model.parameters() if
-        #                   id(p) not in base_param_ids]
-        #     param_groups = [
-        #         {'params': model.module.base.parameters(), 'lr_mult': 0.1},
-        #         {'params': new_params, 'lr_mult': 1.0}]
-        # else:
-        #     param_groups = model.parameters()
         optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
         # Trainer
@@ -287,9 +275,7 @@ if __name__ == '__main__':
     parser.add_argument('--margin', type=float, default=0.3,
                         help="margin of the triplet loss, default: 0.3")
     # optimizer
-    parser.add_argument('--lr', type=float, default=2e-4,
-                        help="learning rate of new parameters, for pretrained "
-                             "parameters it is 10 times smaller than this")
+    parser.add_argument('--lr', type=float, default=2e-4, help="learning rate of ALL parameters")
     parser.add_argument('--weight-decay', type=float, default=5e-4)
     # training configs
     parser.add_argument('--train', action='store_true',
