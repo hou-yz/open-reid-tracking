@@ -1,32 +1,28 @@
 from __future__ import print_function, absolute_import
-import argparse
-import os.path as osp
-import os
 
-import numpy as np
-import time
+import argparse
 import json
-import random
-import sys
+import os
+import os.path as osp
+import re
+import time
+
+import h5py
+import numpy as np
 import torch
 from torch import nn
 from torch.backends import cudnn
 from torch.utils.data import DataLoader
 
+from reid import models
 # from reid.datasets.det_duke import *
 from reid.datasets import *
-from reid import models
+from reid.feature_extraction import extract_cnn_feature
 from reid.utils.data import transforms as T
 from reid.utils.data.preprocessor import Preprocessor
-from reid.utils.osutils import mkdir_if_missing
-from reid.utils.serialization import load_checkpoint, save_checkpoint
-
-from collections import OrderedDict
 from reid.utils.meters import AverageMeter
-from reid.feature_extraction import extract_cnn_feature
-
-import h5py
-import re
+from reid.utils.osutils import mkdir_if_missing
+from reid.utils.serialization import load_checkpoint
 
 
 def checkpoint_loader(model, path, eval_only=False):
@@ -122,7 +118,7 @@ def extract_features(model, data_loader, args, is_detection=True):
                 pattern = re.compile(r'(\d+)_c(\d+)_f(\d+)')
                 pid, cam, frame = map(int, pattern.search(fname).groups())
                 # line = output.numpy()
-                line = np.concatenate([np.array([pid, cam, frame]), output.numpy()])
+                line = np.concatenate([np.array([cam, pid, frame]), output.numpy()])
             lines[cam - 1].append(line)
         batch_time.update(time.time() - end)
         end = time.time()

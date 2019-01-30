@@ -42,14 +42,13 @@ def extract_features(model, data_loader, eval_only, print_freq=100):
 
 
 def pairwise_distance(query_features, gallery_features, query=None, gallery=None):
-
     x = torch.cat([query_features[f].unsqueeze(0) for f, _, _ in query], 0)
     y = torch.cat([gallery_features[f].unsqueeze(0) for f, _, _ in gallery], 0)
     m, n = x.size(0), y.size(0)
     x = x.view(m, -1)
     y = y.view(n, -1)
     dist = torch.pow(x, 2).sum(dim=1, keepdim=True).expand(m, n) + \
-            torch.pow(y, 2).sum(dim=1, keepdim=True).expand(n, m).t()
+           torch.pow(y, 2).sum(dim=1, keepdim=True).expand(n, m).t()
     dist.addmm_(1, -2, x, y.t())
     return dist
 
@@ -100,8 +99,8 @@ class Evaluator(object):
 
     def evaluate(self, query_loader, gallery_loader, query, gallery, metric=None, eval_only=True):
         print('extracting query features\n')
-        query_features, _ = extract_features(self.model, query_loader,eval_only)
+        query_features, _ = extract_features(self.model, query_loader, eval_only)
         print('extracting gallery features\n')
-        gallery_features, _ = extract_features(self.model, gallery_loader,eval_only)
+        gallery_features, _ = extract_features(self.model, gallery_loader, eval_only)
         distmat = pairwise_distance(query_features, gallery_features, query, gallery)
         return evaluate_all(distmat, query=query, gallery=gallery)

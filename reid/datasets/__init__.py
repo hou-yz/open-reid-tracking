@@ -5,7 +5,6 @@ from .dukemtmc import DukeMTMC
 # from .duke_my_GT import DukeMyGT
 from .market1501 import Market1501
 
-
 __factory = {
     'duke_my_gt': DukeMTMC,
     'market1501': Market1501,

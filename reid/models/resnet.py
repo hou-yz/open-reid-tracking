@@ -5,7 +5,6 @@ from torch.nn import functional as F
 from torch.nn import init
 import torchvision
 
-
 __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
            'resnet152']
 

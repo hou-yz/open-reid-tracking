@@ -5,7 +5,6 @@ from torch import nn
 from torch.nn import functional as F
 from torch.nn import init
 
-
 __all__ = ['InceptionNet', 'inception']
 
 
