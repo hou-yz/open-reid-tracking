@@ -169,7 +169,7 @@ def main(args):
         dataset_dir = None
         fps = 60
 
-    dataset = DukeMTMC(dataset_dir, type=type, iCams=mygt_icams, fps=fps, trainval=False)
+    dataset = DukeMTMC(dataset_dir, type=type, iCams=mygt_icams, fps=fps, trainval=args.det_time == 'trainval')
 
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     if args.crop:  # default: False
