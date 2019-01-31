@@ -13,7 +13,6 @@ from torch import nn
 from torch.backends import cudnn
 import json
 
-from reid import datasets
 from reid import models
 from reid.utils import *
 from reid.trainers import Trainer, CamStyleTrainer

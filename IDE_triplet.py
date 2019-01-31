@@ -13,7 +13,7 @@ from torch import nn
 from torch.backends import cudnn
 import json
 
-from reid import datasets
+from reid.loss import TripletLoss
 from reid import models
 from reid.utils import *
 from reid.trainers import Trainer
@@ -101,8 +101,7 @@ def main(args):
         for epoch in range(start_epoch, args.epochs):
             adjust_lr(epoch)
             # train_loss, train_prec = 0, 0
-            train_loss, train_prec = trainer.train(
-                epoch, train_loader, optimizer, fix_bn=args.fix_bn)
+            train_loss, train_prec = trainer.train(epoch, train_loader, optimizer, fix_bn=args.fix_bn)
 
             if epoch < args.start_save:
                 continue
@@ -117,10 +116,10 @@ def main(args):
                 'epoch': epoch + 1,
                 'best_top1': best_top1,
             }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint_{}.pth.tar'.format(date_str)))
+            epoch_s.append(epoch)
             loss_s.append(train_loss)
             prec_s.append(train_prec)
-            draw_curve(os.path.join(args.logs_dir, 'train_{}.jpg'.format(
-                date_str)), epoch_s, loss_s, prec_s)
+            draw_curve(os.path.join(args.logs_dir, 'train_{}.jpg'.format(date_str)), epoch_s, loss_s, prec_s)
             pass
 
         # Final test
