@@ -1,6 +1,19 @@
 from __future__ import absolute_import
 
+import os.path as osp
 import torch
+import matplotlib
+
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
+
+from torch import nn
+from torch.utils.data import DataLoader
+from reid.utils.serialization import load_checkpoint
+from reid.utils.data.sampler import RandomIdentitySampler
+from reid.utils.data import transforms as T
+from reid.utils.data.preprocessor import Preprocessor
+from reid import datasets
 
 
 def to_numpy(tensor):
@@ -19,3 +32,113 @@ def to_torch(ndarray):
         raise ValueError("Cannot convert {} to torch tensor"
                          .format(type(ndarray)))
     return ndarray
+
+
+def str2bool(v):
+    return v.lower() in ('true')
+
+
+def draw_curve(path, x_epoch, train_loss, train_prec):
+    fig = plt.figure()
+    ax0 = fig.add_subplot(121, title="loss")
+    ax1 = fig.add_subplot(122, title="prec")
+    ax0.plot(x_epoch, train_loss, 'bo-', label='train')
+    ax1.plot(x_epoch, train_prec, 'bo-', label='train')
+    ax0.legend()
+    ax1.legend()
+    fig.savefig(path)
+    plt.close(fig)
+
+
+def get_data(name, data_dir, height, width, batch_size, workers,
+             combine_trainval, crop, mygt_icams, fps, re=0, num_instances=0, camstyle=0):
+    root = osp.join(data_dir, name)
+    if name == 'duke_my_gt':
+        if mygt_icams != 0:
+            mygt_icams = [mygt_icams]
+        else:
+            mygt_icams = list(range(1, 9))
+        dataset = datasets.create(name, root, type='duke_my_gt', iCams=mygt_icams, fps=fps, trainval=combine_trainval)
+    else:
+        dataset = datasets.create(name, root)
+    normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225])
+    num_classes = dataset.num_train_ids
+
+    if crop:  # default: False
+        train_transformer = T.Compose([
+            # T.Resize((int(height / 8 * 9), int(width / 8 * 9)), interpolation=3),
+            # T.RandomCrop((height, width)),
+            T.RandomSizedRectCrop(height, width, interpolation=3),
+            T.RandomHorizontalFlip(),
+            T.ToTensor(),
+            normalizer,
+            T.RandomErasing(EPSILON=re),
+        ])
+    else:
+        train_transformer = T.Compose([
+            T.RectScale(height, width, interpolation=3),
+            T.RandomHorizontalFlip(),
+            T.ToTensor(),
+            normalizer,
+            T.RandomErasing(EPSILON=re),
+        ])
+
+    test_transformer = T.Compose([
+        # T.Resize((height, width), interpolation=3),
+        T.RectScale(height, width, interpolation=3),
+        T.ToTensor(),
+        normalizer,
+    ])
+
+    train_loader = DataLoader(
+        Preprocessor(dataset.train, root=dataset.train_path, transform=train_transformer),
+        batch_size=batch_size, num_workers=workers,
+        sampler=RandomIdentitySampler(dataset.train, num_instances) if num_instances else None,
+        pin_memory=True, drop_last=True)
+    query_loader = DataLoader(
+        Preprocessor(dataset.query, root=dataset.query_path, transform=test_transformer),
+        batch_size=batch_size, num_workers=workers,
+        shuffle=False, pin_memory=True)
+    gallery_loader = DataLoader(
+        Preprocessor(dataset.gallery, root=dataset.gallery_path, transform=test_transformer),
+        batch_size=batch_size, num_workers=workers,
+        shuffle=False, pin_memory=True)
+    if camstyle <= 0:
+        camstyle_loader = None
+    else:
+        camstyle_loader = DataLoader(
+            Preprocessor(dataset.camstyle, root=dataset.camstyle_path,
+                         transform=train_transformer),
+            batch_size=camstyle, num_workers=workers,
+            shuffle=True, pin_memory=True, drop_last=True)
+    return dataset, num_classes, train_loader, query_loader, gallery_loader, camstyle_loader
+
+
+def checkpoint_loader(model, path, eval_only=False):
+    checkpoint = load_checkpoint(path)
+    pretrained_dict = checkpoint['state_dict']
+    if isinstance(model, nn.DataParallel):
+        Parallel = 1
+        model = model.module.cpu()
+    else:
+        Parallel = 0
+
+    model_dict = model.state_dict()
+    # 1. filter out unnecessary keys
+    pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+    if eval_only:
+        del pretrained_dict['fc.weight']
+        del pretrained_dict['fc.bias']
+    # 2. overwrite entries in the existing state dict
+    model_dict.update(pretrained_dict)
+    # 3. load the new state dict
+    model.load_state_dict(model_dict)
+
+    start_epoch = checkpoint['epoch']
+    best_top1 = checkpoint['best_top1']
+
+    if Parallel:
+        model = nn.DataParallel(model).cuda()
+
+    return model, start_epoch, best_top1

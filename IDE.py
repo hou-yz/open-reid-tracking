@@ -11,21 +11,15 @@ import sys
 import torch
 from torch import nn
 from torch.backends import cudnn
-from torch.utils.data import DataLoader
-import matplotlib
-
-matplotlib.use('agg')
-import matplotlib.pyplot as plt
 import json
 
 from reid import datasets
 from reid import models
+from reid.utils import *
 from reid.trainers import Trainer, CamStyleTrainer
 from reid.evaluators import Evaluator
-from reid.utils.data import transforms as T
-from reid.utils.data.preprocessor import Preprocessor
 from reid.utils.logging import Logger
-from reid.utils.serialization import load_checkpoint, save_checkpoint
+from reid.utils.serialization import save_checkpoint
 
 '''
     training on Duke GroundTruth        
@@ -36,113 +30,6 @@ from reid.utils.serialization import load_checkpoint, save_checkpoint
 '''
 
 
-def str2bool(v):
-    return v.lower() in ('true')
-
-
-def get_data(name, data_dir, height, width, batch_size, workers,
-             combine_trainval, crop, mygt_icams, fps, re=0, camstyle=0):
-    root = osp.join(data_dir, name)
-
-    if name == 'duke_my_gt':
-        if mygt_icams != 0:
-            mygt_icams = [mygt_icams]
-        else:
-            mygt_icams = list(range(1, 9))
-        dataset = datasets.create(name, root, type='duke_my_gt', iCams=mygt_icams, fps=fps, trainval=combine_trainval)
-    else:
-        dataset = datasets.create(name, root)
-
-    normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],
-                             std=[0.229, 0.224, 0.225])
-
-    num_classes = dataset.num_train_ids
-
-    if crop:  # default: False
-        train_transformer = T.Compose([
-            # T.Resize((int(height / 8 * 9), int(width / 8 * 9)), interpolation=3),
-            # T.RandomCrop((height, width)),
-            T.RandomSizedRectCrop(height, width, interpolation=3),
-            T.RandomHorizontalFlip(),
-            T.ToTensor(),
-            normalizer,
-            T.RandomErasing(EPSILON=re),
-        ])
-    else:
-        train_transformer = T.Compose([
-            T.RectScale(height, width, interpolation=3),
-            T.RandomHorizontalFlip(),
-            T.ToTensor(),
-            normalizer,
-            T.RandomErasing(EPSILON=re),
-        ])
-
-    test_transformer = T.Compose([
-        # T.Resize((height, width), interpolation=3),
-        T.RectScale(height, width, interpolation=3),
-        T.ToTensor(),
-        normalizer,
-    ])
-
-    train_loader = DataLoader(
-        Preprocessor(dataset.train, root=dataset.train_path, transform=train_transformer),
-        batch_size=batch_size, num_workers=workers,
-        shuffle=True, pin_memory=True, drop_last=True)
-
-    # slimmer & faster query
-    indices_eval_query = random.sample(range(len(dataset.query)), int(len(dataset.query) / 5))
-    eval_set_query = list(dataset.query[i] for i in indices_eval_query)
-
-    query_loader = DataLoader(
-        Preprocessor(dataset.query, root=dataset.query_path, transform=test_transformer),
-        batch_size=batch_size, num_workers=workers,
-        shuffle=False, pin_memory=True)
-
-    gallery_loader = DataLoader(
-        Preprocessor(dataset.gallery, root=dataset.gallery_path, transform=test_transformer),
-        batch_size=batch_size, num_workers=workers,
-        shuffle=False, pin_memory=True)
-
-    if camstyle <= 0:
-        camstyle_loader = None
-    else:
-        camstyle_loader = DataLoader(
-            Preprocessor(dataset.camstyle, root=dataset.camstyle_path,
-                         transform=train_transformer),
-            batch_size=camstyle, num_workers=workers,
-            shuffle=True, pin_memory=True, drop_last=True)
-    return dataset, num_classes, train_loader, query_loader, gallery_loader, camstyle_loader
-
-
-def checkpoint_loader(model, path, eval_only=False):
-    checkpoint = load_checkpoint(path)
-    pretrained_dict = checkpoint['state_dict']
-    if isinstance(model, nn.DataParallel):
-        Parallel = 1
-        model = model.module.cpu()
-    else:
-        Parallel = 0
-
-    model_dict = model.state_dict()
-    # 1. filter out unnecessary keys
-    pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
-    if eval_only:
-        del pretrained_dict['fc.weight']
-        del pretrained_dict['fc.bias']
-    # 2. overwrite entries in the existing state dict
-    model_dict.update(pretrained_dict)
-    # 3. load the new state dict
-    model.load_state_dict(model_dict)
-
-    start_epoch = checkpoint['epoch']
-    best_top1 = checkpoint['best_top1']
-
-    if Parallel:
-        model = nn.DataParallel(model).cuda()
-
-    return model, start_epoch, best_top1
-
-
 def main(args):
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -150,17 +37,15 @@ def main(args):
     # Redirect print to both console and log file
     date_str = '{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S'))
     if (not args.evaluate) and args.log:
-        sys.stdout = Logger(
-            osp.join(args.logs_dir, 'log_{}.txt'.format(date_str)))
+        sys.stdout = Logger(osp.join(args.logs_dir, 'log_{}.txt'.format(date_str)))
         # save opts
         with open(osp.join(args.logs_dir, 'args_{}.json'.format(date_str)), 'w') as fp:
             json.dump(vars(args), fp, indent=1)
 
     # Create data loaders
     dataset, num_classes, train_loader, query_loader, gallery_loader, camstyle_loader = \
-        get_data(args.dataset, args.data_dir, args.height,
-                 args.width, args.batch_size, args.num_workers,
-                 args.combine_trainval, args.crop, args.mygt_icams, args.mygt_fps, args.re, args.camstyle)
+        get_data(args.dataset, args.data_dir, args.height, args.width, args.batch_size, args.num_workers,
+                 args.combine_trainval, args.crop, args.mygt_icams, args.mygt_fps, args.re, 0, args.camstyle)
 
     # Create model
     model = models.create('ide', num_features=args.features,
@@ -211,31 +96,15 @@ def main(args):
 
         # Schedule learning rate
         def adjust_lr(epoch):
-            if args.epochs == 20:
-                step_size = 10
-            else:
-                step_size = args.step_size
+            step_size = args.step_size
             lr = args.lr * (0.1 ** (epoch // step_size))
             for g in optimizer.param_groups:
                 g['lr'] = lr * g.get('lr_mult', 1)
 
         # Draw Curve
-        x_epoch = []
-        fig = plt.figure()
-        ax0 = fig.add_subplot(121, title="loss")
-        ax1 = fig.add_subplot(122, title="prec")
-
+        epoch_s = []
         loss_s = []
         prec_s = []
-
-        def draw_curve(current_epoch, train_loss, train_prec):
-            x_epoch.append(current_epoch)
-            ax0.plot(x_epoch, train_loss, 'bo-', label='train')
-            ax1.plot(x_epoch, train_prec, 'bo-', label='train')
-            if current_epoch == 0:
-                ax0.legend()
-                ax1.legend()
-            fig.savefig(os.path.join(args.logs_dir, 'train_{}.jpg'.format(date_str)))
 
         # Start training
         for epoch in range(start_epoch, args.epochs):
@@ -256,10 +125,11 @@ def main(args):
                 'state_dict': model.module.state_dict(),
                 'epoch': epoch + 1,
                 'best_top1': best_top1,
-            }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint_epoch{}.pth.tar'.format(epoch)))
+            }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint_{}.pth.tar'.format(date_str)))
+            epoch_s.append(epoch)
             loss_s.append(train_loss)
             prec_s.append(train_prec)
-            draw_curve(epoch, loss_s, prec_s)
+            draw_curve(os.path.join(args.logs_dir, 'train_{}.jpg'.format(date_str)), epoch_s, loss_s, prec_s)
 
             t1 = time.time()
             t_epoch = t1 - t0
