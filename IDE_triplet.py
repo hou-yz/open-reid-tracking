@@ -56,11 +56,9 @@ def main(args):
     start_epoch = best_top1 = 0
     if args.resume:
         if args.evaluate:
-            model, start_epoch, best_top1 = checkpoint_loader(
-                model, args.resume, eval_only=True)
+            model, start_epoch, best_top1 = checkpoint_loader(model, args.resume, eval_only=False)
         else:
-            model, start_epoch, best_top1 = checkpoint_loader(
-                model, args.resume)
+            model, start_epoch, best_top1 = checkpoint_loader(model, args.resume)
         print("=> Start epoch {}  best top1_eval {:.1%}".format(
             start_epoch, best_top1))
     model = nn.DataParallel(model).cuda()
@@ -125,7 +123,7 @@ def main(args):
         # Final test
         print('Test with best model:')
         model, start_epoch, best_top1 = checkpoint_loader(model, osp.join(args.logs_dir, 'model_best.pth.tar'),
-                                                          eval_only=True)
+                                                          eval_only=False)
         print("=> Start epoch {}  best top1 {:.1%}".format(start_epoch, best_top1))
 
         evaluator.evaluate(query_loader, gallery_loader,
