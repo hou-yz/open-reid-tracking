@@ -95,7 +95,7 @@ def get_data(name, data_dir, height, width, batch_size, workers,
         Preprocessor(dataset.train, root=dataset.train_path, transform=train_transformer),
         batch_size=batch_size, num_workers=workers,
         sampler=RandomIdentitySampler(dataset.train, num_instances) if num_instances else None,
-        pin_memory=True, drop_last=True)
+        shuffle=False if num_instances else True, pin_memory=True, drop_last=True)
     query_loader = DataLoader(
         Preprocessor(dataset.query, root=dataset.query_path, transform=test_transformer),
         batch_size=batch_size, num_workers=workers,
