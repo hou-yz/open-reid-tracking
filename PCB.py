@@ -38,11 +38,9 @@ def main(args):
     torch.manual_seed(args.seed)
     cudnn.benchmark = True
     # Redirect print to both console and log file
-    date_str = '{}'.format(
-        datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S'))
+    date_str = '{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S'))
     if (not args.evaluate) and args.log:
-        sys.stdout = Logger(
-            osp.join(args.logs_dir, 'log_{}.txt'.format(date_str)))
+        sys.stdout = Logger(osp.join(args.logs_dir, 'log_{}.txt'.format(date_str)))
         # save opts
         with open(osp.join(args.logs_dir, 'args_{}.json'.format(date_str)), 'w') as fp:
             json.dump(vars(args), fp, indent=1)
@@ -81,16 +79,12 @@ def main(args):
         # Optimizer
         if hasattr(model.module, 'base'):  # low learning_rate the base network (aka. ResNet-50)
             base_param_ids = set(map(id, model.module.base.parameters()))
-            new_params = [p for p in model.parameters() if
-                          id(p) not in base_param_ids]
-            param_groups = [
-                {'params': model.module.base.parameters(), 'lr_mult': 0.1},
-                {'params': new_params, 'lr_mult': 1.0}]
+            new_params = [p for p in model.parameters() if id(p) not in base_param_ids]
+            param_groups = [{'params': model.module.base.parameters(), 'lr_mult': 0.1},
+                            {'params': new_params, 'lr_mult': 1.0}]
         else:
             param_groups = model.parameters()
-        optimizer = torch.optim.SGD(param_groups, lr=args.lr,
-                                    momentum=args.momentum,
-                                    weight_decay=args.weight_decay,
+        optimizer = torch.optim.SGD(param_groups, lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay,
                                     nesterov=True)
 
         # Trainer

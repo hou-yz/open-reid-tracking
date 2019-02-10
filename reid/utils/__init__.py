@@ -128,8 +128,13 @@ def checkpoint_loader(model, path, eval_only=False):
     # 1. filter out unnecessary keys
     pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
     if eval_only:
-        del pretrained_dict['fc.weight']
-        del pretrained_dict['fc.bias']
+        keys_to_del = []
+        for key in pretrained_dict.keys():
+            if 'fc' in key:
+                keys_to_del.append(key)
+        for key in keys_to_del:
+            del pretrained_dict[key]
+        pass
     # 2. overwrite entries in the existing state dict
     model_dict.update(pretrained_dict)
     # 3. load the new state dict

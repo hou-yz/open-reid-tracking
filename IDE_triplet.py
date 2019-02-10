@@ -31,11 +31,9 @@ def main(args):
     torch.manual_seed(args.seed)
     cudnn.benchmark = True
     # Redirect print to both console and log file
-    date_str = '{}'.format(
-        datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S'))
+    date_str = '{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S'))
     if (not args.evaluate) and args.log:
-        sys.stdout = Logger(
-            osp.join(args.logs_dir, 'log_{}.txt'.format(date_str)))
+        sys.stdout = Logger(osp.join(args.logs_dir, 'log_{}.txt'.format(date_str)))
         # save opts
         with open(osp.join(args.logs_dir, 'args_{}.json'.format(date_str)), 'w') as fp:
             json.dump(vars(args), fp, indent=1)
@@ -59,16 +57,14 @@ def main(args):
             model, start_epoch, best_top1 = checkpoint_loader(model, args.resume, eval_only=False)
         else:
             model, start_epoch, best_top1 = checkpoint_loader(model, args.resume)
-        print("=> Start epoch {}  best top1_eval {:.1%}".format(
-            start_epoch, best_top1))
+        print("=> Start epoch {}  best top1_eval {:.1%}".format(start_epoch, best_top1))
     model = nn.DataParallel(model).cuda()
 
     # Evaluator
     evaluator = Evaluator(model)
     if args.evaluate:
         print("Test:")
-        evaluator.evaluate(query_loader, gallery_loader,
-                           dataset.query, dataset.gallery, eval_only=True)
+        evaluator.evaluate(query_loader, gallery_loader, dataset.query, dataset.gallery, eval_only=True)
         return
 
     # Criterion
@@ -76,17 +72,17 @@ def main(args):
 
     if args.train:
         # Optimizer
-        optimizer = torch.optim.Adam(
-            model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+        optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
         # Trainer
         trainer = Trainer(model, criterion)
 
         # Schedule learning rate
         def adjust_lr(epoch):
-            lr = args.lr if epoch <= args.step_size else \
-                args.lr * (0.001 ** (float(epoch - args.step_size) /
-                                     (args.epochs - args.step_size)))
+            if epoch <= args.step_size:
+                lr = args.lr
+            else:
+                lr = args.lr * (0.001 ** (float(epoch - args.step_size) / (args.epochs - args.step_size)))
             for g in optimizer.param_groups:
                 g['lr'] = lr * g.get('lr_mult', 1)
 
@@ -126,8 +122,7 @@ def main(args):
                                                           eval_only=False)
         print("=> Start epoch {}  best top1 {:.1%}".format(start_epoch, best_top1))
 
-        evaluator.evaluate(query_loader, gallery_loader,
-                           dataset.query, dataset.gallery, eval_only=True)
+        evaluator.evaluate(query_loader, gallery_loader, dataset.query, dataset.gallery, eval_only=True)
 
 
 if __name__ == '__main__':
