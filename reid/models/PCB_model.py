@@ -17,12 +17,12 @@ class PCB_model(nn.Module):
         self.num_stripes = num_stripes
         self.num_features = num_features
         self.num_classes = num_classes
-        self.rpp = False
         self.output_feature = output_feature
+        self.norm = norm
 
         # ResNet50: from 3*384*128 -> 2048*24*8 (Tensor T; of column vector f's)
         self.base = nn.Sequential(
-            *list(resnet50(pretrained=True, cut_at_pooling=True, norm=norm, dropout=dropout).base.children())[:-2])
+            *list(resnet50(pretrained=True, cut_at_pooling=True, norm=False, dropout=dropout).base.children())[:-2])
         # decrease the downsampling rate
         if last_stride != 2:
             # decrease the downsampling rate
@@ -66,21 +66,28 @@ class PCB_model(nn.Module):
         x = self.avg_pool(x)
 
         out0 = x / x.norm(2, 1).unsqueeze(1).expand_as(x)
+        out0 = out0.view(out0.shape[0], -1)
         if self.dropout:
             x = self.drop_layer(x)
         x = self.local_conv(x)
         out1 = x / x.norm(2, 1).unsqueeze(1).expand_as(x)
+        out1 = out1.view(out1.shape[0], -1)
         x = self.feat_bn2d(x)
         x = F.relu(x)  # relu for local_conv feature
 
         x_s = x.chunk(self.num_stripes, 2)
         prediction_s = []
-        if not eval_only:
+        if self.num_classes > 0 and not eval_only:
             for i in range(self.num_stripes):
                 # 4d vector h -> 2d vector h
                 x = x_s[i].view(x.shape[0], -1)
                 prediction_s.append(self.fc_s[i](x))
+
+        if self.norm:
+            out0 = F.normalize(out0)
+            out1 = F.normalize(out1)
+
         if self.output_feature == 'pool5':
-            return out0.view(x.shape[0], -1), tuple(prediction_s)
+            return out0, tuple(prediction_s)
         else:
-            return out1.view(x.shape[0], -1), tuple(prediction_s)
+            return out1, tuple(prediction_s)

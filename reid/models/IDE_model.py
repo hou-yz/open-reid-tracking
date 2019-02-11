@@ -10,16 +10,17 @@ import torchvision
 
 
 class IDE_model(nn.Module):
-    def __init__(self, num_features=256, num_classes=0, norm=False, dropout=0, last_stride=2, output_feature=None):
+    def __init__(self, num_features=256, num_classes=0, norm=False, dropout=0, last_stride=2, output_feature='fc'):
         super(IDE_model, self).__init__()
         # Create IDE_only model
         self.num_features = num_features
         self.num_classes = num_classes
         self.output_feature = output_feature
+        self.norm = norm
 
         # ResNet50: from 3*384*128 -> 2048*12*4 (Tensor T; of column vector f's)
         self.base = nn.Sequential(
-            *list(resnet50(pretrained=True, cut_at_pooling=True, norm=norm, dropout=dropout).base.children())[:-2])
+            *list(resnet50(pretrained=True, cut_at_pooling=True, norm=False, dropout=dropout).base.children())[:-2])
 
         if last_stride != 2:
             # decrease the downsampling rate
@@ -71,28 +72,25 @@ class IDE_model(nn.Module):
         x = self.base(x)
         x = self.global_avg_pool(x)
 
-        if self.output_feature == 'pool5' and eval_only:
-            x_s = x.view(x.shape[0], -1)
-            x_s = F.normalize(x_s)
-            return x_s, []
+        out0 = x.view(x.shape[0], -1)
 
         if self.dropout > 0:
             x = self.drop_layer(x)
 
         if self.num_features > 0:
             x = self.one_one_conv(x).view(x.shape[0], -1)
-        # else:
-        #     # 128 dim pooling for triplet
-        #     x = x.view(x.shape[0], 2048, -1).permute(0, 2, 1)
-        #     x = self.classifier_pool(x).permute(0, 2, 1)
-        x_s = x.view(x.shape[0], -1)
-        if eval_only:
-            return x_s, []
+        out1 = x.view(x.shape[0], -1)
 
         prediction_s = []
-        # fc for softmax:
-        if self.num_classes > 0:
+        if self.num_classes > 0 and not eval_only:
             prediction = self.fc(x)
             prediction_s.append(prediction)
 
-        return x_s, prediction_s
+        if self.norm:
+            out0 = F.normalize(out0)
+            out1 = F.normalize(out1)
+
+        if self.output_feature == 'pool5':
+            return out0, tuple(prediction_s)
+        else:
+            return out1, tuple(prediction_s)

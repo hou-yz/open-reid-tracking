@@ -76,8 +76,10 @@ The results are as follows.
 | Duke-IDE-Raw                                | 51.65 | 71.10 |
 | Duke-IDE-Basis                              | 62.93 | 79.67 |
 | Duke-PCB-Raw' (Basis w/o RE)                | 68.41 | 83.12 |
+| Duke-PCB-Raw' + fc64                        | 68.06 | 82.76 |
+| Duke-PCB-Raw' + NOT normalizing stripes     | 66.01 | 83.17 |
 | Duke-PCB-Basis                              | 68.70 | 82.81 |
-| Duke-PCB-Basis (fc64)                       | 68.59 | 82.85 |
+| Duke-PCB-Basis + fc64                       | 68.59 | 82.85 |
 
 
 **We see that `stride = 1` (higher spatial resolution before global pooling) has improvement over `stride = 2` (original ResNet). I tried this inspired by paper [Beyond Part Models: Person Retrieval with Refined Part Pooling](https://arxiv.org/abs/1711.09349).**
