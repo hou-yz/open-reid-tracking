@@ -1,20 +1,17 @@
 from __future__ import print_function, absolute_import
 import argparse
-import os.path as osp
 import os
 
 import numpy as np
 import time
 import datetime
-import random
 import sys
 import torch
-from torch import nn
 from torch.backends import cudnn
 import json
 
 from reid import models
-from reid.utils import *
+from reid.utils.my_utils import *
 from reid.trainers import Trainer, CamStyleTrainer
 from reid.evaluators import Evaluator
 from reid.utils.logging import Logger

@@ -3,53 +3,22 @@ from __future__ import print_function, absolute_import
 import argparse
 import json
 import os
-import os.path as osp
 import re
 import time
 
 import h5py
 import numpy as np
 import torch
-from torch import nn
 from torch.backends import cudnn
-from torch.utils.data import DataLoader
 
 from reid import models
-# from reid.datasets.det_duke import *
 from reid.datasets import *
 from reid.feature_extraction import extract_cnn_feature
+from reid.utils.my_utils import *
 from reid.utils.data import transforms as T
 from reid.utils.data.preprocessor import Preprocessor
 from reid.utils.meters import AverageMeter
 from reid.utils.osutils import mkdir_if_missing
-from reid.utils.serialization import load_checkpoint
-
-
-def checkpoint_loader(model, path, eval_only=False):
-    checkpoint = load_checkpoint(path)
-    pretrained_dict = checkpoint['state_dict']
-    if isinstance(model, nn.DataParallel):
-        Parallel = 1
-        model = model.module.cpu()
-    else:
-        Parallel = 0
-    model_dict = model.state_dict()
-    # 1. filter out unnecessary keys
-    pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
-    if 'fc.weight' in pretrained_dict:
-        del pretrained_dict['fc.weight']
-        del pretrained_dict['fc.bias']
-    # 2. overwrite entries in the existing state dict
-    model_dict.update(pretrained_dict)
-    # 3. load the new state dict
-    model.load_state_dict(model_dict)
-
-    start_epoch = checkpoint['epoch']
-
-    if Parallel:
-        model = nn.DataParallel(model).cuda()
-
-    return model, start_epoch
 
 
 def save_file(lines, args, if_created):
@@ -175,14 +144,12 @@ def main(args):
     if args.crop:  # default: False
         test_transformer = T.Compose([
             T.RandomSizedRectCrop(args.height, args.width),
-            # T.RandomHorizontalFlip(),
             T.ToTensor(),
             normalizer,
             T.RandomErasing(EPSILON=args.re), ])
     else:
         test_transformer = T.Compose([
             T.RectScale(args.height, args.width),
-            # T.RandomHorizontalFlip(),
             T.ToTensor(),
             normalizer,
             T.RandomErasing(EPSILON=args.re), ])
@@ -210,33 +177,25 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Softmax loss classification")
     # data
-    parser.add_argument('-a', '--arch', type=str, default='ide',
-                        choices=['ide', 'pcb'])
-    parser.add_argument('-d', '--dataset', type=str, default='gt_test',
-                        choices=['detections', 'gt_test', 'gt_all'])
+    parser.add_argument('-a', '--arch', type=str, default='ide', choices=['ide', 'pcb'])
+    parser.add_argument('-d', '--dataset', type=str, default='gt_test', choices=['detections', 'gt_test', 'gt_all'])
     parser.add_argument('-b', '--batch-size', type=int, default=64, help="batch size")
     parser.add_argument('-j', '--num-workers', type=int, default=8)
-    parser.add_argument('--height', type=int, default=256,
-                        help="input height, default: 256 for resnet*")
-    parser.add_argument('--width', type=int, default=128,
-                        help="input width, default: 128 for resnet*")
+    parser.add_argument('--height', type=int, default=256, help="input height, default: 256 for resnet*")
+    parser.add_argument('--width', type=int, default=128, help="input width, default: 128 for resnet*")
     # model
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
     parser.add_argument('--features', type=int, default=256)
     parser.add_argument('--dropout', type=float, default=0.5)
     parser.add_argument('--output-feature', type=str, default='None')
-    parser.add_argument('-s', '--last_stride', type=int, default=2,
-                        choices=[1, 2])
+    parser.add_argument('-s', '--last_stride', type=int, default=2, choices=[1, 2])
     parser.add_argument('--output_feature', type=str, default='None')
     # misc
     parser.add_argument('--seed', type=int, default=1)
     working_dir = osp.dirname(osp.abspath(__file__))
-    parser.add_argument('--logs-dir', type=str, metavar='PATH',
-                        default=osp.join(working_dir, 'logs'))
-    parser.add_argument('--l0_name', type=str, metavar='PATH',
-                        default='ide_2048_')
-    parser.add_argument('--det_time', type=str, metavar='PATH',
-                        default='trainval_mini',
+    parser.add_argument('--logs-dir', type=str, metavar='PATH', default=osp.join(working_dir, 'logs'))
+    parser.add_argument('--l0_name', type=str, metavar='PATH')
+    parser.add_argument('--det_time', type=str, metavar='PATH', default='trainval_mini',
                         choices=['trainval', 'trainval_mini', 'trainval_nano', 'val', 'test_all'])
     parser.add_argument('--mygt_icams', type=int, default=0, help="specify if train on single iCam")
     # data jittering
