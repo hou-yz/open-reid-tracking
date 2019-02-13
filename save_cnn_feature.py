@@ -161,7 +161,7 @@ def main(args):
                           dropout=args.dropout, num_classes=0, last_stride=args.last_stride,
                           output_feature=args.output_feature)
     # Load from checkpoint
-    model, start_epoch = checkpoint_loader(model, args.resume, eval_only=True)
+    model, start_epoch, best_top1 = checkpoint_loader(model, args.resume, eval_only=True)
     print("=> Start epoch {}".format(start_epoch))
     model = nn.DataParallel(model).cuda()
     toc = time.time() - tic
