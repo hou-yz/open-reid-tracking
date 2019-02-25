@@ -143,17 +143,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Softmax loss classification")
     parser.add_argument('--log', type=str2bool, default=1)
     # data
-    parser.add_argument('-d', '--dataset', type=str, default='market1501',
-                        choices=datasets.names())
+    parser.add_argument('-d', '--dataset', type=str, default='market1501', choices=datasets.names())
     parser.add_argument('-b', '--batch-size', type=int, default=64, help="batch size")
     parser.add_argument('-j', '--num-workers', type=int, default=8)
-    parser.add_argument('--height', type=int, default=256,
-                        help="input height, default: 256 for resnet*")
+    parser.add_argument('--height', type=int, default=256, help="input height, default: 256 for resnet*")
     parser.add_argument('--width', type=int, default=128,
                         help="input width, default: 128 for resnet*")
     parser.add_argument('--combine-trainval', action='store_true',
-                        help="train and val sets together for training, "
-                             "val set alone for validation")
+                        help="train and val sets together for training, val set alone for validation")
     parser.add_argument('--mygt_icams', type=int, default=0, help="specify if train on single iCam")
     parser.add_argument('--mygt_fps', type=int, default=1,
                         choices=[1, 3, 6, 12, 30, 60], help="specify if train on single iCam")
@@ -161,10 +158,8 @@ if __name__ == '__main__':
     # model
     parser.add_argument('--features', type=int, default=256)
     parser.add_argument('--dropout', type=float, default=0.5)
-    parser.add_argument('-s', '--last_stride', type=int, default=2,
-                        choices=[1, 2])
-    parser.add_argument('--output_feature', type=str, default='fc',
-                        choices=['pool5', 'fc'])
+    parser.add_argument('-s', '--last_stride', type=int, default=2, choices=[1, 2])
+    parser.add_argument('--output_feature', type=str, default='fc', choices=['pool5', 'fc'])
     # optimizer
     parser.add_argument('--lr', type=float, default=0.1,
                         help="learning rate of new parameters, for pretrained "
@@ -172,19 +167,14 @@ if __name__ == '__main__':
     parser.add_argument('--momentum', type=float, default=0.9)
     parser.add_argument('--weight-decay', type=float, default=5e-4)
     # training configs
-    parser.add_argument('--train', action='store_true',
-                        help="train IDE model from start")
-    parser.add_argument('--crop', action='store_true',
-                        help="resize then crop, default: False")
-    parser.add_argument('--fix_bn', type=str2bool, default=0,
-                        help="fix (skip training) BN in base network")
+    parser.add_argument('--train', action='store_true', help="train IDE model from start")
+    parser.add_argument('--crop', action='store_true', help="resize then crop, default: False")
+    parser.add_argument('--fix_bn', type=str2bool, default=0, help="fix (skip training) BN in base network")
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
-    parser.add_argument('--evaluate', action='store_true',
-                        help="evaluation only")
+    parser.add_argument('--evaluate', action='store_true', help="evaluation only")
     parser.add_argument('--epochs', type=int, default=60)
     parser.add_argument('--step-size', type=int, default=40)
-    parser.add_argument('--start_save', type=int, default=0,
-                        help="start saving checkpoints after specific epoch")
+    parser.add_argument('--start_save', type=int, default=0, help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--print-freq', type=int, default=1)
     # camstyle batchsize
@@ -192,7 +182,6 @@ if __name__ == '__main__':
     parser.add_argument('--fake_pooling', type=int, default=1)
     # misc
     working_dir = osp.dirname(osp.abspath(__file__))
-    parser.add_argument('--data-dir', type=str, metavar='PATH',
-                        default=osp.join(working_dir, 'data'))
+    parser.add_argument('--data-dir', type=str, metavar='PATH', default=osp.join(working_dir, 'data'))
     parser.add_argument('--logs-dir', type=str, metavar='PATH')
     main(parser.parse_args())
