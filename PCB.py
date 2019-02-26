@@ -44,7 +44,7 @@ def main(args):
     # Create data loaders
     dataset, num_classes, train_loader, query_loader, gallery_loader, camstyle_loader = \
         get_data(args.dataset, args.data_dir, args.height, args.width, args.batch_size, args.num_workers,
-                 args.combine_trainval, args.crop, args.mygt_icams, args.mygt_fps, args.re, 0, args.camstyle)
+                 args.combine_trainval, args.crop, args.tracking_icams, args.tracking_fps, args.re, 0, args.camstyle)
 
     # Create model
     model = models.create('pcb', num_features=args.features,
@@ -154,8 +154,8 @@ if __name__ == '__main__':
     parser.add_argument('--combine-trainval', action='store_true',
                         help="train and val sets together for training, "
                              "val set alone for validation")
-    parser.add_argument('--mygt_icams', type=int, default=0, help="specify if train on single iCam")
-    parser.add_argument('--mygt_fps', type=int, default=1,
+    parser.add_argument('--tracking_icams', type=int, default=0, help="specify if train on single iCam")
+    parser.add_argument('--tracking_fps', type=int, default=1,
                         choices=[1, 6, 12, 30, 60], help="specify if train on single iCam")
     parser.add_argument('--re', type=float, default=0, help="random erasing")
     # model

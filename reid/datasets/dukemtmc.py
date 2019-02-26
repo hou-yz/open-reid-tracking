@@ -9,7 +9,7 @@ import re
 class DukeMTMC(object):
 
     def __init__(self, root, type='reid', iCams=list(range(1, 9)), fps=1, trainval=False):
-        if type == 'duke_my_gt':
+        if type == 'tracking_gt':
             if not trainval:
                 train_dir = '~/Data/DukeMTMC/ALL_gt_bbox/train'
             else:
@@ -19,12 +19,12 @@ class DukeMTMC(object):
             self.train_path = self.images_dir
             self.gallery_path = osp.join(osp.expanduser(val_dir), ('gt_bbox_{}_fps'.format(fps)))
             self.query_path = osp.join(osp.expanduser(val_dir), ('gt_bbox_{}_fps'.format(fps)))
-        elif type == 'duke_det':
+        elif type == 'tracking_det':
             self.images_dir = osp.join(root)
             self.train_path = self.images_dir
             self.gallery_path = osp.join(self.images_dir, 'bounding_box_test')
             self.query_path = osp.join(self.images_dir, 'query')
-        else:
+        else:  # reid
             self.images_dir = osp.join(root)
             self.train_path = osp.join(self.images_dir, 'bounding_box_train')
             self.gallery_path = osp.join(self.images_dir, 'bounding_box_test')
@@ -38,13 +38,13 @@ class DukeMTMC(object):
         self.load()
 
     def preprocess(self, path, relabel=True, type='reid'):
-        if type == 'duke_det':
+        if type == 'tracking_det':
             pattern = re.compile(r'c(\d+)_f(\d+)')
         else:
             pattern = re.compile(r'([-\d]+)_c(\d)')
         all_pids = {}
         ret = []
-        if type == 'duke_my_gt':
+        if type == 'tracking_gt':
             fpaths = []
             for iCam in self.iCams:
                 fpaths += sorted(glob(osp.join(path, 'camera' + str(iCam), '*.jpg')))
@@ -52,12 +52,12 @@ class DukeMTMC(object):
             fpaths = sorted(glob(osp.join(path, '*.jpg')))
         for fpath in fpaths:
             fname = osp.basename(fpath)
-            if type == 'duke_det':
+            if type == 'tracking_det':
                 cam, frame = map(int, pattern.search(fname).groups())
                 pid = 8000
             else:
                 pid, cam = map(int, pattern.search(fname).groups())
-            if type == 'duke_my_gt':
+            if type == 'tracking_gt':
                 fname = osp.join('camera' + str(cam), osp.basename(fpath))
             if pid == -1: continue
             if relabel:

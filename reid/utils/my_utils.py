@@ -31,14 +31,14 @@ def draw_curve(path, x_epoch, train_loss, train_prec):
 
 
 def get_data(name, data_dir, height, width, batch_size, workers,
-             combine_trainval, crop, mygt_icams, fps, re=0, num_instances=0, camstyle=0):
+             combine_trainval, crop, tracking_icams, fps, re=0, num_instances=0, camstyle=0):
     root = osp.join(data_dir, name)
-    if name == 'duke_my_gt':
-        if mygt_icams != 0:
-            mygt_icams = [mygt_icams]
+    if name == 'duke_tracking':
+        if tracking_icams != 0:
+            tracking_icams = [tracking_icams]
         else:
-            mygt_icams = list(range(1, 9))
-        dataset = datasets.create(name, root, type='duke_my_gt', iCams=mygt_icams, fps=fps, trainval=combine_trainval)
+            tracking_icams = list(range(1, 9))
+        dataset = datasets.create(name, root, type='tracking_gt', iCams=tracking_icams, fps=fps, trainval=combine_trainval)
     else:
         dataset = datasets.create(name, root)
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],

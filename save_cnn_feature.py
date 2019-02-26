@@ -41,7 +41,7 @@ def save_file(lines, args, if_created):
     for cam in range(8):
         output_fname = folder_name + '/features%d.h5' % (cam + 1)
         mkdir_if_missing(os.path.dirname(output_fname))
-        if args.mygt_icams != 0 and cam + 1 != args.mygt_icams:
+        if args.tracking_icams != 0 and cam + 1 != args.tracking_icams:
             continue
         if not lines[cam]:
             continue
@@ -116,29 +116,29 @@ def main(args):
 
     # Redirect print to both console and log file
 
-    if args.mygt_icams != 0:
-        mygt_icams = [args.mygt_icams]
+    if args.tracking_icams != 0:
+        tracking_icams = [args.tracking_icams]
     else:
-        mygt_icams = list(range(1, 9))
+        tracking_icams = list(range(1, 9))
 
     data_dir = osp.expanduser('~/Data/DukeMTMC/ALL_det_bbox')
     if args.dataset == 'detections':
-        type = 'duke_det'
+        type = 'tracking_det'
         dataset_dir = osp.join(data_dir, ('det_bbox_OpenPose_' + args.det_time))
         fps = None
     elif args.dataset == 'gt_test':
-        type = 'duke_my_gt'
+        type = 'tracking_gt'
         # dataset_dir = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/train/gt_bbox_1_fps')  # gt @ 1fps
         # dataset_dir = osp.expanduser('~/houyz/open-reid-PCB_n_RPP/data/dukemtmc/dukemtmc/raw/DukeMTMC-reID/bounding_box_test')  # reid
         dataset_dir = None
         fps = 1
     else:
-        type = 'duke_my_gt'
+        type = 'tracking_gt'
         # dataset_dir = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/train/gt_bbox_60_fps')
         dataset_dir = None
         fps = 60
 
-    dataset = DukeMTMC(dataset_dir, type=type, iCams=mygt_icams, fps=fps, trainval=args.det_time == 'trainval')
+    dataset = DukeMTMC(dataset_dir, type=type, iCams=tracking_icams, fps=fps, trainval=args.det_time == 'trainval')
 
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     if args.crop:  # default: False
@@ -168,7 +168,7 @@ def main(args):
     print('*************** initialization takes time: {:^10.2f} *********************\n'.format(toc))
 
     tic = time.time()
-    extract_features(model, data_loader, args, type == 'duke_det')
+    extract_features(model, data_loader, args, type == 'tracking_det')
     toc = time.time() - tic
     print('*************** compute features takes time: {:^10.2f} *********************\n'.format(toc))
     pass
@@ -195,9 +195,9 @@ if __name__ == '__main__':
     working_dir = osp.dirname(osp.abspath(__file__))
     parser.add_argument('--logs-dir', type=str, metavar='PATH', default=osp.join(working_dir, 'logs'))
     parser.add_argument('--l0_name', type=str, metavar='PATH')
-    parser.add_argument('--det_time', type=str, metavar='PATH', default='trainval_mini',
-                        choices=['trainval', 'trainval_mini', 'trainval_nano', 'val', 'test_all'])
-    parser.add_argument('--mygt_icams', type=int, default=0, help="specify if train on single iCam")
+    parser.add_argument('--det_time', type=str, metavar='PATH', default='val',
+                        choices=['trainval_nano', 'trainval', 'train', 'val', 'test_all'])
+    parser.add_argument('--tracking_icams', type=int, default=0, help="specify if train on single iCam")
     # data jittering
     parser.add_argument('--re', type=float, default=0, help="random erasing")
     parser.add_argument('--crop', action='store_true',

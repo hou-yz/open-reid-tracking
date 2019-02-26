@@ -6,7 +6,7 @@ from .ai_city import AI_City
 from .market1501 import Market1501
 
 __factory = {
-    'duke_my_gt': DukeMTMC,
+    'duke_tracking': DukeMTMC,
     'market1501': Market1501,
     'dukemtmc': DukeMTMC,
     'ai_city': AI_City,
