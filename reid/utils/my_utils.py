@@ -38,7 +38,10 @@ def get_data(name, data_dir, height, width, batch_size, workers,
             tracking_icams = [tracking_icams]
         else:
             tracking_icams = list(range(1, 9))
-        dataset = datasets.create(name, root, type='tracking_gt', iCams=tracking_icams, fps=fps, trainval=combine_trainval)
+        dataset = datasets.create(name, root, type='tracking_gt', iCams=tracking_icams, fps=fps,
+                                  trainval=combine_trainval)
+    elif name == 'ai_city':
+        dataset = datasets.create(name, root, type='tracking_gt', fps=fps, trainval=combine_trainval)
     else:
         dataset = datasets.create(name, root)
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],

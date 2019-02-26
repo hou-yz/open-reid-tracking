@@ -8,27 +8,24 @@ import re
 
 class AI_City(object):
 
-    def __init__(self, root, type='reid', fps=1, trainval=False):
-        if type == 'aic_gt':
+    def __init__(self, root, type='reid', fps=2, trainval=False):
+        if type == 'tracking_gt':
             if not trainval:
                 train_dir = '~/Data/AIC19/ALL_gt_bbox/train'
             else:
                 train_dir = '~/Data/AIC19/ALL_gt_bbox/trainval'
             val_dir = '~/Data/AIC19/ALL_gt_bbox/val'
-            self.images_dir = osp.join(osp.expanduser(train_dir), ('gt_bbox_{}_fps'.format(fps)))
-            self.train_path = self.images_dir
+            self.train_path = osp.join(osp.expanduser(train_dir), ('gt_bbox_{}_fps'.format(fps)))
             self.gallery_path = osp.join(osp.expanduser(val_dir), ('gt_bbox_{}_fps'.format(fps)))
             self.query_path = osp.join(osp.expanduser(val_dir), ('gt_bbox_{}_fps'.format(fps)))
-        elif type == 'aic_det':
-            self.images_dir = osp.join(root)
-            self.train_path = self.images_dir
-            self.gallery_path = osp.join(self.images_dir, 'bounding_box_test')
-            self.query_path = osp.join(self.images_dir, 'query')
-        else:
-            self.images_dir = osp.join(root)
-            self.train_path = osp.join(self.images_dir, 'bounding_box_train')
-            self.gallery_path = osp.join(self.images_dir, 'bounding_box_test')
-            self.query_path = osp.join(self.images_dir, 'query')
+        elif type == 'tracking_det':
+            self.train_path = root
+            self.gallery_path = osp.join(self.train_path, 'bounding_box_test')
+            self.query_path = osp.join(self.train_path, 'query')
+        else:  # reid
+            self.train_path = osp.join(root, 'bounding_box_train')
+            self.gallery_path = osp.join(self.train_path, 'bounding_box_test')
+            self.query_path = osp.join(self.train_path, 'query')
         self.train, self.query, self.gallery = [], [], []
         self.num_train_ids, self.num_query_ids, self.num_gallery_ids = 0, 0, 0
 
@@ -43,7 +40,7 @@ class AI_City(object):
         for fpath in fpaths:
             fname = osp.basename(fpath)
             pid, scene, cam, frame = map(int, pattern.search(fname).groups())
-            if type == 'aic_det':
+            if type == 'tracking_det':
                 pid = 1
             if pid == -1: continue
             if relabel:

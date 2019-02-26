@@ -15,21 +15,18 @@ class DukeMTMC(object):
             else:
                 train_dir = '~/Data/DukeMTMC/ALL_gt_bbox/trainval'
             val_dir = '~/Data/DukeMTMC/ALL_gt_bbox/val'
-            self.images_dir = osp.join(osp.expanduser(train_dir), ('gt_bbox_{}_fps'.format(fps)))
-            self.train_path = self.images_dir
+            self.train_path = osp.join(osp.expanduser(train_dir), ('gt_bbox_{}_fps'.format(fps)))
             self.gallery_path = osp.join(osp.expanduser(val_dir), ('gt_bbox_{}_fps'.format(fps)))
             self.query_path = osp.join(osp.expanduser(val_dir), ('gt_bbox_{}_fps'.format(fps)))
         elif type == 'tracking_det':
-            self.images_dir = osp.join(root)
-            self.train_path = self.images_dir
-            self.gallery_path = osp.join(self.images_dir, 'bounding_box_test')
-            self.query_path = osp.join(self.images_dir, 'query')
+            self.train_path = root
+            self.gallery_path = osp.join(self.train_path, 'bounding_box_test')
+            self.query_path = osp.join(self.train_path, 'query')
         else:  # reid
-            self.images_dir = osp.join(root)
-            self.train_path = osp.join(self.images_dir, 'bounding_box_train')
-            self.gallery_path = osp.join(self.images_dir, 'bounding_box_test')
-            self.query_path = osp.join(self.images_dir, 'query')
-        self.camstyle_path = osp.join(self.images_dir, 'bounding_box_train_camstyle')
+            self.train_path = osp.join(root, 'bounding_box_train')
+            self.gallery_path = osp.join(self.train_path, 'bounding_box_test')
+            self.query_path = osp.join(self.train_path, 'query')
+        self.camstyle_path = osp.join(self.train_path, 'bounding_box_train_camstyle')
         self.train, self.query, self.gallery, self.camstyle = [], [], [], []
         self.num_train_ids, self.num_query_ids, self.num_gallery_ids, self.num_camstyle_ids = 0, 0, 0, 0
 

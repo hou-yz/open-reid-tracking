@@ -150,8 +150,7 @@ if __name__ == '__main__':
     parser.add_argument('--combine-trainval', action='store_true',
                         help="train and val sets together for training, val set alone for validation")
     parser.add_argument('--tracking_icams', type=int, default=0, help="specify if train on single iCam")
-    parser.add_argument('--tracking_fps', type=int, default=1,
-                        choices=[1, 3, 6, 12, 30, 60], help="specify if train on single iCam")
+    parser.add_argument('--tracking_fps', type=int, default=1, help="specify if train on single iCam")
     parser.add_argument('--re', type=float, default=0, help="random erasing")
     # model
     parser.add_argument('--features', type=int, default=256)

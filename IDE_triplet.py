@@ -39,7 +39,8 @@ def main(args):
     assert args.batch_size % args.num_instances == 0, 'num_instances should divide batch_size'
     dataset, num_classes, train_loader, query_loader, gallery_loader, _ = \
         get_data(args.dataset, args.data_dir, args.height, args.width, args.batch_size, args.num_workers,
-                 args.combine_trainval, args.crop, args.tracking_icams, args.tracking_fps, args.re, args.num_instances, False)
+                 args.combine_trainval, args.crop, args.tracking_icams, args.tracking_fps, args.re, args.num_instances,
+                 False)
 
     # Create model for triplet (num_classes = 0, num_instances > 0)
     model = models.create('ide', num_features=args.features,
@@ -139,8 +140,7 @@ if __name__ == '__main__':
                              "val set alone for validation")
     parser.add_argument('--tracking_icams', type=int, default=0,
                         help="specify if train on single iCam")
-    parser.add_argument('--tracking_fps', type=int, default=1,
-                        choices=[1, 3, 6, 12, 30, 60], help="specify if train on single iCam")
+    parser.add_argument('--tracking_fps', type=int, default=1, help="specify if train on single iCam")
     parser.add_argument('--re', type=float, default=0, help="random erasing")
     parser.add_argument('--num-instances', type=int, default=4,
                         help="each minibatch consist of "

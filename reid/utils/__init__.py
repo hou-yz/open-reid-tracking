@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 import torch
 
+
 def to_numpy(tensor):
     if torch.is_tensor(tensor):
         return tensor.cpu().numpy()
@@ -18,4 +19,3 @@ def to_torch(ndarray):
         raise ValueError("Cannot convert {} to torch tensor"
                          .format(type(ndarray)))
     return ndarray
-
