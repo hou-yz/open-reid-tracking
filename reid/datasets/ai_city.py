@@ -4,6 +4,8 @@ import numpy as np
 import pdb
 from glob import glob
 import re
+from collections import defaultdict
+import xml.dom.minidom as XD
 
 
 class AI_City(object):
@@ -23,9 +25,19 @@ class AI_City(object):
             self.gallery_path = osp.join(self.train_path, 'bounding_box_test')
             self.query_path = osp.join(self.train_path, 'query')
         else:  # reid
-            self.train_path = osp.join(root, 'bounding_box_train')
-            self.gallery_path = osp.join(self.train_path, 'bounding_box_test')
-            self.query_path = osp.join(self.train_path, 'query')
+            root = osp.expanduser('~/Data/AIC19-reid')
+            self.train_path = osp.join(root, 'image_train')
+            train_dir = '~/Data/AIC19/ALL_gt_bbox/trainval'
+            self.gallery_path = osp.join(root, 'image_train')
+            self.query_path = osp.join(root, 'image_train')
+
+            xml_dir = osp.join(root, 'train_label.xml')
+            self.reid_info = XD.parse(xml_dir).documentElement.getElementsByTagName('Item')
+            self.index_by_fname_dict = defaultdict()
+            for index in range(len(self.reid_info)):
+                fname = self.reid_info[index].getAttribute('imageName')
+                self.index_by_fname_dict[fname] = index
+
         self.train, self.query, self.gallery = [], [], []
         self.num_train_ids, self.num_query_ids, self.num_gallery_ids = 0, 0, 0
 
@@ -35,8 +47,11 @@ class AI_City(object):
     def preprocess(self, path, relabel=True, type='reid'):
         if type == 'tracking_det':
             pattern = re.compile(r's(\d+)_c(\d+)_f(\d+)')
-        else:
+        elif type == 'tracking_gt':
             pattern = re.compile(r'([-\d]+)_s(\d+)_c(\d+)')
+        else:  # reid
+            pattern = None
+
         all_pids = {}
         ret = []
         fpaths = sorted(glob(osp.join(path, '*.jpg')))
@@ -45,8 +60,11 @@ class AI_City(object):
             if type == 'tracking_det':
                 scene, cam, frame = map(int, pattern.search(fname).groups())
                 pid = 1
-            else:
+            elif type == 'tracking_gt':
                 pid, scene, cam = map(int, pattern.search(fname).groups())
+            else:  # reid
+                pid, cam = map(int, [self.reid_info[self.index_by_fname_dict[fname]].getAttribute('vehicleID'),
+                                       self.reid_info[self.index_by_fname_dict[fname]].getAttribute('cameraID')[1:]])
             if pid == -1: continue
             if relabel:
                 if pid not in all_pids:
