@@ -48,21 +48,21 @@ def get_bbox(type='gt', det_time='train', fps=2):
             if type == 'gt':
                 bboxs = bboxs[np.where(bboxs[:, 0] % fps_pooling == 0)[0], :]
 
-            # get frames
+            # get frame_pics
             video_file = osp.join(scene_path, camera_dir, 'vdo.avi')
             video_reader = cv2.VideoCapture(video_file)
-            frames = []
+            frame_pics = []
             success = video_reader.isOpened()
             while (success):
-                success, frame = video_reader.read()
-                frames.append(frame)
+                success, frame_pic = video_reader.read()
+                frame_pics.append(frame_pic)
                 cv2.waitKey(0)
             video_reader.release()
 
             # save bbox jpeg files
             for index in range(len(bboxs)):
-                frame_num = bboxs[index, 0]
-                pid = bboxs[index, 1]
+                frame = int(bboxs[index, 0])
+                pid = int(bboxs[index, 1])
                 bbox_left = int(bboxs[index, 2])
                 bbox_top = int(bboxs[index, 3])
                 bbox_width = int(bboxs[index, 4])
@@ -71,11 +71,16 @@ def get_bbox(type='gt', det_time='train', fps=2):
                 bbox_bottom = bbox_top + bbox_height
                 bbox_right = bbox_left + bbox_width
 
-                frame = frames[frame_num - 1]
-                bbox_pic = frame[bbox_top:bbox_bottom, bbox_left:bbox_right]
+                frame_pic = frame_pics[frame - 1]
+                bbox_pic = frame_pic[bbox_top:bbox_bottom, bbox_left:bbox_right]
 
-                save_file = osp.join(save_path, "{:04d}_{}_c{:02d}_f{:05d}.jpg".
-                                     format(pid, scene_dir.lower(), iCam, frame_num))
+                if type == 'gt':
+                    save_file = osp.join(save_path, "{:04d}_{}_c{:02d}_f{:05d}.jpg".
+                                         format(pid, scene_dir.lower(), iCam, frame))
+                else:
+                    same_frame_bbox_count = np.where(bboxs[:index, 0] == frame)[0].size
+                    save_file = osp.join(save_path, '{}_c{:02d}_f{:05d}_{:03d}.jpg'.
+                                         format(scene_dir.lower(), iCam, frame, same_frame_bbox_count))
 
                 cv2.imwrite(save_file, bbox_pic)
                 cv2.waitKey(0)
@@ -89,9 +94,9 @@ def get_bbox(type='gt', det_time='train', fps=2):
 
 if __name__ == '__main__':
     print('{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S')))
-    get_bbox()
-    get_bbox(det_time='val')
-    get_bbox(det_time='trainval')
+    # get_bbox()
+    # get_bbox(det_time='val')
+    # get_bbox(det_time='trainval')
     get_bbox(type='det', det_time='val')
     print('{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S')))
     print('Job Completed!')

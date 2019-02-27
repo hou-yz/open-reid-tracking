@@ -33,15 +33,20 @@ class AI_City(object):
         self.load()
 
     def preprocess(self, path, relabel=True, type='reid'):
-        pattern = re.compile(r'([-\d]+)_s(\d+)_c(\d+)_f(\d+)')
+        if type == 'tracking_det':
+            pattern = re.compile(r's(\d+)_c(\d+)_f(\d+)')
+        else:
+            pattern = re.compile(r'([-\d]+)_s(\d+)_c(\d+)')
         all_pids = {}
         ret = []
         fpaths = sorted(glob(osp.join(path, '*.jpg')))
         for fpath in fpaths:
             fname = osp.basename(fpath)
-            pid, scene, cam, frame = map(int, pattern.search(fname).groups())
             if type == 'tracking_det':
+                scene, cam, frame = map(int, pattern.search(fname).groups())
                 pid = 1
+            else:
+                pid, scene, cam = map(int, pattern.search(fname).groups())
             if pid == -1: continue
             if relabel:
                 if pid not in all_pids:

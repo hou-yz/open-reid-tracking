@@ -40,7 +40,7 @@ def get_data(name, data_dir, height, width, batch_size, workers,
             tracking_icams = list(range(1, 9))
         dataset = datasets.create(name, root, type='tracking_gt', iCams=tracking_icams, fps=fps,
                                   trainval=combine_trainval)
-    elif name == 'ai_city':
+    elif name == 'aic_tracking':
         dataset = datasets.create(name, root, type='tracking_gt', fps=fps, trainval=combine_trainval)
     else:
         dataset = datasets.create(name, root)
