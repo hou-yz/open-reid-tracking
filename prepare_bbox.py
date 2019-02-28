@@ -94,9 +94,9 @@ def get_bbox(type='gt', det_time='train', fps=2):
 
 if __name__ == '__main__':
     print('{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S')))
-    # get_bbox()
-    # get_bbox(det_time='val')
-    # get_bbox(det_time='trainval')
+    get_bbox()
+    get_bbox(det_time='val')
+    get_bbox(det_time='trainval')
     get_bbox(type='det', det_time='val')
     print('{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S')))
     print('Job Completed!')

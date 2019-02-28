@@ -22,14 +22,14 @@ class AI_City(object):
             self.query_path = osp.join(osp.expanduser(val_dir), ('gt_bbox_{}_fps'.format(fps)))
         elif type == 'tracking_det':
             self.train_path = root
-            self.gallery_path = osp.join(self.train_path, 'bounding_box_test')
-            self.query_path = osp.join(self.train_path, 'query')
+            self.gallery_path = None
+            self.query_path = None
         else:  # reid
             root = osp.expanduser('~/Data/AIC19-reid')
             self.train_path = osp.join(root, 'image_train')
-            train_dir = '~/Data/AIC19/ALL_gt_bbox/trainval'
-            self.gallery_path = osp.join(root, 'image_train')
-            self.query_path = osp.join(root, 'image_train')
+            val_dir = '~/Data/AIC19/ALL_gt_bbox/val'
+            self.gallery_path = osp.join(osp.expanduser(val_dir), ('gt_bbox_{}_fps'.format(fps)))
+            self.query_path = osp.join(osp.expanduser(val_dir), ('gt_bbox_{}_fps'.format(fps)))
 
             xml_dir = osp.join(root, 'train_label.xml')
             self.reid_info = XD.parse(xml_dir).documentElement.getElementsByTagName('Item')
@@ -64,7 +64,7 @@ class AI_City(object):
                 pid, scene, cam = map(int, pattern.search(fname).groups())
             else:  # reid
                 pid, cam = map(int, [self.reid_info[self.index_by_fname_dict[fname]].getAttribute('vehicleID'),
-                                       self.reid_info[self.index_by_fname_dict[fname]].getAttribute('cameraID')[1:]])
+                                     self.reid_info[self.index_by_fname_dict[fname]].getAttribute('cameraID')[1:]])
             if pid == -1: continue
             if relabel:
                 if pid not in all_pids:
@@ -79,8 +79,8 @@ class AI_City(object):
 
     def load(self):
         self.train, self.num_train_ids = self.preprocess(self.train_path, True, self.type)
-        self.gallery, self.num_gallery_ids = self.preprocess(self.gallery_path, False, self.type)
-        self.query, self.num_query_ids = self.preprocess(self.query_path, False, self.type)
+        self.gallery, self.num_gallery_ids = self.preprocess(self.gallery_path, False, 'tracking_gt')
+        self.query, self.num_query_ids = self.preprocess(self.query_path, False, 'tracking_gt')
 
         print(self.__class__.__name__, "dataset loaded")
         print("  subset   | # ids | # images")

@@ -20,8 +20,8 @@ class DukeMTMC(object):
             self.query_path = osp.join(osp.expanduser(val_dir), ('gt_bbox_{}_fps'.format(fps)))
         elif type == 'tracking_det':
             self.train_path = root
-            self.gallery_path = osp.join(self.train_path, 'bounding_box_test')
-            self.query_path = osp.join(self.train_path, 'query')
+            self.gallery_path = None
+            self.query_path = None
         else:  # reid
             self.train_path = osp.join(root, 'bounding_box_train')
             self.gallery_path = osp.join(self.train_path, 'bounding_box_test')
