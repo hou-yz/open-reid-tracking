@@ -41,7 +41,7 @@ def get_data(name, data_dir, height, width, batch_size, workers,
         dataset = datasets.create(name, root, type='tracking_gt', iCams=tracking_icams, fps=fps,
                                   trainval=combine_trainval)
     elif name == 'aic_tracking':
-        dataset = datasets.create(name, root, type='tracking_gt', fps=fps, trainval=combine_trainval)
+        dataset = datasets.create(name, root, type='tracking_gt', trainval=combine_trainval)
     else:
         dataset = datasets.create(name, root)
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],
@@ -130,3 +130,4 @@ def checkpoint_loader(model, path, eval_only=False):
         model = nn.DataParallel(model).cuda()
 
     return model, start_epoch, best_top1
+
