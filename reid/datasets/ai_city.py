@@ -51,9 +51,10 @@ class AI_City(object):
             pattern = re.compile(r'([-\d]+)_s(\d+)_c(\d+)')
         else:  # reid
             pattern = None
-
         all_pids = {}
         ret = []
+        if path is None:
+            return ret, int(len(all_pids))
         fpaths = sorted(glob(osp.join(path, '*.jpg')))
         for fpath in fpaths:
             fname = osp.basename(fpath)

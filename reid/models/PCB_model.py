@@ -80,8 +80,7 @@ class PCB_model(nn.Module):
         if self.num_classes > 0 and not eval_only:
             for i in range(self.num_stripes):
                 # 4d vector h -> 2d vector h
-                x = x_s[i].view(x.shape[0], -1)
-                prediction_s.append(self.fc_s[i](x))
+                prediction_s.append(self.fc_s[i](x_s[i].view(x.shape[0], -1)))
 
         if self.norm:
             out0 = F.normalize(out0)

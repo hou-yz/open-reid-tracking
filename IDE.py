@@ -42,7 +42,7 @@ def main(args):
                  args.combine_trainval, args.crop, args.tracking_icams, args.tracking_fps, args.re, 0, args.camstyle)
 
     # Create model
-    model = models.create('ide', num_features=args.features,
+    model = models.create('ide', num_features=args.features, norm=args.norm,
                           dropout=args.dropout, num_classes=num_classes, last_stride=args.last_stride,
                           output_feature=args.output_feature)
 
@@ -157,6 +157,7 @@ if __name__ == '__main__':
     parser.add_argument('--dropout', type=float, default=0.5)
     parser.add_argument('-s', '--last_stride', type=int, default=2, choices=[1, 2])
     parser.add_argument('--output_feature', type=str, default='fc', choices=['pool5', 'fc'])
+    parser.add_argument('--norm', action='store_true', help="normalize feat, default: False")
     # optimizer
     parser.add_argument('--lr', type=float, default=0.1,
                         help="learning rate of new parameters, for pretrained "

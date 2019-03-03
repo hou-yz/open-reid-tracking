@@ -157,7 +157,7 @@ def main(args):
                              batch_size=args.batch_size, num_workers=args.num_workers,
                              shuffle=False, pin_memory=True)
     # Create model
-    model = models.create(args.arch, num_features=args.features,
+    model = models.create(args.arch, num_features=args.features, norm=args.norm,
                           dropout=args.dropout, num_classes=0, last_stride=args.last_stride,
                           output_feature=args.output_feature)
     # Load from checkpoint
@@ -190,6 +190,7 @@ if __name__ == '__main__':
     parser.add_argument('--output-feature', type=str, default='None')
     parser.add_argument('-s', '--last_stride', type=int, default=2, choices=[1, 2])
     parser.add_argument('--output_feature', type=str, default='None')
+    parser.add_argument('--norm', action='store_true', help="normalize feat, default: False")
     # misc
     parser.add_argument('--seed', type=int, default=1)
     working_dir = osp.dirname(osp.abspath(__file__))

@@ -41,6 +41,8 @@ class DukeMTMC(object):
             pattern = re.compile(r'([-\d]+)_c(\d)')
         all_pids = {}
         ret = []
+        if path is None:
+            return ret, int(len(all_pids))
         if type == 'tracking_gt':
             fpaths = []
             for iCam in self.iCams:
