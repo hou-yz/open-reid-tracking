@@ -24,8 +24,8 @@ class DukeMTMC(object):
             self.query_path = None
         else:  # reid
             self.train_path = osp.join(root, 'bounding_box_train')
-            self.gallery_path = osp.join(self.train_path, 'bounding_box_test')
-            self.query_path = osp.join(self.train_path, 'query')
+            self.gallery_path = osp.join(root, 'bounding_box_test')
+            self.query_path = osp.join(root, 'query')
         self.camstyle_path = osp.join(self.train_path, 'bounding_box_train_camstyle')
         self.train, self.query, self.gallery, self.camstyle = [], [], [], []
         self.num_train_ids, self.num_query_ids, self.num_gallery_ids, self.num_camstyle_ids = 0, 0, 0, 0
