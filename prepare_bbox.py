@@ -9,7 +9,7 @@ path = '~/Data/AIC19/'
 og_fps = 10
 
 
-def get_bbox(type='gt', det_time='train', fps=2):
+def get_bbox(type='gt', det_time='train', fps=5):
     data_path = osp.join(osp.expanduser(path), 'test' if det_time == 'test' else 'train')
     save_path = osp.join(osp.expanduser('~/Data/AIC19/ALL_{}_bbox/'.format(type)), det_time)
 
