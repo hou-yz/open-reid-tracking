@@ -65,21 +65,23 @@ Triplet loss:
 - `im_w x im_h = 128 x 384`.
 - horizontal flipping and Random Erasing with `re = 0.5` used for data augmentation.
 
-PCB model normalizes feature to unit length.
+~~PCB model normalizes feature to unit length.~~
 
 The results are as follows. 
 
-|                                             | mAP (%) | Rank-1 (%) |
-| ---                                         | :---: | :---: |
-| Duke-IDE-Triplet-Raw                        | 59.76 | 76.26 |
-| Duke-IDE-Triplet-Basis                      | 66.44 | 81.33 |
-| Duke-IDE-Raw                                | 51.65 | 71.10 |
-| Duke-IDE-Basis                              | 62.93 | 79.67 |
-| Duke-PCB-Raw' (Basis w/o RE)                | 68.41 | 83.12 |
-| Duke-PCB-Raw' + fc64                        | 68.06 | 82.76 |
-| Duke-PCB-Raw' + NOT normalizing stripes     | 66.01 | 83.17 |
-| Duke-PCB-Basis                              | 68.70 | 82.81 |
-| Duke-PCB-Basis + fc64                       | 68.59 | 82.85 |
+| dataset | model | loss | settings                        | mAP (%) | Rank-1 (%) |
+| ---     | ---   | ---  | ---                             | :---: | :---: |
+| Duke|IDE|Triplet|Raw                                     | 59.76 | 76.26 |
+| Duke|IDE|Triplet|Basis w/ crop                           | 63.50 | 78.19 |
+| Duke|IDE|Triplet|Basis                                   | 66.44 | 81.33 |
+| Duke|IDE|CrossEntropy|Raw                                | 51.65 | 71.10 |
+| Duke|IDE|CrossEntropy|Basis w/ crop                      | 58.05 | 75.63 |
+| Duke|IDE|CrossEntropy|Basis                              | 62.93 | 79.67 |
+| Duke|PCB|CrossEntropy|Raw' (Basis w/o RE)                | 68.41 | 83.12 |
+| Duke|PCB|CrossEntropy|Raw' + fc64                        | 68.06 | 82.76 |
+| Duke|PCB|CrossEntropy|Raw' + NOT normalizing stripes     | 66.01 | 83.17 |
+| Duke|PCB|CrossEntropy|Basis                              | 68.70 | 82.81 |
+| Duke|PCB|CrossEntropy|Basis + fc64                       | 68.59 | 82.85 |
 
 
-**We see that `stride = 1` (higher spatial resolution before global pooling) has improvement over `stride = 2` (original ResNet). I tried this inspired by paper [Beyond Part Models: Person Retrieval with Refined Part Pooling](https://arxiv.org/abs/1711.09349).**
+**`stride = 1` (higher spatial resolution before global pooling) higher performance than `stride = 2` (original ResNet). This is from paper [Beyond Part Models: Person Retrieval with Refined Part Pooling](https://arxiv.org/abs/1711.09349).**
