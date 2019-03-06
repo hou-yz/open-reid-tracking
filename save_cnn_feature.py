@@ -23,10 +23,10 @@ from reid.utils.osutils import mkdir_if_missing
 
 def save_file(lines, args, if_created):
     # write file
-    if args.type == 'detections':
+    if args.dataset == 'detections':
         folder_name = osp.expanduser('~/Data/DukeMTMC/L0-features/') + "det_features_{}". \
             format(args.l0_name) + '_' + args.det_time
-    elif args.type == 'gt_test':
+    elif args.dataset == 'gt_test':
         folder_name = osp.abspath(osp.join(working_dir, os.pardir)) + '/DeepCC/experiments/' + args.l0_name
     else:
         folder_name = osp.expanduser('~/Data/DukeMTMC/L0-features/') + "gt_features_{}".format(args.l0_name)
@@ -122,11 +122,11 @@ def main(args):
         tracking_icams = list(range(1, 9))
 
     data_dir = osp.expanduser('~/Data/DukeMTMC/ALL_det_bbox')
-    if args.type == 'detections':
+    if args.dataset == 'detections':
         type = 'tracking_det'
         dataset_dir = osp.join(data_dir, ('det_bbox_OpenPose_' + args.det_time))
         fps = None
-    elif args.type == 'gt_test':
+    elif args.dataset == 'gt_test':
         type = 'tracking_gt'
         # dataset_dir = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/train/gt_bbox_1_fps')  # gt @ 1fps
         # dataset_dir = osp.expanduser('~/houyz/open-reid-PCB_n_RPP/data/dukemtmc/dukemtmc/raw/DukeMTMC-reID/bounding_box_test')  # reid
@@ -138,10 +138,7 @@ def main(args):
         dataset_dir = None
         fps = 60
 
-    if args.dataset == 'duke':
-        dataset = DukeMTMC(dataset_dir, type=type, iCams=tracking_icams, fps=fps, trainval=args.det_time == 'trainval')
-    else:  # aic
-        dataset = AI_City(dataset_dir, type=type, fps=fps, trainval=args.det_time == 'trainval')
+    dataset = DukeMTMC(dataset_dir, type=type, iCams=tracking_icams, fps=fps, trainval=args.det_time == 'trainval')
 
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     if args.crop:  # default: False
@@ -181,8 +178,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Softmax loss classification")
     # data
     parser.add_argument('-a', '--arch', type=str, default='ide', choices=['ide', 'pcb'])
-    parser.add_argument('-d', '--dataset', type=str, default='duke', choices=['duke', 'aic'])
-    parser.add_argument('--type', type=str, default='gt_test', choices=['detections', 'gt_test', 'gt_all'])
+    parser.add_argument('-d', '--dataset', type=str, default='gt_test', choices=['detections', 'gt_test', 'gt_all'])
     parser.add_argument('-b', '--batch-size', type=int, default=64, help="batch size")
     parser.add_argument('-j', '--num-workers', type=int, default=8)
     parser.add_argument('--height', type=int, default=256, help="input height, default: 256 for resnet*")

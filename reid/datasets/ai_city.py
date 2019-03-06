@@ -46,9 +46,9 @@ class AI_City(object):
 
     def preprocess(self, path, relabel=True, type='reid'):
         if type == 'tracking_det':
-            pattern = re.compile(r'c(\d+)_f(\d+)')
+            pattern = re.compile(r's(\d+)_c(\d+)_f(\d+)')
         elif type == 'tracking_gt':
-            pattern = re.compile(r'([-\d]+)_c(\d)')
+            pattern = re.compile(r'([-\d]+)_s(\d+)_c(\d+)')
         else:  # reid
             pattern = None
         all_pids = {}
@@ -59,10 +59,10 @@ class AI_City(object):
         for fpath in fpaths:
             fname = osp.basename(fpath)
             if type == 'tracking_det':
-                cam, frame = map(int, pattern.search(fname).groups())
+                scene, cam, frame = map(int, pattern.search(fname).groups())
                 pid = 1
             elif type == 'tracking_gt':
-                pid, cam = map(int, pattern.search(fname).groups())
+                pid, scene, cam = map(int, pattern.search(fname).groups())
             else:  # reid
                 pid, cam = map(int, [self.reid_info[self.index_by_fname_dict[fname]].getAttribute('vehicleID'),
                                      self.reid_info[self.index_by_fname_dict[fname]].getAttribute('cameraID')[1:]])
