@@ -75,12 +75,12 @@ def get_bbox(type='gt', det_time='train', fps=5):
                 bbox_pic = frame_pic[bbox_top:bbox_bottom, bbox_left:bbox_right]
 
                 if type == 'gt':
-                    save_file = osp.join(save_path, "{:04d}_{}_c{:02d}_f{:05d}.jpg".
-                                         format(pid, scene_dir.lower(), iCam, frame))
+                    save_file = osp.join(save_path, "{:04d}_c{:02d}_f{:05d}.jpg".
+                                         format(pid, iCam, frame))
                 else:
                     same_frame_bbox_count = np.where(bboxs[:index, 0] == frame)[0].size
-                    save_file = osp.join(save_path, '{}_c{:02d}_f{:05d}_{:03d}.jpg'.
-                                         format(scene_dir.lower(), iCam, frame, same_frame_bbox_count))
+                    save_file = osp.join(save_path, 'c{:02d}_f{:05d}_{:03d}.jpg'.
+                                         format(iCam, frame, same_frame_bbox_count))
 
                 cv2.imwrite(save_file, bbox_pic)
                 cv2.waitKey(0)
