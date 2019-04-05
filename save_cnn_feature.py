@@ -24,12 +24,15 @@ from reid.utils.osutils import mkdir_if_missing
 def save_file(lines, args, if_created):
     # write file
     if args.type == 'detections':
-        folder_name = osp.expanduser('~/Data/DukeMTMC/L0-features/') + "det_features_{}". \
-            format(args.l0_name) + '_' + args.det_time
+        folder_name = osp.expanduser(
+            '~/Data/{}/L0-features/'.format('DukeMTMC' if args.dataset == 'duke' else 'AIC19')) \
+                      + "det_features_{}".format(args.l0_name) + '_' + args.det_time
     elif args.type == 'gt_test':
         folder_name = osp.abspath(osp.join(working_dir, os.pardir)) + '/DeepCC/experiments/' + args.l0_name
-    else:
-        folder_name = osp.expanduser('~/Data/DukeMTMC/L0-features/') + "gt_features_{}".format(args.l0_name)
+    else:  # only extract ground truth data from 'train' set
+        folder_name = osp.expanduser(
+            '~/Data/{}/L0-features/'.format('DukeMTMC' if args.dataset == 'duke' else 'AIC19')) \
+                      + "gt_features_{}".format(args.l0_name)
     if args.re:
         folder_name += '_RE'
     if args.crop:
@@ -38,7 +41,7 @@ def save_file(lines, args, if_created):
     mkdir_if_missing(folder_name)
     with open(osp.join(folder_name, 'args.json'), 'w') as fp:
         json.dump(vars(args), fp, indent=1)
-    for cam in range(8):
+    for cam in range(8 if args.dataset == 'duke' else 40):
         output_fname = folder_name + '/features%d.h5' % (cam + 1)
         mkdir_if_missing(os.path.dirname(output_fname))
         if args.tracking_icams != 0 and cam + 1 != args.tracking_icams:
@@ -68,10 +71,8 @@ def extract_features(model, data_loader, args, is_detection=True):
     batch_time = AverageMeter()
     data_time = AverageMeter()
 
-    # f_names = [[] for _ in range(8)]
-    # features = [[] for _ in range(8)]
-    if_created = [0 for _ in range(8)]
-    lines = [[] for _ in range(8)]
+    if_created = [0 for _ in range(8 if args.dataset == 'duke' else 40)]
+    lines = [[] for _ in range(8 if args.dataset == 'duke' else 40)]
 
     end = time.time()
     for i, (imgs, fnames, _, _) in enumerate(data_loader):
@@ -102,7 +103,7 @@ def extract_features(model, data_loader, args, is_detection=True):
 
             if_created = save_file(lines, args, if_created)
 
-            lines = [[] for _ in range(8)]
+            lines = [[] for _ in range(8 if args.dataset == 'duke' else 40)]
 
     save_file(lines, args, if_created)
     return
@@ -119,22 +120,19 @@ def main(args):
     if args.tracking_icams != 0:
         tracking_icams = [args.tracking_icams]
     else:
-        tracking_icams = list(range(1, 9))
+        tracking_icams = list(range(1, (8 if args.dataset == 'duke' else 40) + 1))
 
-    data_dir = osp.expanduser('~/Data/DukeMTMC/ALL_det_bbox')
+    data_dir = osp.expanduser('~/Data/{}/ALL_det_bbox'.format('DukeMTMC' if args.dataset == 'duke' else 'AIC19'))
     if args.type == 'detections':
         type = 'tracking_det'
-        dataset_dir = osp.join(data_dir, ('det_bbox_OpenPose_' + args.det_time))
+        dataset_dir = osp.join(data_dir, (('det_bbox_OpenPose_' if args.dataset == 'duke' else '') + args.det_time))
         fps = None
-    elif args.type == 'gt_test':
+    elif args.type == 'gt_mini':
         type = 'tracking_gt'
-        # dataset_dir = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/train/gt_bbox_1_fps')  # gt @ 1fps
-        # dataset_dir = osp.expanduser('~/houyz/open-reid-PCB_n_RPP/data/dukemtmc/dukemtmc/raw/DukeMTMC-reID/bounding_box_test')  # reid
         dataset_dir = None
         fps = 1
     else:
         type = 'tracking_gt'
-        # dataset_dir = osp.expanduser('~/Data/DukeMTMC/ALL_gt_bbox/train/gt_bbox_60_fps')
         dataset_dir = None
         fps = 60
 
@@ -182,7 +180,7 @@ if __name__ == '__main__':
     # data
     parser.add_argument('-a', '--arch', type=str, default='ide', choices=['ide', 'pcb'])
     parser.add_argument('-d', '--dataset', type=str, default='duke', choices=['duke', 'aic'])
-    parser.add_argument('--type', type=str, default='gt_test', choices=['detections', 'gt_test', 'gt_all'])
+    parser.add_argument('--type', type=str, default='gt_mini', choices=['detections', 'gt_mini', 'gt_all'])
     parser.add_argument('-b', '--batch-size', type=int, default=64, help="batch size")
     parser.add_argument('-j', '--num-workers', type=int, default=8)
     parser.add_argument('--height', type=int, default=256, help="input height, default: 256 for resnet*")

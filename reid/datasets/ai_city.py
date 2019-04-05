@@ -10,7 +10,7 @@ import xml.dom.minidom as XD
 
 class AI_City(object):
 
-    def __init__(self, root, type='reid', fps=5, trainval=False, gt_type='gt'):
+    def __init__(self, root, type='reid', fps=10, trainval=False, gt_type='gt'):
         if type == 'tracking_gt':
             if not trainval:
                 train_dir = '~/Data/AIC19/ALL_{}_bbox/train'.format(gt_type)
