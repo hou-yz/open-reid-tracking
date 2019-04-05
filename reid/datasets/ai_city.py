@@ -10,12 +10,12 @@ import xml.dom.minidom as XD
 
 class AI_City(object):
 
-    def __init__(self, root, type='reid', fps=5, trainval=False):
+    def __init__(self, root, type='reid', fps=5, trainval=False, gt_type='gt'):
         if type == 'tracking_gt':
             if not trainval:
-                train_dir = '~/Data/AIC19/ALL_gt_bbox/train'
+                train_dir = '~/Data/AIC19/ALL_{}_bbox/train'.format(gt_type)
             else:
-                train_dir = '~/Data/AIC19/ALL_gt_bbox/trainval'
+                train_dir = '~/Data/AIC19/ALL_{}_bbox/trainval'.format(gt_type)
             val_dir = '~/Data/AIC19/ALL_gt_bbox/val'
             self.train_path = osp.join(osp.expanduser(train_dir), ('gt_bbox_{}_fps'.format(fps)))
             self.gallery_path = osp.join(osp.expanduser(val_dir), ('gt_bbox_{}_fps'.format(fps)))

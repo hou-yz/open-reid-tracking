@@ -4,13 +4,18 @@ import warnings
 from .dukemtmc import DukeMTMC
 from .ai_city import AI_City
 from .market1501 import Market1501
+from .vehicleid import vehicleID
+from .veri import VeRi
+from .veri_vehicleid import veri_vehicleID
 
 __factory = {
     'market1501': Market1501,
     'duke_tracking': DukeMTMC,
     'dukemtmc': DukeMTMC,
     'aic_tracking': AI_City,
-    'aic_reid': AI_City,
+    'vehicleid': vehicleID,
+    'veri': VeRi,
+    'veri_vehicleid': veri_vehicleID,
 }
 
 
@@ -18,7 +23,7 @@ def names():
     return sorted(__factory.keys())
 
 
-def create(name, root, *args, **kwargs):
+def create(name, *args, **kwargs):
     """
     Create a dataset instance.
 
@@ -39,9 +44,5 @@ def create(name, root, *args, **kwargs):
     """
     if name not in __factory:
         raise KeyError("Unknown dataset:", name)
-    return __factory[name](root, *args, **kwargs)
+    return __factory[name](*args, **kwargs)
 
-
-def get_dataset(name, root, *args, **kwargs):
-    warnings.warn("get_dataset is deprecated. Use create instead.")
-    return create(name, root, *args, **kwargs)
