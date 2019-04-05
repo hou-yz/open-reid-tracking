@@ -145,8 +145,7 @@ if __name__ == '__main__':
     parser.add_argument('-b', '--batch-size', type=int, default=64, help="batch size")
     parser.add_argument('-j', '--num-workers', type=int, default=8)
     parser.add_argument('--height', type=int, default=256, help="input height, default: 256 for resnet*")
-    parser.add_argument('--width', type=int, default=128,
-                        help="input width, default: 128 for resnet*")
+    parser.add_argument('--width', type=int, default=128, help="input width, default: 128 for resnet*")
     parser.add_argument('--combine-trainval', action='store_true',
                         help="train and val sets together for training, val set alone for validation")
     parser.add_argument('--tracking_icams', type=int, default=0, help="specify if train on single iCam")

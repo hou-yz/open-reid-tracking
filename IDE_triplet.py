@@ -133,8 +133,7 @@ if __name__ == '__main__':
     parser.add_argument('--width', type=int, default=128, help="input width, default: 128 for resnet*")
     parser.add_argument('--combine-trainval', action='store_true',
                         help="train and val sets together for training, val set alone for validation")
-    parser.add_argument('--tracking_icams', type=int, default=0,
-                        help="specify if train on single iCam")
+    parser.add_argument('--tracking_icams', type=int, default=0, help="specify if train on single iCam")
     parser.add_argument('--tracking_fps', type=int, default=1, help="specify if train on single iCam")
     parser.add_argument('--re', type=float, default=0, help="random erasing")
     parser.add_argument('--num-instances', type=int, default=4,
@@ -154,18 +153,14 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=2e-4, help="learning rate of ALL parameters")
     parser.add_argument('--weight-decay', type=float, default=5e-4)
     # training configs
-    parser.add_argument('--train', action='store_true',
-                        help="train IDE model from start")
-    parser.add_argument('--crop', action='store_true',
-                        help="resize then crop, default: False")
-    parser.add_argument('--fix_bn', type=str2bool, default=0,
-                        help="fix (skip training) BN in base network")
+    parser.add_argument('--train', action='store_true', help="train IDE model from start")
+    parser.add_argument('--crop', action='store_true', help="resize then crop, default: False")
+    parser.add_argument('--fix_bn', type=str2bool, default=0, help="fix (skip training) BN in base network")
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
     parser.add_argument('--evaluate', action='store_true', help="evaluation only")
     parser.add_argument('--epochs', type=int, default=300)
     parser.add_argument('--step-size', type=int, default=150)
-    parser.add_argument('--start_save', type=int, default=0,
-                        help="start saving checkpoints after specific epoch")
+    parser.add_argument('--start_save', type=int, default=0, help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--print-freq', type=int, default=10)
     # misc
