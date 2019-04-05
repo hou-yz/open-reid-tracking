@@ -9,7 +9,7 @@ path = '~/Data/AIC19/'
 og_fps = 10
 
 
-def get_bbox(type='gt', det_time='train', fps=5):
+def get_bbox(type='gt', det_time='train', fps=10):
     data_path = osp.join(osp.expanduser(path), 'test' if det_time == 'test' else 'train')
     save_path = osp.join(osp.expanduser('~/Data/AIC19/ALL_{}_bbox/'.format(type)), det_time)
 
@@ -43,7 +43,7 @@ def get_bbox(type='gt', det_time='train', fps=5):
             if type == 'gt':
                 bbox_filename = osp.join(scene_path, camera_dir, 'gt', 'gt.txt')
             else:  # det
-                bbox_filename = osp.join(scene_path, camera_dir, 'det', 'det_yolo3.txt')
+                bbox_filename = osp.join(scene_path, camera_dir, 'det', 'det_ssd512.txt')
             bboxs = np.array(pd.read_csv(bbox_filename, header=None))
             if type == 'gt':
                 bboxs = bboxs[np.where(bboxs[:, 0] % fps_pooling == 0)[0], :]
