@@ -11,8 +11,9 @@ from .veri_vehicleid import veri_vehicleID
 __factory = {
     'market1501': Market1501,
     'duke_tracking': DukeMTMC,
-    'dukemtmc': DukeMTMC,
+    'duke_reid': DukeMTMC,
     'aic_tracking': AI_City,
+    'aic_reid': AI_City,
     'vehicleid': vehicleID,
     'veri': VeRi,
     'veri_vehicleid': veri_vehicleID,
@@ -45,4 +46,3 @@ def create(name, *args, **kwargs):
     if name not in __factory:
         raise KeyError("Unknown dataset:", name)
     return __factory[name](*args, **kwargs)
-

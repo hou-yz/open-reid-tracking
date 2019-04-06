@@ -5,7 +5,7 @@ from glob import glob
 
 
 class veri_vehicleID(object):
-    def __init__(self):
+    def __init__(self, root):
         vid_train_file = '~/Data/VehicleID_V1.0/train_test_split/train_list.txt'
         train_dir = '~/Data/veri_vehicleid/image/'
         query_dir = '~/Data/AIC19_ReID/image_test'

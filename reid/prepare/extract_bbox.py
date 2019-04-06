@@ -94,8 +94,8 @@ def get_bbox(type='gt', det_time='train', fps=10):
 
 if __name__ == '__main__':
     print('{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S')))
-    get_bbox()
-    get_bbox(det_time='val')
+    # get_bbox()
+    get_bbox(det_time='val', fps=1)
     # get_bbox(det_time='trainval')
     # get_bbox(type='det', det_time='val')
     print('{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S')))

@@ -38,7 +38,7 @@ class DukeMTMC(object):
         if type == 'tracking_det':
             pattern = re.compile(r'c(\d+)_f(\d+)')
         else:
-            pattern = re.compile(r'([-\d]+)_c(\d)')
+            pattern = re.compile(r'([-\d]+)_c(\d+)')
         all_pids = {}
         ret = []
         if path is None:

@@ -20,7 +20,7 @@ class Market1501(object):
         self.load()
 
     def preprocess(self, path, relabel=True):
-        pattern = re.compile(r'([-\d]+)_c(\d)')
+        pattern = re.compile(r'([-\d]+)_c(\d+)')
         all_pids = {}
         ret = []
         fpaths = sorted(glob(osp.join(path, '*.jpg')))

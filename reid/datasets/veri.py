@@ -5,7 +5,7 @@ from glob import glob
 
 
 class VeRi(object):
-    def __init__(self):
+    def __init__(self, root):
         train_dir = '~/Data/VeRi/image_train/'
         query_dir = '~/Data/VeRi/image_query/'
         gallery_dir = '~/Data/VeRi/image_test'

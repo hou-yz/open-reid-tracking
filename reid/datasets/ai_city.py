@@ -18,8 +18,8 @@ class AI_City(object):
                 train_dir = '~/Data/AIC19/ALL_{}_bbox/trainval'.format(gt_type)
             val_dir = '~/Data/AIC19/ALL_gt_bbox/val'
             self.train_path = osp.join(osp.expanduser(train_dir), ('gt_bbox_{}_fps'.format(fps)))
-            self.gallery_path = osp.join(osp.expanduser(val_dir), ('gt_bbox_{}_fps'.format(fps)))
-            self.query_path = osp.join(osp.expanduser(val_dir), ('gt_bbox_{}_fps'.format(fps)))
+            self.gallery_path = osp.join(osp.expanduser(val_dir), 'gt_bbox_1_fps')
+            self.query_path = osp.join(osp.expanduser(val_dir), 'gt_bbox_1_fps')
         elif type == 'tracking_det':
             self.train_path = root
             self.gallery_path = None
@@ -28,8 +28,8 @@ class AI_City(object):
             root = osp.expanduser('~/Data/AIC19-reid')
             self.train_path = osp.join(root, 'image_train')
             val_dir = '~/Data/AIC19/ALL_gt_bbox/val'
-            self.gallery_path = osp.join(osp.expanduser(val_dir), ('gt_bbox_{}_fps'.format(fps)))
-            self.query_path = osp.join(osp.expanduser(val_dir), ('gt_bbox_{}_fps'.format(fps)))
+            self.gallery_path = osp.join(osp.expanduser(val_dir), 'gt_bbox_1_fps')
+            self.query_path = osp.join(osp.expanduser(val_dir), 'gt_bbox_1_fps')
 
             xml_dir = osp.join(root, 'train_label.xml')
             self.reid_info = XD.parse(xml_dir).documentElement.getElementsByTagName('Item')
@@ -48,7 +48,7 @@ class AI_City(object):
         if type == 'tracking_det':
             pattern = re.compile(r'c(\d+)_f(\d+)')
         elif type == 'tracking_gt':
-            pattern = re.compile(r'([-\d]+)_c(\d)')
+            pattern = re.compile(r'([-\d]+)_c(\d+)')
         else:  # reid
             pattern = None
         all_pids = {}

@@ -3,13 +3,18 @@ import os.path as osp
 
 
 class vehicleID(object):
-    def __init__(self):
+    def __init__(self, root):
         train_file = '~/Data/VehicleID_V1.0/train_test_split/train_list.txt'
-        test_file = '~/Data/VehicleID_V1.0/train_test_split/test_list_800.txt'
-
+        val_file = '~/Data/VehicleID_V1.0/train_test_split/test_list_800.txt'
         self.train_file = osp.expanduser(train_file)
-        self.gallery_file = osp.expanduser(test_file)
-        self.query_file = osp.expanduser(test_file)
+        self.gallery_file = osp.expanduser(val_file)
+        self.query_file = osp.expanduser(val_file)
+
+        train_dir = '~/Data/VehicleID_V1.0/image/'
+        val_dir = '~/Data/VehicleID_V1.0/image/'
+        self.train_path = osp.expanduser(train_dir)
+        self.gallery_path = osp.expanduser(val_dir)
+        self.query_path = osp.expanduser(val_dir)
 
         self.train, self.query, self.gallery = [], [], []
         self.num_train_ids, self.num_query_ids, self.num_gallery_ids = 0, 0, 0
