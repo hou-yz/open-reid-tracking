@@ -11,7 +11,7 @@ path = '~/Data/AIC19/'
 og_fps = 10
 
 
-def get_bbox(type='gt', det_time='train', fps=5):
+def get_bbox(type='gt', det_time='train', fps=10):
 
     p1 = psutil.Process(os.getpid())
 
@@ -64,9 +64,6 @@ def get_bbox(type='gt', det_time='train', fps=5):
                 success, frame_pic = video_reader.read()
                 frame_num = frame_num + 1
 
-                if frame_num % 1000 == 0:
-                    print(frame_num, 'frames have been captured!')
-
                 bboxs_frame = bboxs[bboxs[:, 0] == frame_num]
 
                 for index in range(len(bboxs_frame)):
@@ -103,12 +100,10 @@ def get_bbox(type='gt', det_time='train', fps=5):
 
 if __name__ == '__main__':
     print('{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S')))
-    # get_bbox()
+    get_bbox(fps=5)
     # get_bbox(det_time='val', fps=1)
-    # get_bbox(det_time='trainval')
-    # get_bbox(type='det')
     # get_bbox(type='det', det_time='val')
     # get_bbox(type='det', det_time='trainval')
-    get_bbox(type='det', det_time='test')
+    # get_bbox(type='det', det_time='test')
     print('{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S')))
     print('Job Completed!')
