@@ -6,20 +6,20 @@ import pandas as pd
 import datetime
 import psutil
 
-
 path = '~/Data/AIC19/'
 og_fps = 10
 
 
 def get_bbox(type='gt', det_time='train', fps=10):
-
-    p1 = psutil.Process(os.getpid())
-
+    # type = ['gt','det','labeled']
     data_path = osp.join(osp.expanduser(path), 'test' if det_time == 'test' else 'train')
     save_path = osp.join(osp.expanduser('~/Data/AIC19/ALL_{}_bbox/'.format(type)), det_time)
 
     if type == 'gt':
         save_path = osp.join(save_path, 'gt_bbox_{}_fps'.format(fps))
+        fps_pooling = int(og_fps / fps)  # use minimal number of gt's to train ide model
+    elif type == 'labeled':
+        save_path = osp.join(save_path, 'det_labeled_bbox_{}_fps'.format(fps))
         fps_pooling = int(og_fps / fps)  # use minimal number of gt's to train ide model
 
     if not osp.exists(save_path):  # mkdir
@@ -47,10 +47,12 @@ def get_bbox(type='gt', det_time='train', fps=10):
             # get bboxs
             if type == 'gt':
                 bbox_filename = osp.join(scene_path, camera_dir, 'gt', 'gt.txt')
+            elif type == 'labeled':
+                bbox_filename = osp.join(scene_path, camera_dir, 'det', 'det_ssd512_labeled.txt')
             else:  # det
                 bbox_filename = osp.join(scene_path, camera_dir, 'det', 'det_ssd512.txt')
             bboxs = np.array(pd.read_csv(bbox_filename, header=None))
-            if type == 'gt':
+            if type == 'gt' or type == 'labeled':
                 bboxs = bboxs[np.where(bboxs[:, 0] % fps_pooling == 0)[0], :]
 
             # get frame_pics
@@ -67,19 +69,19 @@ def get_bbox(type='gt', det_time='train', fps=10):
                 bboxs_frame = bboxs[bboxs[:, 0] == frame_num]
 
                 for index in range(len(bboxs_frame)):
-                    frame = int(bboxs[index, 0])
-                    pid = int(bboxs[index, 1])
-                    bbox_left = int(bboxs[index, 2])
-                    bbox_top = int(bboxs[index, 3])
-                    bbox_width = int(bboxs[index, 4])
-                    bbox_height = int(bboxs[index, 5])
+                    frame = int(bboxs_frame[index, 0])
+                    pid = int(bboxs_frame[index, 1])
+                    bbox_left = int(bboxs_frame[index, 2])
+                    bbox_top = int(bboxs_frame[index, 3])
+                    bbox_width = int(bboxs_frame[index, 4])
+                    bbox_height = int(bboxs_frame[index, 5])
 
                     bbox_bottom = bbox_top + bbox_height
                     bbox_right = bbox_left + bbox_width
 
                     bbox_pic = frame_pic[bbox_top:bbox_bottom, bbox_left:bbox_right]
 
-                    if type == 'gt':
+                    if type == 'gt' or type == 'labeled':
                         save_file = osp.join(save_path, "{:04d}_c{:02d}_f{:05d}.jpg".
                                              format(pid, iCam, frame))
                     else:
@@ -100,7 +102,7 @@ def get_bbox(type='gt', det_time='train', fps=10):
 
 if __name__ == '__main__':
     print('{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S')))
-    get_bbox(fps=5)
+    get_bbox(type='labeled')
     # get_bbox(det_time='val', fps=1)
     # get_bbox(type='det', det_time='val')
     # get_bbox(type='det', det_time='trainval')
