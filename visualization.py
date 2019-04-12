@@ -26,7 +26,7 @@ def imshow(path, title=None):
 
 
 parser = argparse.ArgumentParser(description="Softmax loss classification")
-parser.add_argument('--log', type=str2bool, default=1)
+parser.add_argument('--log', type=bool, default=1)
 # data
 parser.add_argument('-d', '--dataset', type=str, default='aic_tracking', choices=datasets.names())
 parser.add_argument('-b', '--batch-size', type=int, default=64, help="batch size")
@@ -53,7 +53,7 @@ parser.add_argument('--weight-decay', type=float, default=5e-4)
 # training configs
 parser.add_argument('--train', action='store_true', help="train IDE model from start")
 parser.add_argument('--crop', action='store_true', help="resize then crop, default: False")
-parser.add_argument('--fix_bn', type=str2bool, default=0, help="fix (skip training) BN in base network")
+parser.add_argument('--fix_bn', type=bool, default=0, help="fix (skip training) BN in base network")
 parser.add_argument('--resume', type=str, default='', metavar='PATH')
 parser.add_argument('--evaluate', action='store_true', help="evaluation only")
 parser.add_argument('--epochs', type=int, default=60)
