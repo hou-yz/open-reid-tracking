@@ -8,7 +8,7 @@ from torch.autograd import Variable
 
 from .models import PCB_model, IDE_model
 from .evaluation_metrics import accuracy
-from .loss import TripletLoss
+from .loss import *
 from .utils.meters import AverageMeter
 
 
@@ -117,7 +117,7 @@ class Trainer(BaseTrainer):
 
     def _forward(self, inputs, targets):
         outputs = self.model(*inputs)
-        if isinstance(self.criterion, torch.nn.CrossEntropyLoss):
+        if isinstance(self.criterion, torch.nn.CrossEntropyLoss) or isinstance(self.criterion, LSR_loss):
             if isinstance(self.model.module, IDE_model) or isinstance(self.model.module, PCB_model):
                 prediction_s = outputs[1]
                 loss = 0

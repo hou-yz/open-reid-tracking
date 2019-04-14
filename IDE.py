@@ -16,6 +16,7 @@ from reid.trainers import Trainer, CamStyleTrainer
 from reid.evaluators import Evaluator
 from reid.utils.logging import Logger
 from reid.utils.serialization import save_checkpoint
+from reid.loss import *
 
 '''
     fix bn in resnet by default                 
@@ -64,7 +65,7 @@ def main(args):
         return
 
     # Criterion
-    criterion = nn.CrossEntropyLoss().cuda()
+    criterion = nn.CrossEntropyLoss().cuda() if not args.LSR else LSR_loss()
 
     if args.train:
         # Optimizer
@@ -163,6 +164,7 @@ if __name__ == '__main__':
                              "parameters it is 10 times smaller than this")
     parser.add_argument('--momentum', type=float, default=0.9)
     parser.add_argument('--weight-decay', type=float, default=5e-4)
+    parser.add_argument('--LSR', action='store_true', help="use label smooth loss")
     # training configs
     parser.add_argument('--train', action='store_true', help="train IDE model from start")
     parser.add_argument('--crop', action='store_true', help="resize then crop, default: False")
