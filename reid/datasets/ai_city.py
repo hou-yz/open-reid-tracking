@@ -27,9 +27,10 @@ class AI_City(object):
         else:  # reid
             root = osp.expanduser('~/Data/AIC19-reid')
             self.train_path = osp.join(root, 'image_train')
-            val_dir = '~/Data/AIC19/ALL_gt_bbox/val'
-            self.gallery_path = osp.join(osp.expanduser(val_dir), 'gt_bbox_1_fps')
-            self.query_path = osp.join(osp.expanduser(val_dir), 'gt_bbox_1_fps')
+            query_dir = '~/Data/VeRi/image_query/'
+            gallery_dir = '~/Data/VeRi/image_test/'
+            self.gallery_path = osp.expanduser(gallery_dir)
+            self.query_path = osp.expanduser(query_dir)
 
             xml_dir = osp.join(root, 'train_label.xml')
             self.reid_info = XD.parse(xml_dir).documentElement.getElementsByTagName('Item')

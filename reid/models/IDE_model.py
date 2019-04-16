@@ -5,12 +5,13 @@ from torch import nn
 from torch.nn import init
 from torch.autograd import Variable
 from torch.nn import functional as F
-from .resnet import *
-import torchvision
+# from .resnet import *
+from torchvision.models import resnet50, densenet121
 
 
 class IDE_model(nn.Module):
-    def __init__(self, num_features=256, num_classes=0, norm=False, dropout=0, last_stride=2, output_feature='fc'):
+    def __init__(self, num_features=256, num_classes=0, norm=False, dropout=0, last_stride=2, output_feature='fc',
+                 arch='resnet50'):
         super(IDE_model, self).__init__()
         # Create IDE_only model
         self.num_features = num_features
@@ -18,16 +19,24 @@ class IDE_model(nn.Module):
         self.output_feature = output_feature
         self.norm = norm
 
-        # ResNet50: from 3*384*128 -> 2048*12*4 (Tensor T; of column vector f's)
-        self.base = nn.Sequential(
-            *list(resnet50(pretrained=True, cut_at_pooling=True, norm=False, dropout=dropout).base.children())[:-2])
-
-        if last_stride != 2:
-            # decrease the downsampling rate
-            # change the stride2 conv layer in self.layer4 to stride=1
-            self.base[7][0].conv2.stride = last_stride
-            # change the downsampling layer in self.layer4 to stride=1
-            self.base[7][0].downsample[0].stride = last_stride
+        if arch == 'resnet50':
+            # ResNet50: from 3*384*128 -> 2048*12*4 (Tensor T; of column vector f's)
+            self.base = nn.Sequential(*list(resnet50(pretrained=True).children())[:-2])
+            if last_stride != 2:
+                # decrease the downsampling rate
+                # change the stride2 conv layer in self.layer4 to stride=1
+                self.base[7][0].conv2.stride = last_stride
+                # change the downsampling layer in self.layer4 to stride=1
+                self.base[7][0].downsample[0].stride = last_stride
+            base_channel = 2048
+        elif arch == 'densenet121':
+            self.base = nn.Sequential(*list(densenet121(pretrained=True).children())[:-1])[0]
+            if last_stride != 2:
+                # remove the pooling layer in last transition block
+                self.base[-3][-1].stride = 1
+                self.base[-3][-1].kernel_size = 1
+                pass
+            base_channel = 1024
 
         ################################################################################################################
         '''Global Average Pooling: 2048*12*4 -> 2048*1*1'''
@@ -43,7 +52,7 @@ class IDE_model(nn.Module):
         '''feat & feat_bn'''
         if self.num_features > 0:
             # 1*1 Conv(fc): 1*1*2048 -> 1*1*256 (g -> h)
-            self.one_one_conv = nn.Sequential(nn.Conv2d(2048, self.num_features, 1),
+            self.one_one_conv = nn.Sequential(nn.Conv2d(base_channel, self.num_features, 1),
                                               nn.BatchNorm2d(self.num_features),
                                               nn.ReLU())
             init.kaiming_normal_(self.one_one_conv[0].weight, mode='fan_out')

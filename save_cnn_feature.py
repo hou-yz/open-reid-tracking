@@ -125,7 +125,10 @@ def main(args):
     data_dir = osp.expanduser('~/Data/{}/ALL_det_bbox'.format('DukeMTMC' if args.dataset == 'duke' else 'AIC19'))
     if args.type == 'detections':
         type = 'tracking_det'
-        dataset_dir = osp.join(data_dir, (('det_bbox_OpenPose_' if args.dataset == 'duke' else '') + args.det_time))
+        if args.dataset == 'duke':
+            dataset_dir = osp.join(data_dir, 'det_bbox_OpenPose_' + args.det_time)
+        else:
+            dataset_dir = osp.join(data_dir, args.det_time, 'ssd')
         fps = None
     elif args.type == 'gt_mini':
         type = 'tracking_gt'

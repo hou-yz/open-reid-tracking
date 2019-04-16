@@ -21,6 +21,8 @@ def get_bbox(type='gt', det_time='train', fps=5):
     elif type == 'labeled':
         save_path = osp.join(save_path, 'det_labeled_bbox_{}_fps'.format(fps))
         fps_pooling = int(og_fps / fps)  # use minimal number of gt's to train ide model
+    else:
+        save_path = osp.join(save_path, 'ssd')
 
     if not osp.exists(save_path):  # mkdir
         if not osp.exists(osp.dirname(save_path)):
@@ -103,10 +105,10 @@ def get_bbox(type='gt', det_time='train', fps=5):
 if __name__ == '__main__':
     print('{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S')))
     # get_bbox(type='labeled')
-    get_bbox()
+    # get_bbox()
     # get_bbox(det_time='val', fps=1)
-    # get_bbox(type='det', det_time='val')
-    # get_bbox(type='det', det_time='trainval')
-    # get_bbox(type='det', det_time='test')
+    get_bbox(type='det', det_time='val')
+    get_bbox(type='det', det_time='trainval')
+    get_bbox(type='det', det_time='test')
     print('{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S')))
     print('Job Completed!')
