@@ -9,20 +9,26 @@ import sys
 import torch
 from torch.backends import cudnn
 import json
+from bisect import bisect_right
 
 from reid import models
 from reid.utils.my_utils import *
 from reid.trainers import Trainer
-from reid.camstyle_trainer import CamStyleTrainer
 from reid.evaluators import Evaluator
 from reid.utils.logging import Logger
 from reid.utils.serialization import save_checkpoint
 from reid.loss import *
 
 '''
-    fix bn in resnet by default                 
-    no crop for duke_tracking by default        check
-    RE                                          check
+tricks from ZJU paper
+
+baseline-S          check
+warmup              
+re                  
+lsr                 
+s=1                 
+BNneck              
+centerloss
 '''
 
 
@@ -41,11 +47,12 @@ def main(args):
     # Create data loaders
     dataset, num_classes, train_loader, query_loader, gallery_loader, camstyle_loader = \
         get_data(args.dataset, args.data_dir, args.height, args.width, args.batch_size, args.num_workers,
-                 args.combine_trainval, args.crop, args.tracking_icams, args.tracking_fps, args.re, 0, args.camstyle)
+                 args.combine_trainval, args.crop, args.tracking_icams, args.tracking_fps, args.re, args.num_instances,
+                 0)
 
     # Create model
-    model = models.create('ide', num_features=args.features, norm=args.norm,
-                          dropout=args.dropout, num_classes=num_classes, last_stride=args.last_stride,
+    model = models.create('zju', num_features=args.features, norm=args.norm,
+                          num_classes=num_classes, last_stride=args.last_stride,
                           output_feature=args.output_feature, arch=args.arch)
 
     # Load from checkpoint
@@ -66,32 +73,26 @@ def main(args):
         return
 
     # Criterion
-    criterion = nn.CrossEntropyLoss().cuda() if not args.LSR else LSR_loss().cuda()
+    criterion = [LSR_loss().cuda() if args.LSR else nn.CrossEntropyLoss().cuda(),
+                 TripletLoss(margin=args.margin).cuda()]
 
     if args.train:
         # Optimizer
-        if hasattr(model.module, 'base'):  # low learning_rate the base network (aka. ResNet-50)
-            base_param_ids = set(map(id, model.module.base.parameters()))
-            new_params = [p for p in model.parameters() if id(p) not in base_param_ids]
-            param_groups = [{'params': model.module.base.parameters(), 'lr_mult': 0.1},
-                            {'params': new_params, 'lr_mult': 1.0}]
-        else:
-            param_groups = model.parameters()
-        optimizer = torch.optim.SGD(param_groups, lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay,
-                                    nesterov=True)
+        optimizer = torch.optim.Adam(model.parameters(), lr=args.lr,
+                                     weight_decay=args.weight_decay, )
 
         # Trainer
-        if args.camstyle == 0:
-            trainer = Trainer(model, criterion)
-        else:
-            trainer = CamStyleTrainer(model, criterion, camstyle_loader)
+        trainer = Trainer(model, criterion)
 
         # Schedule learning rate
         def adjust_lr(epoch):
-            step_size = args.step_size
-            lr = args.lr * (0.1 ** (epoch // step_size))
+            if epoch < args.warmup:
+                warmup_factor = (epoch + 1) / args.warmup
+            else:
+                warmup_factor = 1
+            lr = args.lr * warmup_factor * (0.1 ** bisect_right(args.step_size, epoch))
             for g in optimizer.param_groups:
-                g['lr'] = lr * g.get('lr_mult', 1)
+                g['lr'] = lr
 
         # Draw Curve
         epoch_s = []
@@ -100,7 +101,6 @@ def main(args):
 
         # Start training
         for epoch in range(start_epoch, args.epochs):
-            t0 = time.time()
             adjust_lr(epoch)
             # train_loss, train_prec = 0, 0
             train_loss, train_prec = trainer.train(epoch, train_loader, optimizer, fix_bn=args.fix_bn)
@@ -122,12 +122,6 @@ def main(args):
             loss_s.append(train_loss)
             prec_s.append(train_prec)
             draw_curve(os.path.join(args.logs_dir, 'train_{}.jpg'.format(date_str)), epoch_s, loss_s, prec_s)
-
-            t1 = time.time()
-            t_epoch = t1 - t0
-            print('\n * Finished epoch {:3d}  top1_eval: {:5.1%}  best_eval: {:5.1%} \n'.
-                  format(epoch, top1_eval, best_top1, ' *' if is_best else ''))
-            print('*************** Epoch takes time: {:^10.2f} *********************\n'.format(t_epoch))
             pass
 
         # Final test
@@ -140,7 +134,7 @@ def main(args):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Softmax loss classification")
+    parser = argparse.ArgumentParser(description="ZJU baseline without center loss")
     parser.add_argument('--log', type=bool, default=1)
     # data
     parser.add_argument('-d', '--dataset', type=str, default='market1501', choices=datasets.names())
@@ -153,35 +147,40 @@ if __name__ == '__main__':
     parser.add_argument('--tracking_icams', type=int, default=0, help="specify if train on single iCam")
     parser.add_argument('--tracking_fps', type=int, default=1, help="specify if train on single iCam")
     parser.add_argument('--re', type=float, default=0, help="random erasing")
+
+    # loss
+    parser.add_argument('--margin', type=float, default=0.3, help="margin of the triplet loss, default: 0.3")
+    parser.add_argument('--num-instances', type=int, default=4,
+                        help="each minibatch consist of "
+                             "(batch_size // num_instances) identities, and "
+                             "each identity has num_instances instances, "
+                             "default: 4")
     # model
-    parser.add_argument('--features', type=int, default=256)
-    parser.add_argument('--dropout', type=float, default=0.5)
+    parser.add_argument('--features', type=int, default=0)
+    parser.add_argument('--dropout', type=float, default=0)
     parser.add_argument('-s', '--last_stride', type=int, default=2, choices=[1, 2])
-    parser.add_argument('--output_feature', type=str, default='fc', choices=['pool5', 'fc'])
+    parser.add_argument('--output_feature', type=str, default='pool5', choices=['pool5', 'fc'])
     parser.add_argument('--norm', action='store_true', help="normalize feat, default: False")
     # optimizer
-    parser.add_argument('--lr', type=float, default=0.1,
+    parser.add_argument('--lr', type=float, default=0.00035,
                         help="learning rate of new parameters, for pretrained "
                              "parameters it is 10 times smaller than this")
-    parser.add_argument('--momentum', type=float, default=0.9)
     parser.add_argument('--weight-decay', type=float, default=5e-4)
     parser.add_argument('--LSR', action='store_true', help="use label smooth loss")
     parser.add_argument('--arch', type=str, default='resnet50', choices=['resnet50', 'densenet121'],
                         help='architecture for base network')
     # training configs
     parser.add_argument('--train', action='store_true', help="train IDE model from start")
-    parser.add_argument('--crop', action='store_true', help="resize then crop, default: False")
+    parser.add_argument('--crop', type=bool, default=1, help="resize then crop, default: True")
     parser.add_argument('--fix_bn', type=bool, default=0, help="fix (skip training) BN in base network")
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
     parser.add_argument('--evaluate', action='store_true', help="evaluation only")
-    parser.add_argument('--epochs', type=int, default=60)
-    parser.add_argument('--step-size', type=int, default=40)
+    parser.add_argument('--warmup', type=int, default=0)
+    parser.add_argument('--epochs', type=int, default=120)
+    parser.add_argument('--step-size', default=[40, 70])
     parser.add_argument('--start_save', type=int, default=0, help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--print-freq', type=int, default=1)
-    # camstyle batchsize
-    parser.add_argument('--camstyle', type=int, default=0)
-    parser.add_argument('--fake_pooling', type=int, default=1)
     # misc
     working_dir = osp.dirname(osp.abspath(__file__))
     parser.add_argument('--data-dir', type=str, metavar='PATH', default=osp.join(working_dir, 'data'))

@@ -145,18 +145,15 @@ def main(args):
         dataset = AI_City(dataset_dir, type=type, fps=fps, trainval=args.det_time == 'trainval')
 
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    if args.crop:  # default: False
-        test_transformer = T.Compose([
-            T.RandomSizedRectCrop(args.height, args.width),
-            T.ToTensor(),
-            normalizer,
-            T.RandomErasing(EPSILON=args.re), ])
-    else:
-        test_transformer = T.Compose([
-            T.RectScale(args.height, args.width),
-            T.ToTensor(),
-            normalizer,
-            T.RandomErasing(EPSILON=args.re), ])
+    test_transformer = T.Compose([
+        T.Resize([args.height, args.width]),
+        T.RandomHorizontalFlip(),
+        T.Pad(10 * args.crop),
+        T.RandomCrop([args.height, args.width]),
+        # T.RandomSizedRectCrop(args.height, args.width),
+        T.ToTensor(),
+        normalizer,
+        T.RandomErasing(probability=args.re), ])
     data_loader = DataLoader(Preprocessor(dataset.train, root=dataset.train_path, transform=test_transformer),
                              batch_size=args.batch_size, num_workers=args.num_workers,
                              shuffle=False, pin_memory=True)

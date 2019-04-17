@@ -44,28 +44,19 @@ def get_data(name, data_dir, height, width, batch_size, workers,
                              std=[0.229, 0.224, 0.225])
     num_classes = dataset.num_train_ids
 
-    if crop:  # default: False
-        train_transformer = T.Compose([
-            # T.Resize((int(height / 8 * 9), int(width / 8 * 9)), interpolation=3),
-            # T.RandomCrop((height, width)),
-            T.RandomSizedRectCrop(height, width, interpolation=3),
-            T.RandomHorizontalFlip(),
-            T.ToTensor(),
-            normalizer,
-            T.RandomErasing(EPSILON=re),
-        ])
-    else:
-        train_transformer = T.Compose([
-            T.RectScale(height, width, interpolation=3),
-            T.RandomHorizontalFlip(),
-            T.ToTensor(),
-            normalizer,
-            T.RandomErasing(EPSILON=re),
-        ])
-
+    train_transformer = T.Compose([
+        T.Resize((height, width)),
+        T.RandomHorizontalFlip(),
+        T.Pad(10 * crop),
+        T.RandomCrop((height, width)),
+        # T.RandomSizedRectCrop(height, width, interpolation=3),
+        T.ToTensor(),
+        normalizer,
+        T.RandomErasing(probability=re),
+    ])
     test_transformer = T.Compose([
-        # T.Resize((height, width), interpolation=3),
-        T.RectScale(height, width, interpolation=3),
+        T.Resize((height, width)),
+        # T.RectScale(height, width, interpolation=3),
         T.ToTensor(),
         normalizer,
     ])
@@ -109,7 +100,7 @@ def checkpoint_loader(model, path, eval_only=False):
     if eval_only:
         keys_to_del = []
         for key in pretrained_dict.keys():
-            if 'fc' in key:
+            if 'classifier' in key:
                 keys_to_del.append(key)
         for key in keys_to_del:
             del pretrained_dict[key]
