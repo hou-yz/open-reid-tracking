@@ -78,8 +78,10 @@ def main(args):
 
     if args.train:
         # Optimizer
-        optimizer = torch.optim.Adam(model.parameters(), lr=args.lr,
-                                     weight_decay=args.weight_decay, )
+        if 'aic' in args.dataset:
+            optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, )
+        else:
+            optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, )
 
         # Trainer
         trainer = Trainer(model, criterion)
@@ -154,14 +156,13 @@ if __name__ == '__main__':
     parser.add_argument('--tracking_icams', type=int, default=0, help="specify if train on single iCam")
     parser.add_argument('--tracking_fps', type=int, default=1, help="specify if train on single iCam")
     parser.add_argument('--re', type=float, default=0, help="random erasing")
-
+    parser.add_argument('--crop', type=bool, default=1, help="resize then crop, default: True")
     # loss
     parser.add_argument('--margin', type=float, default=0.3, help="margin of the triplet loss, default: 0.3")
     parser.add_argument('--num-instances', type=int, default=4,
                         help="each minibatch consist of "
                              "(batch_size // num_instances) identities, and "
-                             "each identity has num_instances instances, "
-                             "default: 4")
+                             "each identity has num_instances instances, default: 4")
     # model
     parser.add_argument('--features', type=int, default=0)
     parser.add_argument('--dropout', type=float, default=0)
@@ -179,7 +180,6 @@ if __name__ == '__main__':
                         help='architecture for base network')
     # training configs
     parser.add_argument('--train', action='store_true', help="train IDE model from start")
-    parser.add_argument('--crop', type=bool, default=1, help="resize then crop, default: True")
     parser.add_argument('--fix_bn', type=bool, default=0, help="fix (skip training) BN in base network")
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
     parser.add_argument('--evaluate', action='store_true', help="evaluation only")

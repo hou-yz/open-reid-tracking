@@ -35,6 +35,7 @@ class ZJU_RandomIdentitySampler(Sampler):
         self.pids = list(self.index_dic.keys())
 
         # estimate number of examples in an epoch
+        # only a rough estimation
         self.length = 0
         for pid in self.pids:
             idxs = self.index_dic[pid]
