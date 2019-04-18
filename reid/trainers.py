@@ -35,11 +35,11 @@ class Trainer(BaseTrainer):
         is_triplet = isinstance(self.criterion, TripletLoss)
         if isinstance(self.criterion, list):
             is_triplet = isinstance(self.criterion[1], TripletLoss)
-        if is_triplet:
+        if isinstance(self.criterion, TripletLoss) or isinstance(self.criterion, list):
             margin = self.criterion.margin if isinstance(self.criterion, TripletLoss) else self.criterion[1].margin
 
         # detailed logging for triplet
-        if is_triplet:
+        if isinstance(self.criterion, TripletLoss):
             # For recording precision, satisfying margin, etc
             prec_meter = AverageMeter()
             sm_meter = AverageMeter()
@@ -65,7 +65,7 @@ class Trainer(BaseTrainer):
             data_time.update(time.time() - end)
 
             inputs, targets = self._parse_data(inputs)
-            if is_triplet:
+            if isinstance(self.criterion, TripletLoss):
                 loss, prec1, dist_ap, dist_an = self._forward(inputs, targets)
                 # the proportion of triplets that satisfy margin
                 sm = (dist_an > dist_ap + margin).data.float().mean()
@@ -94,7 +94,7 @@ class Trainer(BaseTrainer):
             batch_time.update(time.time() - end)
             end = time.time()
 
-            if (i + 1) % print_freq == 0 and not is_triplet:
+            if (i + 1) % print_freq == 0 and not isinstance(self.criterion, TripletLoss):
                 print('Epoch: [{}][{}/{}]\t'
                       'Time {:.3f} ({:.3f})\t'
                       'Data {:.3f} ({:.3f})\t'
@@ -107,7 +107,7 @@ class Trainer(BaseTrainer):
                               precisions.val, precisions.avg))
 
         # detailed logging at the end of epoch for triplet
-        if is_triplet:
+        if isinstance(self.criterion, TripletLoss):
             time_log = 'Epoch [{}], {:.2f}s'.format(epoch, batch_time.avg * len(data_loader), )
             tri_log = (', prec {:.2%}, sm {:.2%}, d_ap {:.4f}, d_an {:.4f}, loss {:.4f}'.format(
                 prec_meter.val, sm_meter.val, dist_ap_meter.val, dist_an_meter.val, loss_meter.val, ))
@@ -125,11 +125,11 @@ class Trainer(BaseTrainer):
         outputs = self.model(*inputs)
         if isinstance(self.criterion, torch.nn.CrossEntropyLoss) or isinstance(self.criterion, LSR_loss):
             # if isinstance(self.model.module, IDE_model) or isinstance(self.model.module, PCB_model):
-            prediction_s = outputs[1]
+            prediction = outputs[1]
             loss = 0
-            for pred in prediction_s:
+            for pred in prediction:
                 loss += self.criterion(pred, targets)
-            prediction = prediction_s[0]
+            prediction = prediction[0]
             prec, = accuracy(prediction.data, targets.data)
             # else:
             #     loss = self.criterion(outputs, targets)
@@ -143,10 +143,11 @@ class Trainer(BaseTrainer):
         elif isinstance(self.criterion[1], TripletLoss):
             # if isinstance(self.model.module, PCB_model) or isinstance(self.model.module, IDE_model):
             feat = outputs[0]  # = x_s
-            prediction_s = outputs[1][0]
-            loss, prec, dist_ap, dist_an = self.criterion[1](feat, targets)
-            loss += self.criterion[0](prediction_s, targets)
-            return loss, prec, dist_ap, dist_an
+            prediction = outputs[1][0]
+            loss = self.criterion[0](prediction, targets) + self.criterion[1](feat, targets)[0]
+            prec, = accuracy(prediction.data, targets.data)
+            prec = prec.item()
+            pass
         else:
             raise ValueError("Unsupported loss:", self.criterion)
         return loss, prec

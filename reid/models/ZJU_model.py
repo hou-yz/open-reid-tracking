@@ -10,25 +10,20 @@ from .model_init_utils import *
 from torchvision.models import resnet50, densenet121
 
 '''
-From Weijian Deng
-
-no dropout
-no relu after fc
-
 use global feat for testing
-
 '''
 
 
 class ZJU_model(nn.Module):
     def __init__(self, num_features=256, num_classes=0, norm=False, last_stride=2, output_feature='fc',
-                 arch='resnet50'):
+                 arch='resnet50', BNneck=False):
         super(ZJU_model, self).__init__()
         # Create IDE_only model
         self.num_features = num_features
         self.num_classes = num_classes
         self.output_feature = output_feature
         self.norm = norm
+        self.BNneck = BNneck
 
         if arch == 'resnet50':
             # ResNet50: from 3*384*128 -> 2048*12*4 (Tensor T; of column vector f's)
@@ -61,13 +56,13 @@ class ZJU_model(nn.Module):
             nn.BatchNorm1d(base_channel),
             # nn.ReLU()
         )
+        self.feature_fc[0].bias.requires_grad_(False)  # no shift for BN
         self.feature_fc.apply(weights_init_kaiming)
 
         # fc for softmax:
         if self.num_classes > 0:
             self.classifier = nn.Linear(base_channel, self.num_classes, bias=False)
             self.classifier.apply(weights_init_classifier)
-
         pass
 
     def forward(self, x, eval_only=False):
@@ -81,7 +76,8 @@ class ZJU_model(nn.Module):
         x = self.global_avg_pool(x).view(x.shape[0], -1)
         global_feat = x
 
-        # x = self.feature_fc(x)
+        if self.BNneck:
+            x = self.feature_fc(x)
         feat = x
 
         prediction_s = []

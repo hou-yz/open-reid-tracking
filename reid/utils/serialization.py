@@ -25,7 +25,7 @@ def save_checkpoint(state, is_best, fpath='checkpoint.pth.tar'):
     mkdir_if_missing(osp.dirname(fpath))
     if int(state['epoch']) % 10 == 0:
         torch.save(state, fpath)
-    if is_best:
+    # if is_best:
         torch.save(state, osp.join(osp.dirname(fpath), 'model_best.pth.tar'))
 
 

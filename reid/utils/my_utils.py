@@ -9,7 +9,8 @@ from torch import nn
 from torch.utils.data import DataLoader
 from reid import datasets
 from reid.utils.serialization import load_checkpoint
-from reid.utils.data.sampler import RandomIdentitySampler
+from reid.utils.data.og_sampler import RandomIdentitySampler
+from reid.utils.data.zju_sampler import ZJU_RandomIdentitySampler
 from reid.utils.data import transforms as T
 from reid.utils.data.preprocessor import Preprocessor
 
@@ -27,7 +28,7 @@ def draw_curve(path, x_epoch, train_loss, train_prec):
 
 
 def get_data(name, data_dir, height, width, batch_size, workers,
-             combine_trainval, crop, tracking_icams, fps, re=0, num_instances=0, camstyle=0):
+             combine_trainval, crop, tracking_icams, fps, re=0, num_instances=0, camstyle=0, zju=0):
     root = osp.join(data_dir, name)
     if name == 'duke_tracking':
         if tracking_icams != 0:
@@ -61,11 +62,18 @@ def get_data(name, data_dir, height, width, batch_size, workers,
         normalizer,
     ])
 
-    train_loader = DataLoader(
-        Preprocessor(dataset.train, root=dataset.train_path, transform=train_transformer),
-        batch_size=batch_size, num_workers=workers,
-        sampler=RandomIdentitySampler(dataset.train, num_instances) if num_instances else None,
-        shuffle=False if num_instances else True, pin_memory=True, drop_last=True)
+    if zju:
+        train_loader = DataLoader(
+            Preprocessor(dataset.train, root=dataset.train_path, transform=train_transformer),
+            batch_size=batch_size, num_workers=workers,
+            sampler=ZJU_RandomIdentitySampler(dataset.train, batch_size, num_instances) if num_instances else None,
+            shuffle=False if num_instances else True, pin_memory=True, drop_last=False if num_instances else True)
+    else:
+        train_loader = DataLoader(
+            Preprocessor(dataset.train, root=dataset.train_path, transform=train_transformer),
+            batch_size=batch_size, num_workers=workers,
+            sampler=RandomIdentitySampler(dataset.train, num_instances) if num_instances else None,
+            shuffle=False if num_instances else True, pin_memory=True, drop_last=True)
     query_loader = DataLoader(
         Preprocessor(dataset.query, root=dataset.query_path, transform=test_transformer),
         batch_size=batch_size, num_workers=workers,

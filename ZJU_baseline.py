@@ -23,12 +23,12 @@ from reid.loss import *
 tricks from ZJU paper
 
 baseline-S          check
-warmup              
-re                  
-lsr                 
-s=1                 
-BNneck              
-centerloss
+warmup              ()
+re                  ()
+lsr                 ()
+s=1                 ()
+BNneck              ()
+centerloss          skip
 '''
 
 
@@ -48,12 +48,12 @@ def main(args):
     dataset, num_classes, train_loader, query_loader, gallery_loader, camstyle_loader = \
         get_data(args.dataset, args.data_dir, args.height, args.width, args.batch_size, args.num_workers,
                  args.combine_trainval, args.crop, args.tracking_icams, args.tracking_fps, args.re, args.num_instances,
-                 0)
+                 0, zju=1)
 
     # Create model
     model = models.create('zju', num_features=args.features, norm=args.norm,
                           num_classes=num_classes, last_stride=args.last_stride,
-                          output_feature=args.output_feature, arch=args.arch)
+                          output_feature=args.output_feature, arch=args.arch, BNneck=args.BNneck)
 
     # Load from checkpoint
     start_epoch = best_top1 = 0
@@ -101,6 +101,7 @@ def main(args):
 
         # Start training
         for epoch in range(start_epoch, args.epochs):
+            t0 = time.time()
             adjust_lr(epoch)
             # train_loss, train_prec = 0, 0
             train_loss, train_prec = trainer.train(epoch, train_loader, optimizer, fix_bn=args.fix_bn)
@@ -122,6 +123,12 @@ def main(args):
             loss_s.append(train_loss)
             prec_s.append(train_prec)
             draw_curve(os.path.join(args.logs_dir, 'train_{}.jpg'.format(date_str)), epoch_s, loss_s, prec_s)
+
+            t1 = time.time()
+            t_epoch = t1 - t0
+            print('\n * Finished epoch {:3d}  top1_eval: {:5.1%}  best_eval: {:5.1%} \n'.
+                  format(epoch, top1_eval, best_top1, ' *' if is_best else ''))
+            print('*************** Epoch takes time: {:^10.2f} *********************\n'.format(t_epoch))
             pass
 
         # Final test
@@ -161,6 +168,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--last_stride', type=int, default=2, choices=[1, 2])
     parser.add_argument('--output_feature', type=str, default='pool5', choices=['pool5', 'fc'])
     parser.add_argument('--norm', action='store_true', help="normalize feat, default: False")
+    parser.add_argument('--BNneck', action='store_true', help="BN layer, default: False")
     # optimizer
     parser.add_argument('--lr', type=float, default=0.00035,
                         help="learning rate of new parameters, for pretrained "
