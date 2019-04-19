@@ -15,14 +15,12 @@ use global feat for testing
 
 
 class ZJU_model(nn.Module):
-    def __init__(self, num_features=256, num_classes=0, norm=False, last_stride=2, output_feature='fc',
+    def __init__(self, num_features=0, num_classes=0, norm=False, last_stride=2, output_feature='fc',
                  arch='resnet50', BNneck=False):
         super(ZJU_model, self).__init__()
         # Create IDE_only model
         self.num_features = num_features
         self.num_classes = num_classes
-        self.output_feature = output_feature
-        self.norm = norm
         self.BNneck = BNneck
 
         if arch == 'resnet50':
@@ -51,17 +49,18 @@ class ZJU_model(nn.Module):
 
         ################################################################################################################
         '''feat & feat_bn'''
-        # 1*1 Conv(fc): 1*1*2048 -> 1*1*256 (g -> h)
-        self.feature_fc = nn.Sequential(  # nn.Linear(base_channel, self.num_features),
-            nn.BatchNorm1d(base_channel),
-            # nn.ReLU()
-        )
-        self.feature_fc[0].bias.requires_grad_(False)  # no shift for BN
+        if not self.num_features:
+            self.feature_fc = nn.Sequential(nn.BatchNorm1d(base_channel))
+            self.feature_fc[0].bias.requires_grad_(False)  # no shift for BN
+        else:
+            self.feature_fc = nn.Sequential(nn.Linear(base_channel, self.num_features),
+                                            nn.BatchNorm1d(self.num_features))
         self.feature_fc.apply(weights_init_kaiming)
 
         # fc for softmax:
         if self.num_classes > 0:
-            self.classifier = nn.Linear(base_channel, self.num_classes, bias=False)
+            self.classifier = nn.Linear(self.num_features if self.num_features else base_channel,
+                                        self.num_classes, bias=False)
             self.classifier.apply(weights_init_classifier)
         pass
 
@@ -84,11 +83,6 @@ class ZJU_model(nn.Module):
         if self.num_classes > 0 and not eval_only:
             prediction = self.classifier(x)
             prediction_s.append(prediction)
-
-        # if self.norm:
-        #     global_feat = F.normalize(global_feat)
-        #     feat = F.normalize(feat)
-
         if self.training:
             return global_feat, tuple(prediction_s)
         else:

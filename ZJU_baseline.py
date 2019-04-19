@@ -33,6 +33,8 @@ centerloss          skip
 
 
 def main(args):
+    args.step_size = args.step_size.split(',')
+    args.step_size = [int(x) for x in args.step_size]
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     cudnn.benchmark = True
@@ -79,7 +81,8 @@ def main(args):
     if args.train:
         # Optimizer
         if 'aic' in args.dataset:
-            optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, )
+            optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay,
+                                        momentum=args.momentum)
         else:
             optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, )
 
@@ -174,6 +177,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=0.00035,
                         help="learning rate of new parameters, for pretrained "
                              "parameters it is 10 times smaller than this")
+    parser.add_argument('--momentum', type=float, default=0.9)
     parser.add_argument('--weight-decay', type=float, default=5e-4)
     parser.add_argument('--LSR', action='store_true', help="use label smooth loss")
     parser.add_argument('--arch', type=str, default='resnet50', choices=['resnet50', 'densenet121'],
@@ -185,7 +189,7 @@ if __name__ == '__main__':
     parser.add_argument('--evaluate', action='store_true', help="evaluation only")
     parser.add_argument('--warmup', type=int, default=0)
     parser.add_argument('--epochs', type=int, default=120)
-    parser.add_argument('--step-size', default=[40, 70])
+    parser.add_argument('--step-size', default='40,70')
     parser.add_argument('--start_save', type=int, default=0, help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--print-freq', type=int, default=1)
