@@ -10,7 +10,7 @@ path = '~/Data/AIC19/'
 og_fps = 10
 
 
-def get_bbox(type='gt', det_time='train', fps=5):
+def get_bbox(type='gt', det_time='train', fps=5, det_bbox_enlarge=0.0):
     # type = ['gt','det','labeled']
     data_path = osp.join(osp.expanduser(path), 'test' if det_time == 'test' else 'train')
     save_path = osp.join(osp.expanduser('~/Data/AIC19/ALL_{}_bbox/'.format(type)), det_time)
@@ -22,7 +22,10 @@ def get_bbox(type='gt', det_time='train', fps=5):
         save_path = osp.join(save_path, 'det_labeled_bbox_{}_fps'.format(fps))
         fps_pooling = int(og_fps / fps)  # use minimal number of gt's to train ide model
     else:
-        save_path = osp.join(save_path, 'ssd')
+        if det_bbox_enlarge:
+            save_path = osp.join(save_path, 'ssd_enlarge{}'.format(det_bbox_enlarge))
+        else:
+            save_path = osp.join(save_path, 'ssd')
 
     if not osp.exists(save_path):  # mkdir
         if not osp.exists(osp.dirname(save_path)):
@@ -81,6 +84,13 @@ def get_bbox(type='gt', det_time='train', fps=5):
                     bbox_bottom = bbox_top + bbox_height
                     bbox_right = bbox_left + bbox_width
 
+                    # enlarge
+                    if det_bbox_enlarge:
+                        bbox_top -= int(det_bbox_enlarge * bbox_height)
+                        bbox_bottom += int(det_bbox_enlarge * bbox_height)
+                        bbox_left -= int(det_bbox_enlarge * bbox_width)
+                        bbox_right += int(det_bbox_enlarge * bbox_width)
+
                     bbox_pic = frame_pic[bbox_top:bbox_bottom, bbox_left:bbox_right]
 
                     if type == 'gt' or type == 'labeled':
@@ -107,8 +117,8 @@ if __name__ == '__main__':
     # get_bbox(type='labeled')
     # get_bbox()
     # get_bbox(det_time='val', fps=1)
-    get_bbox(type='det', det_time='val')
-    get_bbox(type='det', det_time='trainval')
-    get_bbox(type='det', det_time='test')
+    get_bbox(type='det', det_time='val', det_bbox_enlarge=0.2)
+    get_bbox(type='det', det_time='trainval', det_bbox_enlarge=0.2)
+    get_bbox(type='det', det_time='test', det_bbox_enlarge=0.2)
     print('{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S')))
     print('Job Completed!')

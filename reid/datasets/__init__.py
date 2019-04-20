@@ -4,9 +4,7 @@ import warnings
 from .dukemtmc import DukeMTMC
 from .ai_city import AI_City
 from .market1501 import Market1501
-from .vehicleid import vehicleID
 from .veri import VeRi
-from .veri_vehicleid import veri_vehicleID
 
 __factory = {
     'market1501': Market1501,
@@ -14,9 +12,7 @@ __factory = {
     'duke_reid': DukeMTMC,
     'aic_tracking': AI_City,
     'aic_reid': AI_City,
-    'vehicleid': vehicleID,
     'veri': VeRi,
-    'veri_vehicleid': veri_vehicleID,
 }
 
 

@@ -37,8 +37,7 @@ class ZJU_model(nn.Module):
             self.base = nn.Sequential(*list(densenet121(pretrained=True).children())[:-1])[0]
             if last_stride != 2:
                 # remove the pooling layer in last transition block
-                self.base[-3][-1].stride = 1
-                self.base[-3][-1].kernel_size = 1
+                self.base.transition3.pool = nn.Sequential()
                 pass
             base_channel = 1024
 
@@ -84,6 +83,6 @@ class ZJU_model(nn.Module):
             prediction = self.classifier(x)
             prediction_s.append(prediction)
         if self.training:
-            return global_feat, tuple(prediction_s)
+            return global_feat if not self.num_features else feat, tuple(prediction_s)
         else:
-            return feat, tuple(prediction_s)
+            return feat if not self.num_features else global_feat, tuple(prediction_s)

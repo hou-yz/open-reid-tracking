@@ -122,7 +122,7 @@ class TripletLoss(nn.Module):
             global_feat = normalize(global_feat, axis=-1)
         # shape [N, N]
         dist_mat = euclidean_dist(global_feat, global_feat)
-        dist_ap, dist_an, p_inds, n_inds = hard_example_mining(dist_mat, labels, return_inds=True)
+        dist_ap, dist_an = hard_example_mining(dist_mat, labels)
 
         y = Variable(dist_an.data.new().resize_as_(dist_an.data).fill_(1))
         if self.margin is not None:

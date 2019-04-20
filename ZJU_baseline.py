@@ -92,7 +92,8 @@ def main(args):
         # Schedule learning rate
         def adjust_lr(epoch):
             if epoch < args.warmup:
-                warmup_factor = (epoch + 1) / args.warmup
+                alpha = epoch / args.warmup
+                warmup_factor = 0.01 * (1 - alpha) + alpha
             else:
                 warmup_factor = 1
             lr = args.lr * warmup_factor * (0.1 ** bisect_right(args.step_size, epoch))
@@ -109,10 +110,14 @@ def main(args):
             t0 = time.time()
             adjust_lr(epoch)
             # train_loss, train_prec = 0, 0
-            train_loss, train_prec = trainer.train(epoch, train_loader, optimizer, fix_bn=args.fix_bn)
+            train_loss, train_prec = trainer.train(epoch, train_loader, optimizer, fix_bn=args.fix_bn, print_freq=120)
 
             if epoch < args.start_save:
                 continue
+
+            if (epoch + 1) % 20 == 0:
+                evaluator.evaluate(query_loader, gallery_loader, dataset.query, dataset.gallery, eval_only=True)
+                # train_loss, train_prec = trainer.train(epoch, train_loader, optimizer, fix_bn=args.fix_bn, print_freq=120)
 
             # skip evaluate
             top1_eval = 50
@@ -151,7 +156,7 @@ if __name__ == '__main__':
     # data
     parser.add_argument('-d', '--dataset', type=str, default='market1501', choices=datasets.names())
     parser.add_argument('-b', '--batch-size', type=int, default=64, help="batch size")
-    parser.add_argument('-j', '--num-workers', type=int, default=8)
+    parser.add_argument('-j', '--num-workers', type=int, default=4)
     parser.add_argument('--height', type=int, default=256, help="input height, default: 256 for resnet*")
     parser.add_argument('--width', type=int, default=128, help="input width, default: 128 for resnet*")
     parser.add_argument('--combine-trainval', action='store_true',
