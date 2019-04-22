@@ -55,7 +55,7 @@ def main(args):
     # Create model
     model = models.create('zju', num_features=args.features, norm=args.norm,
                           num_classes=num_classes, last_stride=args.last_stride,
-                          output_feature=args.output_feature, arch=args.arch, BNneck=args.BNneck)
+                          output_feature=args.output_feature, backbone=args.backbone, BNneck=args.BNneck)
 
     # Load from checkpoint
     start_epoch = best_top1 = 0
@@ -97,6 +97,7 @@ def main(args):
             else:
                 warmup_factor = 1
             lr = args.lr * warmup_factor * (0.1 ** bisect_right(args.step_size, epoch))
+            print('Current learning rate: {}'.format(lr))
             for g in optimizer.param_groups:
                 g['lr'] = lr
 
@@ -117,7 +118,6 @@ def main(args):
 
             if (epoch + 1) % 20 == 0:
                 evaluator.evaluate(query_loader, gallery_loader, dataset.query, dataset.gallery, eval_only=True)
-                # train_loss, train_prec = trainer.train(epoch, train_loader, optimizer, fix_bn=args.fix_bn, print_freq=120)
 
             # skip evaluate
             top1_eval = 50
@@ -178,6 +178,8 @@ if __name__ == '__main__':
     parser.add_argument('--output_feature', type=str, default='pool5', choices=['pool5', 'fc'])
     parser.add_argument('--norm', action='store_true', help="normalize feat, default: False")
     parser.add_argument('--BNneck', action='store_true', help="BN layer, default: False")
+    parser.add_argument('--backbone', type=str, default='resnet50', choices=['resnet50', 'densenet121'],
+                        help='architecture for base network')
     # optimizer
     parser.add_argument('--lr', type=float, default=0.00035,
                         help="learning rate of new parameters, for pretrained "
@@ -185,8 +187,6 @@ if __name__ == '__main__':
     parser.add_argument('--momentum', type=float, default=0.9)
     parser.add_argument('--weight-decay', type=float, default=5e-4)
     parser.add_argument('--LSR', action='store_true', help="use label smooth loss")
-    parser.add_argument('--arch', type=str, default='resnet50', choices=['resnet50', 'densenet121'],
-                        help='architecture for base network')
     # training configs
     parser.add_argument('--train', action='store_true', help="train IDE model from start")
     parser.add_argument('--fix_bn', type=bool, default=0, help="fix (skip training) BN in base network")

@@ -128,7 +128,7 @@ def main(args):
         if args.dataset == 'duke':
             dataset_dir = osp.join(data_dir, 'det_bbox_OpenPose_' + args.det_time)
         else:
-            dataset_dir = osp.join(data_dir, args.det_time, 'ssd')
+            dataset_dir = osp.join(data_dir, args.det_time, 'ssd_enlarge0.2')
         fps = None
     elif args.type == 'gt_mini':
         type = 'tracking_gt'
@@ -160,7 +160,7 @@ def main(args):
     # Create model
     model = models.create(args.arch, num_features=args.features, norm=args.norm,
                           dropout=args.dropout, num_classes=0, last_stride=args.last_stride,
-                          output_feature=args.output_feature)
+                          output_feature=args.output_feature, backbone=args.backbone, BNneck=args.BNneck)
     # Load from checkpoint
     model, start_epoch, best_top1 = checkpoint_loader(model, args.resume, eval_only=True)
     print("=> Start epoch {}".format(start_epoch))
@@ -178,7 +178,9 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Softmax loss classification")
     # data
-    parser.add_argument('-a', '--arch', type=str, default='ide', choices=['ide', 'pcb'])
+    parser.add_argument('-a', '--arch', type=str, default='ide', choices=['ide', 'pcb', 'zju'])
+    parser.add_argument('--backbone', type=str, default='resnet50', choices=['resnet50', 'densenet121'],
+                        help='architecture for base network')
     parser.add_argument('-d', '--dataset', type=str, default='duke', choices=['duke', 'aic'])
     parser.add_argument('--type', type=str, default='gt_mini', choices=['detections', 'gt_mini', 'gt_all'])
     parser.add_argument('-b', '--batch-size', type=int, default=64, help="batch size")
@@ -193,6 +195,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--last_stride', type=int, default=2, choices=[1, 2])
     parser.add_argument('--output_feature', type=str, default='None')
     parser.add_argument('--norm', action='store_true', help="normalize feat, default: False")
+    parser.add_argument('--BNneck', action='store_true', help="BN layer, default: False")
     # misc
     parser.add_argument('--seed', type=int, default=1)
     working_dir = osp.dirname(osp.abspath(__file__))

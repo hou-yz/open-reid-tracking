@@ -30,6 +30,8 @@ def get_bbox(type='gt', det_time='train', fps=5, det_bbox_enlarge=0.0):
     if not osp.exists(save_path):  # mkdir
         if not osp.exists(osp.dirname(save_path)):
             if not osp.exists(osp.dirname(osp.dirname(save_path))):
+                # if not osp.exists(osp.dirname(osp.dirname(osp.dirname(save_path)))):
+                #     os.mkdir(osp.dirname(osp.dirname(osp.dirname(save_path))))
                 os.mkdir(osp.dirname(osp.dirname(save_path)))
             os.mkdir(osp.dirname(save_path))
         os.mkdir(save_path)
@@ -63,6 +65,9 @@ def get_bbox(type='gt', det_time='train', fps=5, det_bbox_enlarge=0.0):
             # get frame_pics
             video_file = osp.join(scene_path, camera_dir, 'vdo.avi')
             video_reader = cv2.VideoCapture(video_file)
+            # get vcap property
+            width = video_reader.get(cv2.CAP_PROP_FRAME_WIDTH)  # float
+            height = video_reader.get(cv2.CAP_PROP_FRAME_HEIGHT)  # float
             # frame_pics = []
             frame_num = 0
             success = video_reader.isOpened()
@@ -86,16 +91,17 @@ def get_bbox(type='gt', det_time='train', fps=5, det_bbox_enlarge=0.0):
 
                     # enlarge
                     if det_bbox_enlarge:
-                        bbox_top -= int(det_bbox_enlarge * bbox_height)
-                        bbox_bottom += int(det_bbox_enlarge * bbox_height)
-                        bbox_left -= int(det_bbox_enlarge * bbox_width)
-                        bbox_right += int(det_bbox_enlarge * bbox_width)
+                        bbox_top = int(max(bbox_top - det_bbox_enlarge * bbox_height, 0))
+                        bbox_bottom = int(min(bbox_bottom + det_bbox_enlarge * bbox_height, height - 1))
+                        bbox_left = int(max(bbox_left - det_bbox_enlarge * bbox_width, 0))
+                        bbox_right = int(min(bbox_right + det_bbox_enlarge * bbox_width, width - 1))
 
                     bbox_pic = frame_pic[bbox_top:bbox_bottom, bbox_left:bbox_right]
+                    if bbox_pic.size == 0:
+                        continue
 
                     if type == 'gt' or type == 'labeled':
-                        save_file = osp.join(save_path, "{:04d}_c{:02d}_f{:05d}.jpg".
-                                             format(pid, iCam, frame))
+                        save_file = osp.join(save_path, "{:04d}_c{:02d}_f{:05d}.jpg".format(pid, iCam, frame))
                     else:
                         same_frame_bbox_count = np.where(bboxs[:index, 0] == frame)[0].size
                         save_file = osp.join(save_path, 'c{:02d}_f{:05d}_{:03d}.jpg'.
