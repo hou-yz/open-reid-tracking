@@ -27,7 +27,12 @@ def save_file(lines, args, if_created):
         folder_name = osp.expanduser(
             '~/Data/{}/L0-features/'.format('DukeMTMC' if args.dataset == 'duke' else 'AIC19')) \
                       + "det_features_{}".format(args.l0_name) + '_' + args.det_time
-    elif args.type == 'gt_test':
+        if args.dataset == 'aic':
+            folder_name += '_{}'.format(args.det_type)
+            if args.det_bbox_enlarge:
+                folder_name += '_enlarge{}'.format(args.det_bbox_enlarge)
+
+    elif args.type == 'gt_mini':
         folder_name = osp.abspath(osp.join(working_dir, os.pardir)) + '/DeepCC/experiments/' + args.l0_name
     else:  # only extract ground truth data from 'train' set
         folder_name = osp.expanduser(
@@ -79,7 +84,7 @@ def extract_features(model, data_loader, args, is_detection=True):
         outputs = extract_cnn_feature(model, imgs, eval_only=True)
         for fname, output in zip(fnames, outputs):
             if is_detection:
-                pattern = re.compile(r'c(\d)_f(\d+)')
+                pattern = re.compile(r'c(\d+)_f(\d+)')
                 cam, frame = map(int, pattern.search(fname).groups())
                 # f_names[cam - 1].append(fname)
                 # features[cam - 1].append(output.numpy())
@@ -128,7 +133,9 @@ def main(args):
         if args.dataset == 'duke':
             dataset_dir = osp.join(data_dir, 'det_bbox_OpenPose_' + args.det_time)
         else:
-            dataset_dir = osp.join(data_dir, args.det_time, 'ssd_enlarge0.2')
+            dataset_dir = osp.join(data_dir, args.det_time, args.det_type)
+            if args.det_bbox_enlarge:
+                dataset_dir += '_enlarge{}'.format(args.det_bbox_enlarge)
         fps = None
     elif args.type == 'gt_mini':
         type = 'tracking_gt'
@@ -155,8 +162,7 @@ def main(args):
         normalizer,
         T.RandomErasing(probability=args.re), ])
     data_loader = DataLoader(Preprocessor(dataset.train, root=dataset.train_path, transform=test_transformer),
-                             batch_size=args.batch_size, num_workers=args.num_workers,
-                             shuffle=False, pin_memory=True)
+                             batch_size=args.batch_size, num_workers=args.num_workers, shuffle=False)
     # Create model
     model = models.create(args.arch, num_features=args.features, norm=args.norm,
                           dropout=args.dropout, num_classes=0, last_stride=args.last_stride,
@@ -165,6 +171,7 @@ def main(args):
     model, start_epoch, best_top1 = checkpoint_loader(model, args.resume, eval_only=True)
     print("=> Start epoch {}".format(start_epoch))
     model = nn.DataParallel(model).cuda()
+    model.eval()
     toc = time.time() - tic
     print('*************** initialization takes time: {:^10.2f} *********************\n'.format(toc))
 
@@ -202,10 +209,11 @@ if __name__ == '__main__':
     parser.add_argument('--logs-dir', type=str, metavar='PATH', default=osp.join(working_dir, 'logs'))
     parser.add_argument('--l0_name', type=str, metavar='PATH')
     parser.add_argument('--det_time', type=str, metavar='PATH', default='val',
-                        choices=['trainval_nano', 'trainval', 'train', 'val', 'test_all'])
+                        choices=['trainval_nano', 'trainval', 'train', 'val', 'test_all', 'test'])
+    parser.add_argument('--det_type', type=str, default='ssd', choices=['ssd', 'yolo'])
+    parser.add_argument('--det_bbox_enlarge', type=float, default=0)
     parser.add_argument('--tracking_icams', type=int, default=0, help="specify if train on single iCam")
     # data jittering
     parser.add_argument('--re', type=float, default=0, help="random erasing")
-    parser.add_argument('--crop', action='store_true',
-                        help="resize then crop, default: False")
+    parser.add_argument('--crop', action='store_true', help="resize then crop, default: False")
     main(parser.parse_args())

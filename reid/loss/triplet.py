@@ -2,7 +2,6 @@ from __future__ import absolute_import
 
 import torch
 from torch import nn
-from torch.autograd import Variable
 
 
 def normalize(x, axis=-1):
@@ -92,33 +91,12 @@ class TripletLoss(nn.Module):
             self.ranking_loss = nn.SoftMarginLoss()
 
     def forward(self, global_feat, labels, normalize_feature=False):
-        """
-            Args:
-                tri_loss: a `TripletLoss` object
-                global_feat: pytorch Variable, shape [N, C]
-                labels: pytorch LongTensor, with shape [N]
-                normalize_feature: whether to normalize feature to unit length along the
-                Channel dimension
-            Returns:
-                loss: pytorch Variable, with shape [1]
-                p_inds: pytorch LongTensor, with shape [N];
-                indices of selected hard positive samples; 0 <= p_inds[i] <= N - 1
-                n_inds: pytorch LongTensor, with shape [N];
-                indices of selected hard negative samples; 0 <= n_inds[i] <= N - 1
-                ==================
-                For Debugging, etc
-                ==================
-                dist_ap: pytorch Variable, distance(anchor, positive); shape [N]
-                dist_an: pytorch Variable, distance(anchor, negative); shape [N]
-                dist_mat: pytorch Variable, pairwise euclidean distance; shape [N, N]
-        """
         if normalize_feature:
             global_feat = normalize(global_feat, axis=-1)
         # shape [N, N]
         dist_mat = euclidean_dist(global_feat, global_feat)
         dist_ap, dist_an = hard_example_mining(dist_mat, labels)
-
-        y = Variable(dist_an.data.new().resize_as_(dist_an.data).fill_(1))
+        y = dist_an.new().resize_as_(dist_an).fill_(1)
         if self.margin is not None:
             loss = self.ranking_loss(dist_an, dist_ap, y)
         else:
