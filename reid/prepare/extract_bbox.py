@@ -15,11 +15,8 @@ def get_bbox(type='gt', det_time='train', fps=5, det_bbox_enlarge=0.0, det_type=
     data_path = osp.join(osp.expanduser(path), 'test' if det_time == 'test' else 'train')
     save_path = osp.join(osp.expanduser('~/Data/AIC19/ALL_{}_bbox/'.format(type)), det_time)
 
-    if type == 'gt':
+    if type == 'gt' or type == 'labeled':
         save_path = osp.join(save_path, 'gt_bbox_{}_fps'.format(fps))
-        fps_pooling = int(og_fps / fps)  # use minimal number of gt's to train ide model
-    elif type == 'labeled':
-        save_path = osp.join(save_path, 'det_labeled_bbox_{}_fps'.format(fps))
         fps_pooling = int(og_fps / fps)  # use minimal number of gt's to train ide model
     else:
         save_path = osp.join(save_path, det_type)
@@ -127,7 +124,7 @@ def get_bbox(type='gt', det_time='train', fps=5, det_bbox_enlarge=0.0, det_type=
 
 if __name__ == '__main__':
     print('{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S')))
-    get_bbox(type='labeled', fps=1)
+    get_bbox(type='gt', fps=1, det_time='trainval')
     # get_bbox(fps=1)
     # get_bbox(det_time='val', fps=1)
     # get_bbox(type='det', det_time='val', det_bbox_enlarge=0, det_type='ssd')

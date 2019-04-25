@@ -5,22 +5,29 @@ from torch import nn
 
 
 class LSR_loss(nn.Module):
-    def __init__(self, smooth=0.1):
-        super(LSR_loss, self).__init__()
-        self.smooth = smooth
 
-    def _class_to_one_hot(self, targets, num_class, smooth):
-        targets = targets.view(targets.size(0), -1)
-        targets_onehot = torch.zeros(targets.size(0), num_class).to(targets.device)
-        targets_onehot.scatter_(1, targets, (1 - smooth))
-        targets_onehot.add_(smooth / num_class)
-        return targets_onehot
+    def __init__(self, e=0.1):
+        super().__init__()
+        self.log_softmax = nn.LogSoftmax(dim=1)
+        self.e = e
 
-    def forward(self, outputs, targets):
-        num_class = outputs.size(1)
-        targets = self._class_to_one_hot(targets, num_class, self.smooth)
-        outputs = torch.nn.LogSoftmax(dim=1)(outputs)
-        loss = - (targets * outputs)
-        loss = loss.sum(dim=1)
-        loss = loss.mean(dim=0)
-        return loss
+    def _one_hot(self, labels, classes, value=1):
+        one_hot = torch.zeros(labels.size(0), classes)
+        # labels and value_added  size must match
+        labels = labels.view(labels.size(0), -1)
+        value_added = torch.Tensor(labels.size(0), 1).fill_(value)
+        value_added = value_added.to(labels.device)
+        one_hot = one_hot.to(labels.device)
+        one_hot.scatter_add_(1, labels, value_added)
+        return one_hot
+
+    def _smooth_label(self, target, length, smooth_factor):
+        one_hot = self._one_hot(target, length, value=1 - smooth_factor)
+        one_hot += smooth_factor / length
+        return one_hot.to(target.device)
+
+    def forward(self, x, target):
+        smoothed_target = self._smooth_label(target, x.size(1), self.e)
+        x = self.log_softmax(x)
+        loss = torch.sum(- x * smoothed_target, dim=1)
+        return torch.mean(loss)

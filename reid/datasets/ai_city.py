@@ -47,7 +47,7 @@ class AI_City(object):
 
     def preprocess(self, path, relabel=True, type='reid'):
         if type == 'tracking_det':
-            pattern = re.compile(r'c(\d+)_f(\d+)')
+            pattern = re.compile(r'c([-\d]+)_f(\d+)')
         elif type == 'tracking_gt':
             pattern = re.compile(r'([-\d]+)_c(\d+)')
         else:  # reid

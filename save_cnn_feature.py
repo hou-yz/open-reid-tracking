@@ -33,7 +33,8 @@ def save_file(lines, args, if_created):
                 folder_name += '_enlarge{}'.format(args.det_bbox_enlarge)
 
     elif args.type == 'gt_mini':
-        folder_name = osp.abspath(osp.join(working_dir, os.pardir)) + '/DeepCC/experiments/' + args.l0_name
+        folder_name = osp.abspath(osp.join(working_dir, os.pardir)) + \
+                      '/DeepCC/experiments/' + args.l0_name + '_' + args.det_time
     else:  # only extract ground truth data from 'train' set
         folder_name = osp.expanduser(
             '~/Data/{}/L0-features/'.format('DukeMTMC' if args.dataset == 'duke' else 'AIC19')) \
@@ -146,10 +147,11 @@ def main(args):
         dataset_dir = None
         fps = 60
 
+    print(dataset_dir)
     if args.dataset == 'duke':
         dataset = DukeMTMC(dataset_dir, type=type, iCams=tracking_icams, fps=fps, trainval=args.det_time == 'trainval')
     else:  # aic
-        dataset = AI_City(dataset_dir, type=type, fps=fps, trainval=args.det_time == 'trainval')
+        dataset = AI_City(dataset_dir, type=type, fps=fps, trainval=args.det_time == 'trainval', gt_type=args.gt_type)
 
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     test_transformer = T.Compose([
@@ -212,6 +214,7 @@ if __name__ == '__main__':
                         choices=['trainval_nano', 'trainval', 'train', 'val', 'test_all', 'test'])
     parser.add_argument('--det_type', type=str, default='ssd', choices=['ssd', 'yolo'])
     parser.add_argument('--det_bbox_enlarge', type=float, default=0)
+    parser.add_argument('--gt_type', type=str, default='gt', choices=['gt', 'labeled'])
     parser.add_argument('--tracking_icams', type=int, default=0, help="specify if train on single iCam")
     # data jittering
     parser.add_argument('--re', type=float, default=0, help="random erasing")
