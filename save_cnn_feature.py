@@ -34,7 +34,7 @@ def save_file(lines, args, if_created):
 
     elif args.type == 'gt_mini':
         folder_name = osp.abspath(osp.join(working_dir, os.pardir)) + \
-                      '/DeepCC/experiments/' + args.l0_name + '_' + args.det_time
+                      '/DeepCC/experiments/' + args.l0_name + '_' + args.gt_type + '_' + args.det_time
     else:  # only extract ground truth data from 'train' set
         folder_name = osp.expanduser(
             '~/Data/{}/L0-features/'.format('DukeMTMC' if args.dataset == 'duke' else 'AIC19')) \
@@ -71,7 +71,7 @@ def save_file(lines, args, if_created):
     return if_created
 
 
-def extract_features(model, data_loader, args, is_detection=True):
+def extract_features(model, data_loader, args, is_detection=True, use_fname=True, gt_type='reid'):
     model.eval()
     print_freq = 1000
     batch_time = AverageMeter()
@@ -81,9 +81,10 @@ def extract_features(model, data_loader, args, is_detection=True):
     lines = [[] for _ in range(8 if args.dataset == 'duke' else 40)]
 
     end = time.time()
-    for i, (imgs, fnames, _, _) in enumerate(data_loader):
+    for i, (imgs, fnames, pids, cams) in enumerate(data_loader):
+        cams += 1
         outputs = extract_cnn_feature(model, imgs, eval_only=True)
-        for fname, output in zip(fnames, outputs):
+        for fname, output, pid, cam in zip(fnames, outputs, pids, cams):
             if is_detection:
                 pattern = re.compile(r'c(\d+)_f(\d+)')
                 cam, frame = map(int, pattern.search(fname).groups())
@@ -92,7 +93,11 @@ def extract_features(model, data_loader, args, is_detection=True):
                 line = np.concatenate([np.array([cam, frame]), output.numpy()])
             else:
                 pattern = re.compile(r'(\d+)_c(\d+)_f(\d+)')
-                pid, cam, frame = map(int, pattern.search(fname).groups())
+                if use_fname:
+                    pid, cam, frame = map(int, pattern.search(fname).groups())
+                else:
+                    cam, pid = cam.numpy(), pid.numpy()
+                    frame = -1 * np.ones_like(pid)
                 # line = output.numpy()
                 line = np.concatenate([np.array([cam, pid, frame]), output.numpy()])
             lines[cam - 1].append(line)
@@ -138,14 +143,18 @@ def main(args):
             if args.det_bbox_enlarge:
                 dataset_dir += '_enlarge{}'.format(args.det_bbox_enlarge)
         fps = None
+        use_fname = True
     elif args.type == 'gt_mini':
-        type = 'tracking_gt'
+        args.det_time = 'trainval'
+        type = 'reid'
         dataset_dir = None
         fps = 1
+        use_fname = False
     else:
         type = 'tracking_gt'
         dataset_dir = None
         fps = 60
+        use_fname = True
 
     print(dataset_dir)
     if args.dataset == 'duke':
@@ -157,6 +166,8 @@ def main(args):
     test_transformer = T.Compose([
         T.Resize([args.height, args.width]),
         T.RandomHorizontalFlip(),
+        T.CenterCrop([(1 - 0.2 * args.crop) * args.height, (1 - 0.2 * args.crop) * args.width]),
+        T.Resize([args.height, args.width]),
         T.Pad(10 * args.crop),
         T.RandomCrop([args.height, args.width]),
         # T.RandomSizedRectCrop(args.height, args.width),
@@ -166,9 +177,14 @@ def main(args):
     data_loader = DataLoader(Preprocessor(dataset.train, root=dataset.train_path, transform=test_transformer),
                              batch_size=args.batch_size, num_workers=args.num_workers, shuffle=False)
     # Create model
-    model = models.create(args.arch, num_features=args.features, norm=args.norm,
-                          dropout=args.dropout, num_classes=0, last_stride=args.last_stride,
-                          output_feature=args.output_feature, backbone=args.backbone, BNneck=args.BNneck)
+    if args.arch == 'zju':
+        model = models.create(args.arch, num_features=args.features, norm=args.norm,
+                              dropout=args.dropout, num_classes=0, last_stride=args.last_stride,
+                              output_feature=args.output_feature, backbone=args.backbone, BNneck=args.BNneck)
+    else:
+        model = models.create(args.arch, num_features=args.features, norm=args.norm,
+                              dropout=args.dropout, num_classes=0, last_stride=args.last_stride,
+                              output_feature=args.output_feature)
     # Load from checkpoint
     model, start_epoch, best_top1 = checkpoint_loader(model, args.resume, eval_only=True)
     print("=> Start epoch {}".format(start_epoch))
@@ -178,7 +194,7 @@ def main(args):
     print('*************** initialization takes time: {:^10.2f} *********************\n'.format(toc))
 
     tic = time.time()
-    extract_features(model, data_loader, args, type == 'tracking_det')
+    extract_features(model, data_loader, args, is_detection=type == 'tracking_det', use_fname=use_fname)
     toc = time.time() - tic
     print('*************** compute features takes time: {:^10.2f} *********************\n'.format(toc))
     pass

@@ -50,7 +50,7 @@ def main(args):
     dataset, num_classes, train_loader, query_loader, gallery_loader, camstyle_loader = \
         get_data(args.dataset, args.data_dir, args.height, args.width, args.batch_size, args.num_workers,
                  args.combine_trainval, args.crop, args.tracking_icams, args.tracking_fps, args.re, args.num_instances,
-                 0, zju=1)
+                 0, zju=1, aic='aic' in args.dataset)
 
     # Create model
     model = models.create('zju', num_features=args.features, norm=args.norm,
