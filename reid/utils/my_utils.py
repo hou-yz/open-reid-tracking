@@ -28,7 +28,7 @@ def draw_curve(path, x_epoch, train_loss, train_prec):
 
 
 def get_data(name, data_dir, height, width, batch_size, workers,
-             combine_trainval, crop, tracking_icams, fps, re=0, num_instances=0, camstyle=0, zju=0, aic=0):
+             combine_trainval, crop, tracking_icams, fps, re=0, num_instances=0, camstyle=0, zju=0, colorjitter=0):
     root = osp.join(data_dir, name)
     if name == 'duke_tracking':
         if tracking_icams != 0:
@@ -46,13 +46,11 @@ def get_data(name, data_dir, height, width, batch_size, workers,
     num_classes = dataset.num_train_ids
 
     train_transformer = T.Compose([
+        T.ColorJitter(brightness=0.1 * colorjitter, contrast=0.1 * colorjitter, saturation=0.1 * colorjitter, hue=0),
         T.Resize((height, width)),
         T.RandomHorizontalFlip(),
-        T.CenterCrop([(1 - 0.2 * crop) * height, (1 - 0.2 * crop) * width]),
-        T.Resize([height, width]),
         T.Pad(10 * crop),
         T.RandomCrop((height, width)),
-        # T.RandomSizedRectCrop(height, width, interpolation=3),
         T.ToTensor(),
         normalizer,
         T.RandomErasing(probability=re),

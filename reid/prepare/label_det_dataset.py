@@ -43,6 +43,9 @@ def main(det_time='train', IoUthreshold=0.3):
     # loop for subsets
     for scene in scenes:
         scene_dir = os.path.join(data_dir, scene)
+        # savedir = os.path.join(data_dir, 'labeled')
+        # if not os.path.exists(savedir):
+        #     os.mkdir(savedir)
 
         # loop for cameras
         for camera in os.listdir(scene_dir):
@@ -66,6 +69,8 @@ def main(det_time='train', IoUthreshold=0.3):
                 pass
             np.savetxt(os.path.join(scene_dir, camera, 'det', 'det_ssd512_labeled.txt'),
                        det_file, delimiter=',', fmt='%d')
+            # np.savetxt(os.path.join(savedir, '{}_det_ssd512_labeled.txt'.format(camera)),
+            #            det_file, delimiter=',', fmt='%d')
 
             print(camera, 'is completed')
         print(scene, 'is completed')

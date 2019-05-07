@@ -10,7 +10,7 @@ path = '~/Data/AIC19/'
 og_fps = 10
 
 
-def get_bbox(type='gt', det_time='train', fps=5, det_bbox_enlarge=0.0, det_type='ssd'):
+def get_bbox(type='gt', det_time='train', fps=5, det_type='ssd'):
     # type = ['gt','det','labeled']
     data_path = osp.join(osp.expanduser(path), 'test' if det_time == 'test' else 'train')
     save_path = osp.join(osp.expanduser('~/Data/AIC19/ALL_{}_bbox/'.format(type)), det_time)
@@ -20,8 +20,6 @@ def get_bbox(type='gt', det_time='train', fps=5, det_bbox_enlarge=0.0, det_type=
         fps_pooling = int(og_fps / fps)  # use minimal number of gt's to train ide model
     else:
         save_path = osp.join(save_path, det_type)
-        if det_bbox_enlarge:
-            save_path += '_enlarge{}'.format(det_bbox_enlarge)
 
     if not osp.exists(save_path):  # mkdir
         if not osp.exists(osp.dirname(save_path)):
@@ -66,19 +64,16 @@ def get_bbox(type='gt', det_time='train', fps=5, det_bbox_enlarge=0.0, det_type=
             width = video_reader.get(cv2.CAP_PROP_FRAME_WIDTH)  # float
             height = video_reader.get(cv2.CAP_PROP_FRAME_HEIGHT)  # float
 
-            # bboxs
-            bbox_left = bboxs[:, 2]
-            bbox_top = bboxs[:, 3]
-            bbox_width = bboxs[:, 4]
-            bbox_height = bboxs[:, 5]
-            bbox_bottom = bbox_top + bbox_height
-            bbox_right = bbox_left + bbox_width
+            # enlarge by 40 pixel for detection
+            if type == 'det' or type == 'labeled':
+                bboxs[:, 2:4] = bboxs[:, 2:4] - 20
+                bboxs[:, 4:6] = bboxs[:, 4:6] + 40
 
-            # enlarge
-            bbox_top = np.maximum(bbox_top - det_bbox_enlarge * bbox_height, 0)
-            bbox_bottom = np.minimum(bbox_bottom + det_bbox_enlarge * bbox_height, height - 1)
-            bbox_left = np.maximum(bbox_left - det_bbox_enlarge * bbox_width, 0)
-            bbox_right = np.minimum(bbox_right + det_bbox_enlarge * bbox_width, width - 1)
+            # bboxs
+            bbox_top = np.maximum(bboxs[:, 3], 0)
+            bbox_bottom = np.minimum(bboxs[:, 3] + bboxs[:, 5], height - 1)
+            bbox_left = np.maximum(bboxs[:, 2], 0)
+            bbox_right = np.minimum(bboxs[:, 2] + bboxs[:, 4], width - 1)
             bboxs[:, 2:6] = np.stack((bbox_top, bbox_bottom, bbox_left, bbox_right), axis=1)
 
             # frame_pics = []
@@ -124,11 +119,11 @@ def get_bbox(type='gt', det_time='train', fps=5, det_bbox_enlarge=0.0, det_type=
 
 if __name__ == '__main__':
     print('{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S')))
-    get_bbox(type='gt', fps=10, det_time='trainval')
-    # get_bbox(fps=1)
-    # get_bbox(det_time='val', fps=1)
-    # get_bbox(type='det', det_time='val', det_bbox_enlarge=0, det_type='ssd')
-    # get_bbox(type='det', det_time='trainval', det_bbox_enlarge=0,det_type='ssd')
-    # get_bbox(type='det', det_time='test', det_bbox_enlarge=0, det_type='ssd')
+    # get_bbox(type='gt', fps=10, det_time='trainval')
+    get_bbox(fps=1)
+    # get_bbox(type='labeled', det_time='train', fps=1)
+    # get_bbox(type='det', det_time='val', det_type='ssd')
+    # get_bbox(type='det', det_time='trainval', det_type='ssd')
+    # get_bbox(type='det', det_time='test', det_type='ssd')
     print('{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S')))
     print('Job Completed!')

@@ -29,8 +29,6 @@ def save_file(lines, args, if_created):
                       + "det_features_{}".format(args.l0_name) + '_' + args.det_time
         if args.dataset == 'aic':
             folder_name += '_{}'.format(args.det_type)
-            if args.det_bbox_enlarge:
-                folder_name += '_enlarge{}'.format(args.det_bbox_enlarge)
 
     elif args.type == 'gt_mini':
         folder_name = osp.abspath(osp.join(working_dir, os.pardir)) + \
@@ -140,8 +138,6 @@ def main(args):
             dataset_dir = osp.join(data_dir, 'det_bbox_OpenPose_' + args.det_time)
         else:
             dataset_dir = osp.join(data_dir, args.det_time, args.det_type)
-            if args.det_bbox_enlarge:
-                dataset_dir += '_enlarge{}'.format(args.det_bbox_enlarge)
         fps = None
         use_fname = True
     elif args.type == 'gt_mini':
@@ -166,11 +162,8 @@ def main(args):
     test_transformer = T.Compose([
         T.Resize([args.height, args.width]),
         T.RandomHorizontalFlip(),
-        T.CenterCrop([(1 - 0.2 * args.crop) * args.height, (1 - 0.2 * args.crop) * args.width]),
-        T.Resize([args.height, args.width]),
         T.Pad(10 * args.crop),
         T.RandomCrop([args.height, args.width]),
-        # T.RandomSizedRectCrop(args.height, args.width),
         T.ToTensor(),
         normalizer,
         T.RandomErasing(probability=args.re), ])
@@ -209,16 +202,15 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--dataset', type=str, default='duke', choices=['duke', 'aic'])
     parser.add_argument('--type', type=str, default='gt_mini', choices=['detections', 'gt_mini', 'gt_all'])
     parser.add_argument('-b', '--batch-size', type=int, default=64, help="batch size")
-    parser.add_argument('-j', '--num-workers', type=int, default=8)
+    parser.add_argument('-j', '--num-workers', type=int, default=4)
     parser.add_argument('--height', type=int, default=256, help="input height, default: 256 for resnet*")
     parser.add_argument('--width', type=int, default=128, help="input width, default: 128 for resnet*")
     # model
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
     parser.add_argument('--features', type=int, default=256)
-    parser.add_argument('--dropout', type=float, default=0.5)
-    parser.add_argument('--output-feature', type=str, default='None')
+    parser.add_argument('--dropout', type=float, default=0.5, help='0.5 for ide/pcb, 0 for triplet/zju')
     parser.add_argument('-s', '--last_stride', type=int, default=2, choices=[1, 2])
-    parser.add_argument('--output_feature', type=str, default='None')
+    parser.add_argument('--output_feature', type=str, default='fc', choices=['pool5', 'fc'])
     parser.add_argument('--norm', action='store_true', help="normalize feat, default: False")
     parser.add_argument('--BNneck', action='store_true', help="BN layer, default: False")
     # misc
@@ -229,7 +221,6 @@ if __name__ == '__main__':
     parser.add_argument('--det_time', type=str, metavar='PATH', default='val',
                         choices=['trainval_nano', 'trainval', 'train', 'val', 'test_all', 'test'])
     parser.add_argument('--det_type', type=str, default='ssd', choices=['ssd', 'yolo'])
-    parser.add_argument('--det_bbox_enlarge', type=float, default=0)
     parser.add_argument('--gt_type', type=str, default='gt', choices=['gt', 'labeled'])
     parser.add_argument('--tracking_icams', type=int, default=0, help="specify if train on single iCam")
     # data jittering

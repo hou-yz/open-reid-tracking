@@ -50,7 +50,7 @@ def main(args):
     dataset, num_classes, train_loader, query_loader, gallery_loader, camstyle_loader = \
         get_data(args.dataset, args.data_dir, args.height, args.width, args.batch_size, args.num_workers,
                  args.combine_trainval, args.crop, args.tracking_icams, args.tracking_fps, args.re, args.num_instances,
-                 0, zju=1, aic='aic' in args.dataset)
+                 camstyle=0, zju=1, colorjitter=args.colorjitter)
 
     # Create model
     model = models.create('zju', num_features=args.features, norm=args.norm,
@@ -76,13 +76,21 @@ def main(args):
 
     # Criterion
     criterion = [LSR_loss().cuda() if args.LSR else nn.CrossEntropyLoss().cuda(),
-                 TripletLoss(margin=args.margin).cuda()]
+                 TripletLoss(margin=None if args.softmargin else args.margin).cuda()]
 
     if args.train:
         # Optimizer
         if 'aic' in args.dataset:
-            optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay,
-                                        momentum=args.momentum)
+            # Optimizer
+            if hasattr(model.module, 'base'):  # low learning_rate the base network (aka. DenseNet-121)
+                base_param_ids = set(map(id, model.module.base.parameters()))
+                new_params = [p for p in model.parameters() if id(p) not in base_param_ids]
+                param_groups = [{'params': model.module.base.parameters(), 'lr_mult': 1},
+                                {'params': new_params, 'lr_mult': 2}]
+            else:
+                param_groups = model.parameters()
+            optimizer = torch.optim.SGD(param_groups, lr=args.lr, momentum=args.momentum,
+                                        weight_decay=args.weight_decay)
         else:
             optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, )
 
@@ -99,7 +107,10 @@ def main(args):
             lr = args.lr * warmup_factor * (0.1 ** bisect_right(args.step_size, epoch))
             print('Current learning rate: {}'.format(lr))
             for g in optimizer.param_groups:
-                g['lr'] = lr
+                if 'aic' in args.dataset:
+                    g['lr'] = lr * g.get('lr_mult', 1)
+                else:
+                    g['lr'] = lr
 
         # Draw Curve
         epoch_s = []
@@ -165,8 +176,10 @@ if __name__ == '__main__':
     parser.add_argument('--tracking_fps', type=int, default=1, help="specify if train on single iCam")
     parser.add_argument('--re', type=float, default=0, help="random erasing")
     parser.add_argument('--crop', type=bool, default=1, help="resize then crop, default: True")
+    parser.add_argument('--colorjitter', action='store_true', help="resize then crop, default: True")
     # loss
     parser.add_argument('--margin', type=float, default=0.3, help="margin of the triplet loss, default: 0.3")
+    parser.add_argument('--softmargin', action='store_true', help="use softmargin triplet loss, default: false")
     parser.add_argument('--num-instances', type=int, default=4,
                         help="each minibatch consist of "
                              "(batch_size // num_instances) identities, and "
@@ -194,7 +207,7 @@ if __name__ == '__main__':
     parser.add_argument('--evaluate', action='store_true', help="evaluation only")
     parser.add_argument('--warmup', type=int, default=0)
     parser.add_argument('--epochs', type=int, default=120)
-    parser.add_argument('--step-size', default='40,70')
+    parser.add_argument('--step-size', default='30,60,80')
     parser.add_argument('--start_save', type=int, default=0, help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--print-freq', type=int, default=1)
