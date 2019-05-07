@@ -14,10 +14,10 @@ from torch.backends import cudnn
 from reid import models
 from reid.datasets import *
 from reid.feature_extraction import extract_cnn_feature
-from reid.utils.my_utils import *
 from reid.utils.data import transforms as T
 from reid.utils.data.preprocessor import Preprocessor
 from reid.utils.meters import AverageMeter
+from reid.utils.my_utils import *
 from reid.utils.osutils import mkdir_if_missing
 
 
@@ -33,10 +33,14 @@ def save_file(lines, args, if_created):
     elif args.type == 'gt_mini':
         folder_name = osp.abspath(osp.join(working_dir, os.pardir)) + \
                       '/DeepCC/experiments/' + args.l0_name + '_' + args.gt_type + '_' + args.det_time
-    else:  # only extract ground truth data from 'train' set
+    elif args.type == 'gt_all':  # only extract ground truth data from 'train' set
         folder_name = osp.expanduser(
             '~/Data/{}/L0-features/'.format('DukeMTMC' if args.dataset == 'duke' else 'AIC19')) \
                       + "gt_features_{}".format(args.l0_name)
+    else:  # reid_test
+        folder_name = osp.expanduser('~/Data/AIC19-reid/L0-features/') \
+                      + "{}_features_{}".format(args.reid_test, args.l0_name)
+
     if args.re:
         folder_name += '_RE'
     if args.crop:
@@ -141,16 +145,21 @@ def main(args):
         fps = None
         use_fname = True
     elif args.type == 'gt_mini':
-        args.det_time = 'trainval'
+        # args.det_time = 'trainval'
         type = 'reid'
         dataset_dir = None
         fps = 1
         use_fname = False
-    else:
+    elif args.type == 'gt_all':
         type = 'tracking_gt'
         dataset_dir = None
         fps = 60
         use_fname = True
+    else:  # reid_test
+        type = 'reid_test'
+        dataset_dir = None
+        fps = 1
+        use_fname = False
 
     print(dataset_dir)
     if args.dataset == 'duke':
@@ -167,8 +176,6 @@ def main(args):
         T.ToTensor(),
         normalizer,
         T.RandomErasing(probability=args.re), ])
-    data_loader = DataLoader(Preprocessor(dataset.train, root=dataset.train_path, transform=test_transformer),
-                             batch_size=args.batch_size, num_workers=args.num_workers, shuffle=False)
     # Create model
     if args.arch == 'zju':
         model = models.create(args.arch, num_features=args.features, norm=args.norm,
@@ -187,7 +194,19 @@ def main(args):
     print('*************** initialization takes time: {:^10.2f} *********************\n'.format(toc))
 
     tic = time.time()
-    extract_features(model, data_loader, args, is_detection=type == 'tracking_det', use_fname=use_fname)
+    if args.type == 'reid_test':
+        args.reid_test = 'query'
+        data_loader = DataLoader(Preprocessor(dataset.query, root=dataset.query_path, transform=test_transformer),
+                                 batch_size=args.batch_size, num_workers=args.num_workers, shuffle=False)
+        extract_features(model, data_loader, args, is_detection=False, use_fname=use_fname)
+        args.reid_test = 'gallery'
+        data_loader = DataLoader(Preprocessor(dataset.gallery, root=dataset.gallery_path, transform=test_transformer),
+                                 batch_size=args.batch_size, num_workers=args.num_workers, shuffle=False)
+        extract_features(model, data_loader, args, is_detection=False, use_fname=use_fname)
+    else:
+        data_loader = DataLoader(Preprocessor(dataset.train, root=dataset.train_path, transform=test_transformer),
+                                 batch_size=args.batch_size, num_workers=args.num_workers, shuffle=False)
+        extract_features(model, data_loader, args, is_detection=type == 'tracking_det', use_fname=use_fname)
     toc = time.time() - tic
     print('*************** compute features takes time: {:^10.2f} *********************\n'.format(toc))
     pass
@@ -200,7 +219,7 @@ if __name__ == '__main__':
     parser.add_argument('--backbone', type=str, default='resnet50', choices=['resnet50', 'densenet121'],
                         help='architecture for base network')
     parser.add_argument('-d', '--dataset', type=str, default='duke', choices=['duke', 'aic'])
-    parser.add_argument('--type', type=str, default='gt_mini', choices=['detections', 'gt_mini', 'gt_all'])
+    parser.add_argument('--type', type=str, default='gt_mini', choices=['detections', 'gt_mini', 'gt_all', 'reid_test'])
     parser.add_argument('-b', '--batch-size', type=int, default=64, help="batch size")
     parser.add_argument('-j', '--num-workers', type=int, default=4)
     parser.add_argument('--height', type=int, default=256, help="input height, default: 256 for resnet*")
