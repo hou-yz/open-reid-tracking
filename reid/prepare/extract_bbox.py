@@ -119,8 +119,8 @@ def get_bbox(type='gt', det_time='train', fps=5, det_type='ssd'):
 
 if __name__ == '__main__':
     print('{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S')))
-    # get_bbox(type='gt', fps=10, det_time='trainval')
-    get_bbox(fps=1)
+    get_bbox(type='gt', fps=10, det_time='trainval')
+    # get_bbox(fps=1)
     # get_bbox(type='labeled', det_time='train', fps=1)
     # get_bbox(type='det', det_time='val', det_type='ssd')
     # get_bbox(type='det', det_time='trainval', det_type='ssd')

@@ -151,9 +151,11 @@ def main(args):
         fps = 1
         use_fname = False
     elif args.type == 'gt_all':
+        if args.dataset == 'aic':
+            args.det_time = 'trainval'
         type = 'tracking_gt'
         dataset_dir = None
-        fps = 60
+        fps = 60 if args.dataset == 'duke' else 10
         use_fname = True
     else:  # reid_test
         type = 'reid_test'
