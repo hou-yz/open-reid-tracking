@@ -37,6 +37,8 @@ def get_bbox(type='gt', det_time='train', fps=5, det_type='ssd'):
         scenes = ['S01', 'S03', 'S04']
     elif det_time == 'val':
         scenes = ['S01']
+    elif det_time == 'test' and type == 'gt':
+        scenes = ['S02', 'S06']
     else:  # test
         scenes = os.listdir(data_path)
 
@@ -46,14 +48,18 @@ def get_bbox(type='gt', det_time='train', fps=5, det_type='ssd'):
             iCam = int(camera_dir[1:])
             # get bboxs
             if type == 'gt':
-                bbox_filename = osp.join(scene_path, camera_dir, 'gt', 'gt.txt')
+                if det_time == 'test':
+                    bbox_filename = osp.join('/home/houyz/Code/DeepCC/experiments/aic_label_det/L3-identities',
+                                             'cam{}_test.txt'.format(iCam))
+                else:
+                    bbox_filename = osp.join(scene_path, camera_dir, 'gt', 'gt.txt')
             elif type == 'labeled':
                 bbox_filename = osp.join(scene_path, camera_dir, 'det',
                                          'det_{}_labeled.txt'.format('ssd512' if det_type == 'ssd' else 'yolo3'))
             else:  # det
                 bbox_filename = osp.join(scene_path, camera_dir, 'det',
                                          'det_{}.txt'.format('ssd512' if det_type == 'ssd' else 'yolo3'))
-            bboxs = np.array(pd.read_csv(bbox_filename, header=None))
+            bboxs = np.loadtxt(bbox_filename)
             if type == 'gt' or type == 'labeled':
                 bboxs = bboxs[np.where(bboxs[:, 0] % fps_pooling == 0)[0], :]
 
@@ -110,7 +116,7 @@ def get_bbox(type='gt', det_time='train', fps=5, det_type='ssd'):
 
                 cv2.waitKey(0)
             video_reader.release()
-            assert printed_img_count == bboxs.shape[0]
+            # assert printed_img_count == bboxs.shape[0]
 
             print(video_file, 'completed!')
         print(scene_dir, 'completed!')
@@ -119,7 +125,8 @@ def get_bbox(type='gt', det_time='train', fps=5, det_type='ssd'):
 
 if __name__ == '__main__':
     print('{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S')))
-    get_bbox(type='gt', fps=10, det_time='trainval')
+    # get_bbox(type='gt', fps=10, det_time='trainval')
+    get_bbox(type='gt', fps=10, det_time='test')
     # get_bbox(fps=1)
     # get_bbox(type='labeled', det_time='train', fps=1)
     # get_bbox(type='det', det_time='val', det_type='ssd')
