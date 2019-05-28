@@ -1,11 +1,63 @@
-# Open-ReID
+# Open-ReID-tracking
 
-Open-ReID is a lightweight library of person re-identification for research
-purpose. It aims to provide a uniform interface for different datasets, a full
-set of models and evaluation metrics, as well as examples to reproduce (near)
-state-of-the-art results.
+This repo is based on Cysu's [open-reid](https://github.com/Cysu/open-reid), which is a great re-ID library. For performance, we implemented some other baseline models on top of it. For utility, we add some function for the tracking-by-detection workflow in tracking works. 
 
-## IDE baseline
+# AI-City 2019 update
+
+Please use this repo alongside with our flavor of [DeepCC](https://github.com/hou-yz/DeepCC_aic) tracker for tracking. 
+
+### Model
+We adopt a new baseline from Hao Luo \[[git](https://github.com/michuanhaohao/reid-strong-baseline), [paper](https://arxiv.org/abs/1903.07071)\] and make a few modification on top of it.
+
+### Data
+AI-City datasets (track-1, track-2) and VeRi dataset are needed for the following steps.
+They should be stored in a file structure like this:
+```
+~
+└───Data
+    └───AIC19
+    │   │ track-1 data
+    │   │ ...
+    │
+    └───AIC19-reid
+    │   │ track-2 data
+    │   │ ...
+    │
+    └───VeRi
+        │ VeRi data
+        │ ...
+```
+
+
+### Training & Tracking Pre-requisite
+We describe the workflow for a simple model. For the full ensemble model, please check 
+
+First, please use the following to extract detection bounding boxes from videos.
+```angular2html
+cd open-reid
+python3 reid/prepare/extract_bbox.py
+```
+
+Next, train the baseline on re-ID data from AI-City 2019 (track-2). 
+```angular2html
+# train
+CUDA_VISIBLE_DEVICES=0,1 python3 ZJU_baseline.py --train -d aic_reid --logs-dir logs/ZJU/256/aic_reid/lr001_colorjitter --colorjitter  --height 256 --width 256 --lr 0.01 --step-size 30,60,80 --warmup 10 --LSR --backbone densenet121 --features 256 --BNneck -s 1 -b 64 --epochs 120
+```
+Then, the detection bounding box feature are computed. 
+```angular2html
+# gt feat (optional)
+# CUDA_VISIBLE_DEVICES=0,1 python3 save_cnn_feature.py -a zju --backbone densenet121 --resume logs/ZJU/256/aic_reid/lr001_colorjitter/model_best.pth.tar --features 256 --height 256 --width 256 --l0_name zju_lr001_colorjitter_256 --BNneck -s 1 -d aic --type gt_all -b 64
+# reid feat (parameter tuning, see DeepCC_aic)
+CUDA_VISIBLE_DEVICES=0,1 python3 save_cnn_feature.py -a zju --backbone densenet121 --resume logs/ZJU/256/aic_reid/lr001_colorjitter/model_best.pth.tar --features 256 --height 256 --width 256 --l0_name zju_lr001_colorjitter_256 --BNneck -s 1 -d aic --type gt_mini -b 64
+# det feat (tracking pre-requisite, see DeepCC_aic)
+CUDA_VISIBLE_DEVICES=0,1 python3 save_cnn_feature.py -a zju --backbone densenet121 --resume logs/ZJU/256/aic_reid/lr001_colorjitter/model_best.pth.tar --features 256 --height 256 --width 256 --l0_name zju_lr001_colorjitter_256 --BNneck -s 1 -d aic --type detections --det_time trainval -b 64
+CUDA_VISIBLE_DEVICES=0,1 python3 save_cnn_feature.py -a zju --backbone densenet121 --resume logs/ZJU/256/aic_reid/lr001_colorjitter/model_best.pth.tar --features 256 --height 256 --width 256 --l0_name zju_lr001_colorjitter_256 --BNneck -s 1 -d aic --type detections --det_time test -b 64
+```
+
+
+# Our Baselines and Performance
+
+### IDE baseline
 training IDE from scratch
 ```angular2html
 cd open-reid
@@ -19,7 +71,7 @@ python3 IDE.py --evaluate -d dukemtmc --resume logs/ide/dukemtmc/raw/model_best.
 ```
 
 
-## PCB Model
+### PCB Model
 
 Added PCB model support.
 
@@ -37,7 +89,7 @@ python3 PCB.py --evaluate -d dukemtmc --resume logs/pcb/dukemtmc/raw/model_best.
 ```
 
 
-# Current Results
+## Current Results
 
 Cross-entropy loss:
 - `batch_size = 64`.
