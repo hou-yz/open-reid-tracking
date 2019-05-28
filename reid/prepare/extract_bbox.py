@@ -10,7 +10,7 @@ path = '~/Data/AIC19/'
 og_fps = 10
 
 
-def get_bbox(type='gt', det_time='train', fps=5, det_type='ssd'):
+def get_bbox(type='gt', det_time='train', fps=10, det_type='ssd'):
     # type = ['gt','det','labeled']
     data_path = osp.join(osp.expanduser(path), 'test' if det_time == 'test' else 'train')
     save_path = osp.join(osp.expanduser('~/Data/AIC19/ALL_{}_bbox/'.format(type)), det_time)
@@ -42,8 +42,8 @@ def get_bbox(type='gt', det_time='train', fps=5, det_type='ssd'):
     else:  # test
         scenes = os.listdir(data_path)
 
-    for scene_dir in scenes:
-        scene_path = osp.join(data_path, scene_dir)
+    for scene in scenes:
+        scene_path = osp.join(data_path, scene)
         for camera_dir in os.listdir(scene_path):
             iCam = int(camera_dir[1:])
             # get bboxs
@@ -51,15 +51,19 @@ def get_bbox(type='gt', det_time='train', fps=5, det_type='ssd'):
                 if det_time == 'test':
                     bbox_filename = osp.join('/home/houyz/Code/DeepCC/experiments/aic_label_det/L3-identities',
                                              'cam{}_test.txt'.format(iCam))
+                    delimiter = None
                 else:
                     bbox_filename = osp.join(scene_path, camera_dir, 'gt', 'gt.txt')
+                    delimiter = ','
             elif type == 'labeled':
                 bbox_filename = osp.join(scene_path, camera_dir, 'det',
                                          'det_{}_labeled.txt'.format('ssd512' if det_type == 'ssd' else 'yolo3'))
+                delimiter = ','
             else:  # det
                 bbox_filename = osp.join(scene_path, camera_dir, 'det',
                                          'det_{}.txt'.format('ssd512' if det_type == 'ssd' else 'yolo3'))
-            bboxs = np.loadtxt(bbox_filename)
+                delimiter = ','
+            bboxs = np.loadtxt(bbox_filename, delimiter=delimiter)
             if type == 'gt' or type == 'labeled':
                 bboxs = bboxs[np.where(bboxs[:, 0] % fps_pooling == 0)[0], :]
 
@@ -119,18 +123,15 @@ def get_bbox(type='gt', det_time='train', fps=5, det_type='ssd'):
             # assert printed_img_count == bboxs.shape[0]
 
             print(video_file, 'completed!')
-        print(scene_dir, 'completed!')
-    print(save_path, 'completed!')
+        print(scene, 'completed!')
+    print(save_path, 'complete d!')
 
 
 if __name__ == '__main__':
     print('{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S')))
-    # get_bbox(type='gt', fps=10, det_time='trainval')
-    get_bbox(type='gt', fps=10, det_time='test')
-    # get_bbox(fps=1)
-    # get_bbox(type='labeled', det_time='train', fps=1)
-    # get_bbox(type='det', det_time='val', det_type='ssd')
-    # get_bbox(type='det', det_time='trainval', det_type='ssd')
-    # get_bbox(type='det', det_time='test', det_type='ssd')
+    get_bbox(type='gt', fps=10, det_time='trainval')
+    # get_bbox(type='labeled', det_time='trainval', fps=1)
+    get_bbox(type='det', det_time='trainval', det_type='ssd')
+    get_bbox(type='det', det_time='test', det_type='ssd')
     print('{}'.format(datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S')))
     print('Job Completed!')

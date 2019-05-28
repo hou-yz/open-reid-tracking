@@ -39,7 +39,7 @@ def save_file(lines, args, if_created):
                       + "gt_features_{}".format(args.l0_name)
     else:  # reid_test
         folder_name = osp.expanduser('~/Data/AIC19-reid/L0-features/') \
-                      + "{}_features_{}".format(args.reid_test, args.l0_name)
+                      + "aic_reid_{}_features_{}".format(args.reid_test, args.l0_name)
 
     if args.re:
         folder_name += '_RE'

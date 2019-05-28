@@ -10,7 +10,7 @@ import xml.dom.minidom as XD
 
 class AI_City(object):
 
-    def __init__(self, root, type='reid', fps=5, trainval=False, gt_type='gt'):
+    def __init__(self, root, type='reid', fps=10, trainval=False, gt_type='gt'):
         if type == 'tracking_gt':
             if not trainval:
                 train_dir = '~/Data/AIC19/ALL_{}_bbox/train'.format(gt_type)
@@ -69,7 +69,7 @@ class AI_City(object):
                 pid = 1
             elif type == 'tracking_gt':
                 pid, cam = map(int, pattern.search(fname).groups())
-            elif type == 'tracking_gt':  # reid
+            elif type == 'reid':  # reid
                 pid, cam = map(int, [self.reid_info[self.index_by_fname_dict[fname]].getAttribute('vehicleID'),
                                      self.reid_info[self.index_by_fname_dict[fname]].getAttribute('cameraID')[1:]])
             else:  # reid test
