@@ -2,6 +2,9 @@
 
 This repo is based on Cysu's [open-reid](https://github.com/Cysu/open-reid), which is a great re-ID library. For performance, we implemented some other baseline models on top of it. For utility, we add some function for the tracking-by-detection workflow in tracking works. 
 
+## Notice: 
+When running with pytorch 1.1, please specify ```OMP_NUM_THREADS=1``` to avoid multi-threading in linux (consumes huge cpu resource and provide no performance improvement).
+
 # AI-City 2019 update
 
 Please use this repo alongside with our flavor of [DeepCC](https://github.com/hou-yz/DeepCC_aic) tracker for tracking. 
@@ -10,7 +13,7 @@ Please use this repo alongside with our flavor of [DeepCC](https://github.com/ho
 We adopt a new baseline from Hao Luo \[[git](https://github.com/michuanhaohao/reid-strong-baseline), [paper](https://arxiv.org/abs/1903.07071)\] and make a few modification on top of it.
 
 ### Data
-AI-City datasets (track-1, track-2) and VeRi dataset are needed for the following steps.
+AI-City 2019 datasets (track-1, track-2) and VeRi dataset are needed for the following steps.
 They should be stored in a file structure like this:
 ```
 ~

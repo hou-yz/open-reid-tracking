@@ -37,7 +37,7 @@ def save_file(lines, args, if_created):
         folder_name = osp.expanduser(
             '~/Data/{}/L0-features/'.format('DukeMTMC' if args.dataset == 'duke' else 'AIC19')) \
                       + "gt_features_{}".format(args.l0_name)
-    else:  # reid_test
+    else:  # reid_test: query/gallery
         folder_name = osp.expanduser('~/Data/AIC19-reid/L0-features/') \
                       + "aic_reid_{}_features_{}".format(args.reid_test, args.l0_name)
 

@@ -8,7 +8,7 @@ from collections import defaultdict
 from sklearn.preprocessing import normalize
 
 models = ['lr001', 'lr001_softmargin', 'lr001_colorjitter']
-dirs = ['gt_all']  # 'gt_mini', 'test', 'trainval',
+dirs = ['gt_all', 'gt_mini', ]  # 'test', 'trainval',
 
 for data_dir in dirs:
 
@@ -36,7 +36,7 @@ for data_dir in dirs:
             data = data[:, 3 if 'gt' in data_dir else 2:]
             data = normalize(data, axis=1)
             models_feat[cam] = np.hstack([models_feat[cam], data]) if models_feat[cam].size else data
-        pass
+    pass
     for cam in models_feat.keys():
         models_feat[cam] /= len(models) ** 0.5
         ensemble_feat = np.hstack([models_header[cam], models_feat[cam]])

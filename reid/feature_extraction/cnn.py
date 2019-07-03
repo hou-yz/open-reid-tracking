@@ -15,7 +15,8 @@ def extract_cnn_feature(model, inputs, eval_only=True, modules=None):
     inputs = Variable(inputs, requires_grad=False)
     if modules is None:
         # if isinstance(model.module, IDE_model) or isinstance(model.module, PCB_model):
-        outputs = model(inputs, eval_only)
+        with torch.no_grad:
+            outputs = model(inputs, eval_only)
         outputs = outputs[0]
         # else:
         #     outputs = model(inputs)
