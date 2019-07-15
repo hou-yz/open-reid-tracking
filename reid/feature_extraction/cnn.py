@@ -1,9 +1,8 @@
 from __future__ import absolute_import
-from collections import OrderedDict
-import torch
-import numpy as np
 
-from ..models import PCB_model, IDE_model
+from collections import OrderedDict
+
+import torch
 from torch.autograd import Variable
 
 from ..utils import to_torch
@@ -15,7 +14,7 @@ def extract_cnn_feature(model, inputs, eval_only=True, modules=None):
     inputs = Variable(inputs, requires_grad=False)
     if modules is None:
         # if isinstance(model.module, IDE_model) or isinstance(model.module, PCB_model):
-        with torch.no_grad:
+        with torch.no_grad():
             outputs = model(inputs, eval_only)
         outputs = outputs[0]
         # else:
