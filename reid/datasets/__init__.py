@@ -1,8 +1,7 @@
 from __future__ import absolute_import
-import warnings
 
-from .dukemtmc import DukeMTMC
 from .ai_city import AI_City
+from .dukemtmc import DukeMTMC
 from .market1501 import Market1501
 from .veri import VeRi
 

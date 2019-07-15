@@ -1,12 +1,11 @@
 from __future__ import print_function, absolute_import
+
 import time
 
 import torch
 from torch import nn
-import numpy as np
 from torch.autograd import Variable
 
-from .models import PCB_model, IDE_model
 from .evaluation_metrics import accuracy
 from .loss import *
 from .utils.meters import AverageMeter

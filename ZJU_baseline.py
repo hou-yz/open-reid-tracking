@@ -1,23 +1,24 @@
 from __future__ import print_function, absolute_import
-import argparse
-import os
 
-import numpy as np
-import time
+import argparse
 import datetime
-import sys
-import torch
-from torch.backends import cudnn
 import json
+import os
+import sys
+import time
 from bisect import bisect_right
 
+import numpy as np
+import torch
+from torch.backends import cudnn
+
 from reid import models
-from reid.utils.my_utils import *
-from reid.trainers import Trainer
 from reid.evaluators import Evaluator
-from reid.utils.logging import Logger
-from reid.utils.serialization import save_checkpoint
 from reid.loss import *
+from reid.trainers import Trainer
+from reid.utils.logging import Logger
+from reid.utils.my_utils import *
+from reid.utils.serialization import save_checkpoint
 
 '''
 tricks from ZJU paper

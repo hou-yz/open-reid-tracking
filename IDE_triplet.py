@@ -1,20 +1,21 @@
 from __future__ import print_function, absolute_import
+
 import argparse
+import datetime
+import json
 import os
+import sys
 
 import numpy as np
-import datetime
-import sys
 import torch
 from torch.backends import cudnn
-import json
 
-from reid.loss import TripletLoss
 from reid import models
-from reid.utils.my_utils import *
-from reid.trainers import Trainer
 from reid.evaluators import Evaluator
+from reid.loss import TripletLoss
+from reid.trainers import Trainer
 from reid.utils.logging import Logger
+from reid.utils.my_utils import *
 from reid.utils.serialization import save_checkpoint
 
 '''

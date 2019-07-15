@@ -1,16 +1,15 @@
 from __future__ import print_function, absolute_import
+
 import time
 
 import torch
 from torch import nn
-import numpy as np
 from torch.autograd import Variable
 
-from .models import PCB_model, IDE_model
 from .evaluation_metrics import accuracy
 from .loss import *
-from .utils.meters import AverageMeter
 from .trainers import BaseTrainer
+from .utils.meters import AverageMeter
 
 
 class CamStyleTrainer(BaseTrainer):
@@ -83,16 +82,16 @@ class CamStyleTrainer(BaseTrainer):
         outputs = self.model(inputs)
         camstyle_outputs = self.model(camstyle_inputs)
         if isinstance(self.criterion, torch.nn.CrossEntropyLoss):
-            if isinstance(self.model.module, IDE_model) or isinstance(self.model.module, PCB_model):
-                prediction_s = outputs[1]
-                loss = 0
-                for pred in prediction_s:
-                    loss += self.criterion(pred, targets)
-                prediction = prediction_s[0]
-                prec, = accuracy(prediction.data, targets.data)
-            else:
-                loss = self.criterion(outputs, targets)
-                prec, = accuracy(outputs.data, targets.data)
+            # if isinstance(self.model.module, IDE_model) or isinstance(self.model.module, PCB_model):
+            prediction_s = outputs[1]
+            loss = 0
+            for pred in prediction_s:
+                loss += self.criterion(pred, targets)
+            prediction = prediction_s[0]
+            prec, = accuracy(prediction.data, targets.data)
+            # else:
+            #     loss = self.criterion(outputs, targets)
+            #     prec, = accuracy(outputs.data, targets.data)
             prec = prec.item()
         elif isinstance(self.criterion, TripletLoss):
             loss, prec = self.criterion(outputs, targets)

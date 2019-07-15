@@ -1,9 +1,9 @@
-import cv2
-import numpy as np
+import datetime
 import os
 import os.path as osp
-import pandas as pd
-import datetime
+
+import cv2
+import numpy as np
 import psutil
 
 path = '~/Data/AIC19/'
@@ -21,14 +21,7 @@ def get_bbox(type='gt', det_time='train', fps=10, det_type='ssd'):
     else:
         save_path = osp.join(save_path, det_type)
 
-    if not osp.exists(save_path):  # mkdir
-        if not osp.exists(osp.dirname(save_path)):
-            if not osp.exists(osp.dirname(osp.dirname(save_path))):
-                # if not osp.exists(osp.dirname(osp.dirname(osp.dirname(save_path)))):
-                #     os.mkdir(osp.dirname(osp.dirname(osp.dirname(save_path))))
-                os.mkdir(osp.dirname(osp.dirname(save_path)))
-            os.mkdir(osp.dirname(save_path))
-        os.mkdir(save_path)
+    os.makedirs(save_path, exist_ok=True)
 
     # scene selection for train/val
     if det_time == 'train':

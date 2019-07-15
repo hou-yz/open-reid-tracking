@@ -1,9 +1,9 @@
 from __future__ import absolute_import
 
+from .IDE_model import *
 # from .inception import *
 # from .resnet import *
 from .PCB_model import *
-from .IDE_model import *
 from .ZJU_model import *
 
 __factory = {

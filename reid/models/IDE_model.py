@@ -1,10 +1,8 @@
 from __future__ import absolute_import
 
-import torch
 from torch import nn
-from torch.nn import init
-from torch.autograd import Variable
 from torch.nn import functional as F
+from torch.nn import init
 # from .resnet import *
 from torchvision.models import resnet50, densenet121
 
@@ -37,6 +35,8 @@ class IDE_model(nn.Module):
                 self.base[-3][-1].kernel_size = 1
                 pass
             base_channel = 1024
+        else:
+            raise Exception('Please select arch from [resnet50, densenet121]!')
 
         ################################################################################################################
         '''Global Average Pooling: 2048*12*4 -> 2048*1*1'''

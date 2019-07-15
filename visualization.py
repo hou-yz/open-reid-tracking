@@ -1,19 +1,16 @@
 import argparse
-import scipy.io
-import torch
-import numpy as np
 import os
-from torchvision import datasets
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as plt
-from reid.feature_extraction import extract_cnn_feature
-from reid.utils.my_utils import *
-from reid.utils.data.preprocessor import Preprocessor
 import time
-import argparse
-from reid.utils.meters import AverageMeter
+
+import numpy as np
+import torch
+
 from reid import models
+from reid.feature_extraction import extract_cnn_feature
+from reid.utils.meters import AverageMeter
+from reid.utils.my_utils import *
+
+matplotlib.use('agg')
 
 
 def imshow(path, title=None):
@@ -74,16 +71,19 @@ parser.add_argument('--visual', type=str, default='val')
 
 args = parser.parse_args()
 
+
 def visualization(args):
     dataset, num_classes, train_loader, query_loader, gallery_loader, camstyle_loader = \
-            get_data(args.dataset, args.data_dir, args.height, args.width, args.batch_size, args.num_workers,
-                     args.combine_trainval, args.crop, args.tracking_icams, args.tracking_fps, args.re, 0, args.camstyle, visual=args.visual)
+        get_data(args.dataset, args.data_dir, args.height, args.width, args.batch_size, args.num_workers,
+                 args.combine_trainval, args.crop, args.tracking_icams, args.tracking_fps, args.re, 0, args.camstyle,
+                 visual=args.visual)
 
     model = models.create('ide', num_features=args.features,
                           dropout=args.dropout, num_classes=num_classes, last_stride=args.last_stride,
                           output_feature=args.output_feature)
 
-    model, start_epoch, best_top1 = checkpoint_loader(model, osp.join(args.logs_dir, 'model_best.pth.tar'), eval_only=True)
+    model, start_epoch, best_top1 = checkpoint_loader(model, osp.join(args.logs_dir, 'model_best.pth.tar'),
+                                                      eval_only=True)
     model = nn.DataParallel(model).cuda()
 
     def extract_features(model, data_loader, eval_only, print_freq=100):
@@ -116,29 +116,28 @@ def visualization(args):
                               batch_time.val, batch_time.avg,
                               data_time.val, data_time.avg))
 
-
         output_features = torch.stack(features, 0)
 
         return output_features, labels, cameras
 
     # sort the images
     def sort_img(qf, ql, qc, gf, gl, gc):
-        query = qf.view(-1,1)
+        query = qf.view(-1, 1)
         # print(query.shape)
-        score = torch.mm(gf,query)
+        score = torch.mm(gf, query)
         score = score.squeeze(1).cpu()
         score = score.numpy()
         # predict index
-        index = np.argsort(score)  #from small to large
+        index = np.argsort(score)  # from small to large
         index = index[::-1]
         # index = index[0:2000]
         # good index
-        query_index = np.argwhere(gl==ql)
-        #same camera
-        camera_index = np.argwhere(gc==qc)
+        query_index = np.argwhere(gl == ql)
+        # same camera
+        camera_index = np.argwhere(gc == qc)
 
-        #good_index = np.setdiff1d(query_index, camera_index, assume_unique=True)
-        junk_index1 = np.argwhere(gl==-1)
+        # good_index = np.setdiff1d(query_index, camera_index, assume_unique=True)
+        junk_index1 = np.argwhere(gl == -1)
         junk_index2 = np.intersect1d(query_index, camera_index)
         junk_index = np.append(junk_index2, junk_index1)
 
@@ -158,7 +157,8 @@ def visualization(args):
         if args.dataset == 'aic_reid':
             selected = select
 
-        index = sort_img(query_features[selected], query_labels[selected], query_cams[selected], gallery_feature, gallery_label, gallery_cam)
+        index = sort_img(query_features[selected], query_labels[selected], query_cams[selected], gallery_feature,
+                         gallery_label, gallery_cam)
 
         ########################################################################
         # Visualize the rank result
@@ -176,14 +176,14 @@ def visualization(args):
             query_path = os.path.join(os.path.expanduser(query_dir), query_path)
         print(query_path)
         print('Top 10 images are as follow:')
-        try: # Visualize Ranking Result
+        try:  # Visualize Ranking Result
             # Graphical User Interface is needed
-            fig = plt.figure(figsize=(16,4))
-            ax = plt.subplot(1,11,1)
+            fig = plt.figure(figsize=(16, 4))
+            ax = plt.subplot(1, 11, 1)
             ax.axis('off')
-            imshow(query_path,'query')
+            imshow(query_path, 'query')
             for i in range(10):
-                ax = plt.subplot(1,11,i+2)
+                ax = plt.subplot(1, 11, i + 2)
                 ax.axis('off')
                 img_path = dataset.gallery[index[i]][0]
                 if args.dataset == 'aic_tracking':
@@ -197,9 +197,9 @@ def visualization(args):
                 label = gallery_label[index[i]]
                 imshow(img_path)
                 if label == query_label:
-                    ax.set_title('%d'%(i+1), color='green')
+                    ax.set_title('%d' % (i + 1), color='green')
                 else:
-                    ax.set_title('%d'%(i+1), color='red')
+                    ax.set_title('%d' % (i + 1), color='red')
                 print(img_path)
         except RuntimeError:
             for i in range(10):
@@ -220,8 +220,8 @@ def visualization(args):
         fig.savefig(save_path)
         print(save_path, 'has been output!')
 
+
 if __name__ == '__main__':
     visualization(args)
-
 
 # CUDA_VISIBLE_DEVICES=3 python visualization.py -d aic_tracking --logs-dir logs/ide_new/256/veri_vehicleid/train/5_fps/basis --query_index 1

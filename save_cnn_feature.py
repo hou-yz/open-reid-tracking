@@ -14,11 +14,8 @@ from torch.backends import cudnn
 from reid import models
 from reid.datasets import *
 from reid.feature_extraction import extract_cnn_feature
-from reid.utils.data import transforms as T
-from reid.utils.data.preprocessor import Preprocessor
 from reid.utils.meters import AverageMeter
 from reid.utils.my_utils import *
-from reid.utils.osutils import mkdir_if_missing
 
 
 def save_file(lines, args, if_created):
@@ -46,12 +43,12 @@ def save_file(lines, args, if_created):
     if args.crop:
         folder_name += '_CROP'
 
-    mkdir_if_missing(folder_name)
+    os.makedirs(folder_name, exist_ok=True)
     with open(osp.join(folder_name, 'args.json'), 'w') as fp:
         json.dump(vars(args), fp, indent=1)
     for cam in range(8 if args.dataset == 'duke' else 40):
         output_fname = folder_name + '/features%d.h5' % (cam + 1)
-        mkdir_if_missing(os.path.dirname(output_fname))
+        os.makedirs(os.path.dirname(output_fname), exist_ok=True)
         if args.tracking_icams != 0 and cam + 1 != args.tracking_icams:
             continue
         if not lines[cam]:

@@ -1,12 +1,9 @@
 from __future__ import absolute_import
 
-import torch
 from torch import nn
-from torch.nn import init
-from torch.autograd import Variable
 from torch.nn import functional as F
-from .resnet import *
-import torchvision
+from torch.nn import init
+from torchvision.models import resnet50
 
 
 class PCB_model(nn.Module):

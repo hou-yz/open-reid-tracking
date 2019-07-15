@@ -1,10 +1,10 @@
-import numpy as np
-import h5py
 import os
 import os.path as osp
-from glob import glob
 import re
-from collections import defaultdict
+from glob import glob
+
+import h5py
+import numpy as np
 from sklearn.preprocessing import normalize
 
 models = ['lr001', 'lr001_softmargin', 'lr001_colorjitter']

@@ -1,12 +1,11 @@
 from __future__ import print_function, absolute_import
+
 import json
+import os
 import os.path as osp
-import shutil
 
 import torch
 from torch.nn import Parameter
-
-from .osutils import mkdir_if_missing
 
 
 def read_json(fpath):
@@ -16,16 +15,16 @@ def read_json(fpath):
 
 
 def write_json(obj, fpath):
-    mkdir_if_missing(osp.dirname(fpath))
+    os.makedirs(osp.dirname(fpath), exist_ok=True)
     with open(fpath, 'w') as f:
         json.dump(obj, f, indent=4, separators=(',', ': '))
 
 
 def save_checkpoint(state, is_best, fpath='checkpoint.pth.tar'):
-    mkdir_if_missing(osp.dirname(fpath))
+    os.makedirs(osp.dirname(fpath), exist_ok=True)
     if int(state['epoch']) % 10 == 0:
         torch.save(state, fpath)
-    # if is_best:
+    if is_best:
         torch.save(state, osp.join(osp.dirname(fpath), 'model_best.pth.tar'))
 
 

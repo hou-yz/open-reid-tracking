@@ -1,15 +1,15 @@
 from __future__ import absolute_import
+
 from collections import defaultdict
 
 import numpy as np
 import torch
-from torch.utils.data.sampler import (
-    Sampler, SequentialSampler, RandomSampler, SubsetRandomSampler,
-    WeightedRandomSampler)
+from torch.utils.data.sampler import Sampler
 
 
 class RandomIdentitySampler(Sampler):
     def __init__(self, data_source, num_instances=1):
+        super(RandomIdentitySampler, self).__init__(data_source)
         self.data_source = data_source
         self.num_instances = num_instances
         self.index_dic = defaultdict(list)

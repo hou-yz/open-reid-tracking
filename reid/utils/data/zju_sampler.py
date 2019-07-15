@@ -6,7 +6,6 @@
 
 import copy
 import random
-import torch
 from collections import defaultdict
 
 import numpy as np

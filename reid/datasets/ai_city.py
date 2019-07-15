@@ -1,11 +1,10 @@
 from __future__ import print_function, absolute_import
+
 import os.path as osp
-import numpy as np
-import pdb
-from glob import glob
 import re
-from collections import defaultdict
 import xml.dom.minidom as XD
+from collections import defaultdict
+from glob import glob
 
 
 class AI_City(object):
