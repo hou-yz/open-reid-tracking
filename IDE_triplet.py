@@ -6,6 +6,8 @@ import json
 import os
 import sys
 
+os.environ['OMP_NUM_THREADS'] = '1'
+
 import numpy as np
 import torch
 from torch.backends import cudnn

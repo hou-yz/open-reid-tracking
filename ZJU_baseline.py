@@ -8,6 +8,8 @@ import sys
 import time
 from bisect import bisect_right
 
+os.environ['OMP_NUM_THREADS'] = '1'
+
 import numpy as np
 import torch
 from torch.backends import cudnn

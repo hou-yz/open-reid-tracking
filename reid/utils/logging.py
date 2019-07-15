@@ -3,8 +3,6 @@ from __future__ import absolute_import
 import os
 import sys
 
-os.environ['OMP_NUM_THREADS'] = '1'
-
 
 class Logger(object):
     def __init__(self, fpath=None):
