@@ -18,8 +18,7 @@ class PCB_model(nn.Module):
         self.norm = norm
 
         # ResNet50: from 3*384*128 -> 2048*24*8 (Tensor T; of column vector f's)
-        self.base = nn.Sequential(
-            *list(resnet50(pretrained=True, cut_at_pooling=True, norm=False, dropout=dropout).base.children())[:-2])
+        self.base = nn.Sequential(*list(resnet50(pretrained=True).children())[:-2])
         # decrease the downsampling rate
         if last_stride != 2:
             # decrease the downsampling rate

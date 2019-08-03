@@ -1,9 +1,8 @@
 from __future__ import absolute_import
 
+from torch import nn
+from torch.nn import init
 from torchvision.models import resnet50, densenet121
-
-# from .resnet import *
-from .model_init_utils import *
 
 '''
 use global feat for testing
@@ -53,13 +52,17 @@ class ZJU_model(nn.Module):
         else:
             self.feature_fc = nn.Sequential(nn.Linear(base_channel, self.num_features),
                                             nn.BatchNorm1d(self.num_features))
-        self.feature_fc.apply(weights_init_kaiming)
+            init.kaiming_normal_(self.feature_fc[0].weight, mode='fan_out')
+            init.constant_(self.feature_fc[0].bias, 0.0)
+        init.constant_(self.feature_fc[-1].weight, 1)
+        init.constant_(self.feature_fc[-1].bias, 0)
+        # self.feature_fc.apply(weights_init_kaiming)
 
         # fc for softmax:
         if self.num_classes > 0:
             self.classifier = nn.Linear(self.num_features if self.num_features else base_channel,
                                         self.num_classes, bias=False)
-            self.classifier.apply(weights_init_classifier)
+            init.normal_(self.classifier.weight, std=0.001)
         pass
 
     def forward(self, x, eval_only=False):
