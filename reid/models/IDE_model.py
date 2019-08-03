@@ -3,7 +3,6 @@ from __future__ import absolute_import
 from torch import nn
 from torch.nn import functional as F
 from torch.nn import init
-# from .resnet import *
 from torchvision.models import resnet50, densenet121
 
 
@@ -38,37 +37,31 @@ class IDE_model(nn.Module):
         else:
             raise Exception('Please select arch from [resnet50, densenet121]!')
 
-        ################################################################################################################
         '''Global Average Pooling: 2048*12*4 -> 2048*1*1'''
         # Tensor T [N, 2048, 1, 1]
         self.global_avg_pool = nn.AdaptiveAvgPool2d((1, 1))
 
-        # dropout after pool5 (or what left of it) at p=0.5
+        '''feat & feat_bn'''
+        if self.num_features > 0:
+            # 1*1 Conv(fc): 1*1*2048 -> 1*1*256 (g -> h)
+            self.feature_fc = nn.Linear(base_channel, self.num_features)
+            init.kaiming_normal_(self.feature_fc.weight, mode='fan_out')
+            init.constant_(self.feature_fc.bias, 0.0)
+
+        self.feat_bn = nn.BatchNorm1d(self.num_features)
+        init.constant_(self.feat_bn.weight, 1)
+        init.constant_(self.feat_bn.bias, 0)
+
+        # dropout before classifier
         self.dropout = dropout
         if self.dropout > 0:
             self.drop_layer = nn.Dropout2d(self.dropout)
 
-        ################################################################################################################
-        '''feat & feat_bn'''
-        if self.num_features > 0:
-            # 1*1 Conv(fc): 1*1*2048 -> 1*1*256 (g -> h)
-            self.one_one_conv = nn.Sequential(nn.Conv2d(base_channel, self.num_features, 1),
-                                              nn.BatchNorm2d(self.num_features),
-                                              nn.ReLU())
-            init.kaiming_normal_(self.one_one_conv[0].weight, mode='fan_out')
-            init.constant_(self.one_one_conv[0].bias, 0)
-            init.constant_(self.one_one_conv[1].weight, 1)
-            init.constant_(self.one_one_conv[1].bias, 0)
-        # else:
-        #     # 128 dim pooling for triplet
-        #     self.classifier_pool = nn.AdaptiveAvgPool1d(128)
-
-        # fc for softmax:
+        # fc for classify:
         if self.num_classes > 0:
             self.fc = nn.Linear(self.num_features, self.num_classes)
             init.normal_(self.fc.weight, std=0.001)
             init.constant_(self.fc.bias, 0)
-
         pass
 
     def forward(self, x, eval_only=False):
@@ -80,15 +73,21 @@ class IDE_model(nn.Module):
         # Tensor T [N, 2048, 12, 4]
         x = self.base(x)
         x = self.global_avg_pool(x)
+        x = x.view(x.shape[0], -1)
 
-        out0 = x.view(x.shape[0], -1)
+        out0 = x
+
+        if self.num_features > 0:
+            x = self.feature_fc(x)
+            out1 = x
+        else:
+            out1 = out0
+
+        x = self.feat_bn(x)
+        # no relu after feature_fc
 
         if self.dropout > 0:
             x = self.drop_layer(x)
-
-        if self.num_features > 0:
-            x = self.one_one_conv(x).view(x.shape[0], -1)
-        out1 = x.view(x.shape[0], -1)
 
         prediction_s = []
         if self.num_classes > 0 and not eval_only:
