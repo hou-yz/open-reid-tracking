@@ -2,6 +2,9 @@
 
 This repo is based on Cysu's [open-reid](https://github.com/Cysu/open-reid), which is a great re-ID library. For performance, we implemented some other baseline models on top of it. For utility, we add some function for the tracking-by-detection workflow in tracking works. 
 
+#####NEW: We adopt a baseline from Hao Luo \[[git](https://github.com/michuanhaohao/reid-strong-baseline), [paper](https://arxiv.org/abs/1903.07071)\]. See ```ZJU_baseline.py```.
+
+
 ## Notice: 
 When running with pytorch 1.1, please specify ```OMP_NUM_THREADS=1``` to avoid multi-threading in linux (consumes huge cpu resource and provide no performance improvement).
 
@@ -59,6 +62,9 @@ CUDA_VISIBLE_DEVICES=0,1 python3 save_cnn_feature.py -a zju --backbone densenet1
 
 
 # Our Baselines and Performance
+### Dataset
+Please download ```Market1501``` dataset from [link](http://www.liangzheng.com.cn/Project/project_reid.html). Please unzip the compression file, and rename it into ```market1501```, and then put it into ```./data/```.
+
 
 ### IDE baseline
 training IDE from scratch
