@@ -2,11 +2,11 @@
 
 This repo is based on Cysu's [open-reid](https://github.com/Cysu/open-reid), which is a great re-ID library. For performance, we implemented some other baseline models on top of it. For utility, we add some function for the tracking-by-detection workflow in tracking works. 
 
-#####NEW: We adopt a baseline from Hao Luo \[[git](https://github.com/michuanhaohao/reid-strong-baseline), [paper](https://arxiv.org/abs/1903.07071)\]. See ```ZJU_baseline.py```.
-
-
-## Notice: 
-When running with pytorch 1.1, please specify ```OMP_NUM_THREADS=1``` to avoid multi-threading in linux (consumes huge cpu resource and provide no performance improvement).
+- add ```data/README.md```. check for folder structure & dataset download. 
+- add ```requirements.txt```. use ```conda install --file requirements.txt``` to install. 
+- change ```reid/models/IDE_model.py``` to the same as ```reid/models/ZJU_model.py``` for higher performance.
+- fix high cpu usage via adding ```os.environ['OMP_NUM_THREADS'] = '1'``` in runable files. 
+- NEW: We adopt a baseline from Hao Luo \[[git](https://github.com/michuanhaohao/reid-strong-baseline), [paper](https://arxiv.org/abs/1903.07071)\]. See ```ZJU_baseline.py```.
 
 # AI-City 2019 update
 
