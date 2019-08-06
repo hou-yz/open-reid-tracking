@@ -1,4 +1,3 @@
-pytorch
 scikit-learn
 h5py
 matplotlib
