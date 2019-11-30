@@ -77,7 +77,6 @@ class PCB_model(nn.Module):
         x = self.feat_bn(x)
         # no relu after feature_fc
 
-
         x_s = x.chunk(self.num_stripes, 2)
         prediction_s = []
         if self.num_classes > 0 and self.training:

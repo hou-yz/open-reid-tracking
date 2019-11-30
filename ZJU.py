@@ -64,9 +64,8 @@ def main(args):
                  camstyle=0, zju=1, colorjitter=args.colorjitter)
 
     # Create model
-    model = models.create('zju', feature_dim=args.feature_dim, norm=args.norm,
-                          num_classes=num_classes, last_stride=args.last_stride, arch=args.arch,
-                          BNneck=args.BNneck)
+    model = models.create('ide', feature_dim=args.feature_dim, norm=args.norm,
+                          num_classes=num_classes, last_stride=args.last_stride, arch=args.arch)
 
     # Load from checkpoint
     start_epoch = best_top1 = 0
@@ -196,7 +195,6 @@ if __name__ == '__main__':
     parser.add_argument('--norm', action='store_true', help="normalize feat, default: False")
     parser.add_argument('--arch', type=str, default='resnet50', choices=['resnet50', 'densenet121'],
                         help='architecture for base network')
-    parser.add_argument('--BNneck', type=bool, default=0, help="BN layer, default: True")
     # loss
     parser.add_argument('--margin', type=float, default=0.3, help="margin of the triplet loss, default: 0.3")
     parser.add_argument('--softmargin', action='store_true', help="use softmargin triplet loss, default: false")
