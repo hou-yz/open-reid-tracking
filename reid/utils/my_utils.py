@@ -15,12 +15,14 @@ from reid.utils.data import transforms as T
 from reid.utils.data.preprocessor import Preprocessor
 
 
-def draw_curve(path, x_epoch, train_loss, train_prec):
+def draw_curve(path, x_epoch, train_loss, train_prec, test_x_epoch=None, test_prec=None, ):
     fig = plt.figure()
     ax0 = fig.add_subplot(121, title="loss")
     ax1 = fig.add_subplot(122, title="prec")
     ax0.plot(x_epoch, train_loss, 'bo-', label='train: {:.3f}'.format(train_loss[-1]))
     ax1.plot(x_epoch, train_prec, 'bo-', label='train: {:.3f}'.format(train_prec[-1]))
+    if test_x_epoch is not None and test_prec is not None:
+        ax1.plot(test_x_epoch, test_prec, 'ro-', label='test: {:.3f}'.format(test_prec[-1]))
     ax0.legend()
     ax1.legend()
     fig.savefig(path)
@@ -29,18 +31,25 @@ def draw_curve(path, x_epoch, train_loss, train_prec):
 
 def get_data(name, data_dir, height, width, batch_size, workers,
              combine_trainval, crop, tracking_icams, fps, re=0, num_instances=0, camstyle=0, zju=0, colorjitter=0):
-    root = osp.join(data_dir, name)
+    # if name == 'market1501':
+    #     root = osp.join(data_dir, 'Market-1501-v15.09.15')
+    # elif name == 'duke_reid':
+    #     root = osp.join(data_dir, 'DukeMTMC-reID')
+    # elif name == 'duke_tracking':
+    #     root = osp.join(data_dir, 'DukeMTMC')
+    # else:
+    #     root = osp.join(data_dir, name)
     if name == 'duke_tracking':
         if tracking_icams != 0:
             tracking_icams = [tracking_icams]
         else:
             tracking_icams = list(range(1, 9))
-        dataset = datasets.create(name, root, type='tracking_gt', iCams=tracking_icams, fps=fps,
+        dataset = datasets.create(name, data_dir, type='tracking_gt', iCams=tracking_icams, fps=fps,
                                   trainval=combine_trainval)
     elif name == 'aic_tracking':
-        dataset = datasets.create(name, root, type='tracking_gt', fps=fps, trainval=combine_trainval)
+        dataset = datasets.create(name, data_dir, type='tracking_gt', fps=fps, trainval=combine_trainval)
     else:
-        dataset = datasets.create(name, root)
+        dataset = datasets.create(name, data_dir)
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],
                              std=[0.229, 0.224, 0.225])
     num_classes = dataset.num_train_ids
@@ -86,14 +95,13 @@ def get_data(name, data_dir, height, width, batch_size, workers,
         camstyle_loader = None
     else:
         camstyle_loader = DataLoader(
-            Preprocessor(dataset.camstyle, root=dataset.camstyle_path,
-                         transform=train_transformer),
+            Preprocessor(dataset.camstyle, root=dataset.camstyle_path, transform=train_transformer),
             batch_size=camstyle, num_workers=workers,
             shuffle=True, pin_memory=True, drop_last=True)
     return dataset, num_classes, train_loader, query_loader, gallery_loader, camstyle_loader
 
 
-def checkpoint_loader(model, path, eval_only=False):
+def checkpoint_loader(model, path):
     checkpoint = load_checkpoint(path)
     pretrained_dict = checkpoint['state_dict']
     if isinstance(model, nn.DataParallel):
@@ -105,14 +113,14 @@ def checkpoint_loader(model, path, eval_only=False):
     model_dict = model.state_dict()
     # 1. filter out unnecessary keys
     pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
-    if eval_only:
-        keys_to_del = []
-        for key in pretrained_dict.keys():
-            if 'classifier' in key:
-                keys_to_del.append(key)
-        for key in keys_to_del:
-            del pretrained_dict[key]
-        pass
+    # if eval_only:
+    #     keys_to_del = []
+    #     for key in pretrained_dict.keys():
+    #         if 'classifier' in key:
+    #             keys_to_del.append(key)
+    #     for key in keys_to_del:
+    #         del pretrained_dict[key]
+    #     pass
     # 2. overwrite entries in the existing state dict
     model_dict.update(pretrained_dict)
     # 3. load the new state dict
