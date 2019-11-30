@@ -12,36 +12,32 @@ class AI_City(object):
     def __init__(self, root, type='reid', fps=10, trainval=False, gt_type='gt'):
         if type == 'tracking_gt':
             if not trainval:
-                train_dir = '~/Data/AIC19/ALL_{}_bbox/train'.format(gt_type)
+                train_dir = osp.join(root, f'AIC19/ALL_{gt_type}_bbox/train')
             else:
-                train_dir = '~/Data/AIC19/ALL_{}_bbox/trainval'.format(gt_type)
-            val_dir = '~/Data/AIC19/ALL_gt_bbox/val'
-            self.train_path = osp.join(osp.expanduser(train_dir), ('gt_bbox_{}_fps'.format(fps)))
-            self.gallery_path = osp.join(osp.expanduser(val_dir), 'gt_bbox_1_fps')
-            self.query_path = osp.join(osp.expanduser(val_dir), 'gt_bbox_1_fps')
+                train_dir = osp.join(root, f'AIC19/ALL_{gt_type}_bbox/trainval')
+            val_dir = osp.join(root, f'AIC19/ALL_gt_bbox/val')
+            self.train_path = osp.join(train_dir, f'gt_bbox_{fps}_fps')
+            self.gallery_path = osp.join(val_dir, 'gt_bbox_1_fps')
+            self.query_path = osp.join(val_dir, 'gt_bbox_1_fps')
         elif type == 'tracking_det':
             self.train_path = root
             self.gallery_path = None
             self.query_path = None
         elif type == 'reid':  # reid
-            root = osp.expanduser('~/Data/AIC19-reid')
-            self.train_path = osp.join(root, 'image_train')
-            query_dir = '~/Data/VeRi/image_query/'
-            gallery_dir = '~/Data/VeRi/image_test/'
-            self.gallery_path = osp.expanduser(gallery_dir)
-            self.query_path = osp.expanduser(query_dir)
+            self.train_path = osp.join(root, 'AIC19-reid/image_train')
+            self.gallery_path = osp.join(root, 'VeRi/image_query/')
+            self.query_path = osp.join(root, 'VeRi/image_test/')
 
-            xml_dir = osp.join(root, 'train_label.xml')
+            xml_dir = osp.join(root, 'AIC19-reid/train_label.xml')
             self.reid_info = XD.parse(xml_dir).documentElement.getElementsByTagName('Item')
             self.index_by_fname_dict = defaultdict()
             for index in range(len(self.reid_info)):
                 fname = self.reid_info[index].getAttribute('imageName')
                 self.index_by_fname_dict[fname] = index
-        else:  # reid_test
+        else:  # reid_test for feature extraction
             self.train_path = None
-            root = osp.expanduser('~/Data/AIC19-reid')
-            self.gallery_path = osp.join(root, 'image_test')
-            self.query_path = osp.join(root, 'image_query')
+            self.gallery_path = osp.join(root, 'AIC19-reid/image_test')
+            self.query_path = osp.join(root, 'AIC19-reid/image_query')
 
         self.train, self.query, self.gallery = [], [], []
         self.num_train_ids, self.num_query_ids, self.num_gallery_ids = 0, 0, 0

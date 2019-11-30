@@ -7,12 +7,9 @@ from glob import glob
 
 class VeRi(object):
     def __init__(self, root):
-        train_dir = '~/Data/VeRi/image_train/'
-        query_dir = '~/Data/VeRi/image_query/'
-        gallery_dir = '~/Data/VeRi/image_test'
-        self.train_path = osp.expanduser(train_dir)
-        self.gallery_path = osp.expanduser(gallery_dir)
-        self.query_path = osp.expanduser(query_dir)
+        self.train_path = osp.join(root, 'VeRi/image_train/')
+        self.gallery_path = osp.join(root, 'VeRi/image_query/')
+        self.query_path = osp.join(root, 'VeRi/image_test/')
 
         self.train, self.query, self.gallery = [], [], []
         self.num_train_ids, self.num_query_ids, self.num_gallery_ids = 0, 0, 0

@@ -82,7 +82,7 @@ def extract_features(model, data_loader, args, is_detection=True, use_fname=True
     end = time.time()
     for i, (imgs, fnames, pids, cams) in enumerate(data_loader):
         cams += 1
-        outputs = extract_cnn_feature(model, imgs, eval_only=True)
+        outputs = extract_cnn_feature(model, imgs)
         for fname, output, pid, cam in zip(fnames, outputs, pids, cams):
             if is_detection:
                 pattern = re.compile(r'c(\d+)_f(\d+)')
@@ -185,7 +185,7 @@ def main(args):
                               dropout=args.dropout, num_classes=0, last_stride=args.last_stride,
                               output_feature=args.output_feature)
     # Load from checkpoint
-    model, start_epoch, best_top1 = checkpoint_loader(model, args.resume, eval_only=True)
+    model, start_epoch, best_top1 = checkpoint_loader(model, args.resume)
     print("=> Start epoch {}".format(start_epoch))
     model = nn.DataParallel(model).cuda()
     model.eval()
@@ -224,7 +224,7 @@ if __name__ == '__main__':
     parser.add_argument('--height', type=int, default=256, help="input height, default: 256 for resnet*")
     parser.add_argument('--width', type=int, default=128, help="input width, default: 128 for resnet*")
     # model
-    parser.add_argument('--resume', type=str, default='', metavar='PATH')
+    parser.add_argument('--resume', type=str, default=None, metavar='PATH')
     parser.add_argument('--features', type=int, default=256)
     parser.add_argument('--dropout', type=float, default=0.5, help='0.5 for ide/pcb, 0 for triplet/zju')
     parser.add_argument('-s', '--last_stride', type=int, default=2, choices=[1, 2])

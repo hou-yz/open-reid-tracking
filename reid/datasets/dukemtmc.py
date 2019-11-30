@@ -7,25 +7,27 @@ from glob import glob
 
 class DukeMTMC(object):
 
-    def __init__(self, root, type='reid', iCams=list(range(1, 9)), fps=1, trainval=False):
+    def __init__(self, root, type='reid', iCams=None, fps=1, trainval=False):
+        if iCams is None:
+            iCams = list(range(1, 9))
         if type == 'tracking_gt':
             if not trainval:
-                train_dir = '~/Data/DukeMTMC/ALL_gt_bbox/train'
+                train_dir = osp.join(root, 'DukeMTMC/ALL_gt_bbox/train')
             else:
-                train_dir = '~/Data/DukeMTMC/ALL_gt_bbox/trainval'
-            val_dir = '~/Data/DukeMTMC/ALL_gt_bbox/val'
-            self.train_path = osp.join(osp.expanduser(train_dir), ('gt_bbox_{}_fps'.format(fps)))
-            self.gallery_path = osp.join(osp.expanduser(val_dir), ('gt_bbox_{}_fps'.format(fps)))
-            self.query_path = osp.join(osp.expanduser(val_dir), ('gt_bbox_{}_fps'.format(fps)))
+                train_dir = osp.join(root, 'DukeMTMC/ALL_gt_bbox/trainval')
+            val_dir = osp.join(root, 'DukeMTMC/ALL_gt_bbox/val')
+            self.train_path = osp.join(train_dir, f'gt_bbox_{fps}_fps')
+            self.gallery_path = osp.join(val_dir, 'gt_bbox_1_fps')
+            self.query_path = osp.join(val_dir, 'gt_bbox_1_fps')
         elif type == 'tracking_det':
             self.train_path = root
             self.gallery_path = None
             self.query_path = None
         else:  # reid
-            self.train_path = osp.join(root, 'bounding_box_train')
-            self.gallery_path = osp.join(root, 'bounding_box_test')
-            self.query_path = osp.join(root, 'query')
-        self.camstyle_path = osp.join(self.train_path, 'bounding_box_train_camstyle')
+            self.train_path = osp.join(root, 'DukeMTMC-reID/bounding_box_train')
+            self.gallery_path = osp.join(root, 'DukeMTMC-reID/bounding_box_test')
+            self.query_path = osp.join(root, 'DukeMTMC-reID/query')
+        self.camstyle_path = osp.join(root, 'DukeMTMC-reID/bounding_box_train_camstyle')
         self.train, self.query, self.gallery, self.camstyle = [], [], [], []
         self.num_train_ids, self.num_query_ids, self.num_gallery_ids, self.num_camstyle_ids = 0, 0, 0, 0
 
