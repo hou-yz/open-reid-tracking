@@ -30,7 +30,12 @@ They should be stored in a file structure like this:
     │   │ ...
     │
     └───VeRi
-        │ VeRi data
+    │   │ ...
+    │
+    └───DukeMTMC-reID
+    │   │ ...
+    │
+    └───Market-1501-v15.09.15
         │ ...
 ```
 
@@ -63,7 +68,7 @@ CUDA_VISIBLE_DEVICES=0,1 python3 save_cnn_feature.py -a zju --backbone densenet1
 
 # Our Baselines and Performance
 ### Dataset
-Please download ```Market1501``` dataset from [link](http://www.liangzheng.com.cn/Project/project_reid.html). Please unzip the compression file, and rename it into ```market1501```, and then put it into ```./data/```.
+Please download ```Market1501``` dataset from [link](http://www.liangzheng.com.cn/Project/project_reid.html), and put it into ```~/Data/```.
 
 
 ### IDE baseline
@@ -116,15 +121,41 @@ Triplet loss:
 - Adam optimizer.
 
 
-`Raw` settings:
-- `stride = 2` in last conv block.
-- `im_w x im_h = 128 x 256`.
-- only horizontal flipping used for data augmentation.
+`default` Settings:
+- IDE 
+  - `stride = 2` in last conv block.
+  - `h x w = 256 x 128`.
+  - random horizontal flip + random crop.
+- Triplet
+  - `stride = 2` in last conv block.
+  - `h x w = 256 x 128`.
+  - random horizontal flip + random crop.
+- PCB
+  - `stride = 1` in last conv block.
+  - `h x w = 384 x 128`.
+  - random horizontal flip.
+- ZJU
+  - cross entropy + triplet.
+  - `ims_per_id = 4`, `ids_per_batch = 16`.
+  - `h x w = 256 x 128`.
+  - warmup for 10 epochs.
+  - random horizontal flip + pad 10 pixel then random crop + random erasing with `re = 0.5`.
+  - label smooth.
+  - `stride = 1` in last conv block.
+  - ~~BNneck.~~
+  - ~~center loss.~~
 
-`Basis` settings:
+`Tracking` settings for IDE, Triplet, and PCB:
 - `stride = 1` in last conv block.
-- `im_w x im_h = 128 x 384`.
+- `h x w = 384 x 128`.
 - horizontal flipping and Random Erasing with `re = 0.5` used for data augmentation.
+
+`raw` setting for ZJU:
+  - cross entropy + triplet.
+  - `ims_per_id = 4`, `ids_per_batch = 16`.
+  - `h x w = 256 x 128`.
+  - random horizontal flip + pad 10 pixel then random crop.
+
 
 ~~PCB model normalizes feature to unit length.~~
 
