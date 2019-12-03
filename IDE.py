@@ -62,7 +62,8 @@ def main(args):
     if args.resume:
         resume_fname = osp.join(f'logs/ide/{args.dataset}', args.resume, 'model_best.pth.tar')
         model, start_epoch, best_top1 = checkpoint_loader(model, resume_fname)
-        print("=> Start epoch {}  best top1 {:.1%}".format(start_epoch, best_top1))
+        print("=> Last epoch {}  best top1 {:.1%}".format(start_epoch, best_top1))
+        start_epoch += 1
     model = nn.DataParallel(model).cuda()
 
     # Criterion
@@ -124,7 +125,7 @@ def main(args):
             best_top1 = max(top1, best_top1)
             save_checkpoint({
                 'state_dict': model.module.state_dict(),
-                'epoch': epoch + 1,
+                'epoch': epoch,
                 'best_top1': best_top1,
             }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
             epoch_s.append(epoch)
@@ -154,7 +155,6 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Softmax loss classification")
-    parser.add_argument('--log', type=bool, default=1)
     # data
     parser.add_argument('-d', '--dataset', type=str, default='market1501', choices=datasets.names())
     parser.add_argument('-b', '--batch-size', type=int, default=64, help="batch size")

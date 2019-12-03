@@ -64,7 +64,8 @@ def main(args):
     if args.resume:
         resume_fname = osp.join(f'logs/pcb/{args.dataset}', args.resume, 'model_best.pth.tar')
         model, start_epoch, best_top1 = checkpoint_loader(model, resume_fname)
-        print("=> Start epoch {}  best top1 {:.1%}".format(start_epoch, best_top1))
+        print("=> Last epoch {}  best top1 {:.1%}".format(start_epoch, best_top1))
+        start_epoch += 1
     model = nn.DataParallel(model).cuda()
 
     # Criterion
@@ -123,7 +124,7 @@ def main(args):
             best_top1 = max(top1, best_top1)
             save_checkpoint({
                 'state_dict': model.module.state_dict(),
-                'epoch': epoch + 1,
+                'epoch': epoch,
                 'best_top1': best_top1,
             }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
             epoch_s.append(epoch)

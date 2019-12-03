@@ -7,10 +7,11 @@ from glob import glob
 
 class DukeMTMC(object):
 
-    def __init__(self, root, type='reid', iCams=None, fps=1, trainval=False):
+    def __init__(self, root, data_type='reid', iCams=None, fps=1, trainval=False):
         if iCams is None:
             iCams = list(range(1, 9))
-        if type == 'tracking_gt':
+        if data_type == 'tracking_gt':
+            self.root = osp.join(root, 'DukeMTMC')
             if not trainval:
                 train_dir = osp.join(root, 'DukeMTMC/ALL_gt_bbox/train')
             else:
@@ -19,19 +20,25 @@ class DukeMTMC(object):
             self.train_path = osp.join(train_dir, f'gt_bbox_{fps}_fps')
             self.gallery_path = osp.join(val_dir, 'gt_bbox_1_fps')
             self.query_path = osp.join(val_dir, 'gt_bbox_1_fps')
-        elif type == 'tracking_det':
+        elif data_type == 'tracking_det':
+            self.root = root
             self.train_path = root
             self.gallery_path = None
             self.query_path = None
-        else:  # reid
+        elif data_type == 'reid':  # reid
+            self.root = osp.join(root, 'DukeMTMC-reID')
             self.train_path = osp.join(root, 'DukeMTMC-reID/bounding_box_train')
             self.gallery_path = osp.join(root, 'DukeMTMC-reID/bounding_box_test')
             self.query_path = osp.join(root, 'DukeMTMC-reID/query')
+        else:
+            raise Exception
+
         self.camstyle_path = osp.join(root, 'DukeMTMC-reID/bounding_box_train_camstyle')
         self.train, self.query, self.gallery, self.camstyle = [], [], [], []
         self.num_train_ids, self.num_query_ids, self.num_gallery_ids, self.num_camstyle_ids = 0, 0, 0, 0
+        self.num_cams = 8
 
-        self.type = type
+        self.data_type = data_type
         self.iCams = iCams
         self.load()
 
@@ -72,10 +79,10 @@ class DukeMTMC(object):
         return ret, int(len(all_pids))
 
     def load(self):
-        self.train, self.num_train_ids = self.preprocess(self.train_path, True, self.type)
-        self.gallery, self.num_gallery_ids = self.preprocess(self.gallery_path, False, self.type)
-        self.query, self.num_query_ids = self.preprocess(self.query_path, False, self.type)
-        self.camstyle, self.num_camstyle_ids = self.preprocess(self.camstyle_path, True, self.type)
+        self.train, self.num_train_ids = self.preprocess(self.train_path, True, self.data_type)
+        self.gallery, self.num_gallery_ids = self.preprocess(self.gallery_path, False, self.data_type)
+        self.query, self.num_query_ids = self.preprocess(self.query_path, False, self.data_type)
+        self.camstyle, self.num_camstyle_ids = self.preprocess(self.camstyle_path, True, self.data_type)
 
         print(self.__class__.__name__, "dataset loaded")
         print("  subset   | # ids | # images")

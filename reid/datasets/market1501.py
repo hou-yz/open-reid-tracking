@@ -7,12 +7,14 @@ from glob import glob
 
 class Market1501(object):
     def __init__(self, root):
-        self.train_path = osp.join(root, 'Market-1501-v15.09.15/bounding_box_train')
-        self.gallery_path = osp.join(root, 'Market-1501-v15.09.15/bounding_box_test')
-        self.query_path = osp.join(root, 'Market-1501-v15.09.15/query')
-        self.camstyle_path = osp.join(root, 'Market-1501-v15.09.15/bounding_box_train_camstyle')
+        self.root = osp.join(root, 'Market1501')
+        self.train_path = osp.join(root, 'Market1501/bounding_box_train')
+        self.gallery_path = osp.join(root, 'Market1501/bounding_box_test')
+        self.query_path = osp.join(root, 'Market1501/query')
+        self.camstyle_path = osp.join(root, 'Market1501/bounding_box_train_camstyle')
         self.train, self.query, self.gallery, self.camstyle = [], [], [], []
         self.num_train_ids, self.num_query_ids, self.num_gallery_ids, self.num_camstyle_ids = 0, 0, 0, 0
+        self.num_cams = 6
         self.load()
 
     def preprocess(self, path, relabel=True):

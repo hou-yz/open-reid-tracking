@@ -9,8 +9,9 @@ from glob import glob
 
 class AI_City(object):
 
-    def __init__(self, root, type='reid', fps=10, trainval=False, gt_type='gt'):
-        if type == 'tracking_gt':
+    def __init__(self, root, data_type='reid', fps=10, trainval=False, gt_type='gt'):
+        if data_type == 'tracking_gt':
+            self.root = osp.join(root, 'AIC19')
             if not trainval:
                 train_dir = osp.join(root, f'AIC19/ALL_{gt_type}_bbox/train')
             else:
@@ -19,11 +20,13 @@ class AI_City(object):
             self.train_path = osp.join(train_dir, f'gt_bbox_{fps}_fps')
             self.gallery_path = osp.join(val_dir, 'gt_bbox_1_fps')
             self.query_path = osp.join(val_dir, 'gt_bbox_1_fps')
-        elif type == 'tracking_det':
+        elif data_type == 'tracking_det':
+            self.root = root
             self.train_path = root
             self.gallery_path = None
             self.query_path = None
-        elif type == 'reid':  # reid
+        elif data_type == 'reid':  # reid
+            self.root = osp.join(root, 'AIC19-reid')
             self.train_path = osp.join(root, 'AIC19-reid/image_train')
             self.gallery_path = osp.join(root, 'VeRi/image_query/')
             self.query_path = osp.join(root, 'VeRi/image_test/')
@@ -34,15 +37,19 @@ class AI_City(object):
             for index in range(len(self.reid_info)):
                 fname = self.reid_info[index].getAttribute('imageName')
                 self.index_by_fname_dict[fname] = index
-        else:  # reid_test for feature extraction
+        elif data_type == 'reid_test':  # reid_test for feature extraction
+            self.root = osp.join(root, 'AIC19-reid')
             self.train_path = None
             self.gallery_path = osp.join(root, 'AIC19-reid/image_test')
             self.query_path = osp.join(root, 'AIC19-reid/image_query')
+        else:
+            raise Exception
 
         self.train, self.query, self.gallery = [], [], []
         self.num_train_ids, self.num_query_ids, self.num_gallery_ids = 0, 0, 0
+        self.num_cams = 40
 
-        self.type = type
+        self.data_type = data_type
         self.load()
 
     def preprocess(self, path, relabel=True, type='reid'):
@@ -82,11 +89,11 @@ class AI_City(object):
         return ret, int(len(all_pids))
 
     def load(self):
-        self.train, self.num_train_ids = self.preprocess(self.train_path, True, self.type)
+        self.train, self.num_train_ids = self.preprocess(self.train_path, True, self.data_type)
         self.gallery, self.num_gallery_ids = self.preprocess(self.gallery_path, False,
-                                                             'reid_test' if self.type == 'reid_test' else 'tracking_gt')
+                                                             'reid_test' if self.data_type == 'reid_test' else 'tracking_gt')
         self.query, self.num_query_ids = self.preprocess(self.query_path, False,
-                                                         'reid_test' if self.type == 'reid_test' else 'tracking_gt')
+                                                         'reid_test' if self.data_type == 'reid_test' else 'tracking_gt')
 
         print(self.__class__.__name__, "dataset loaded")
         print("  subset   | # ids | # images")

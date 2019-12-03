@@ -7,12 +7,14 @@ from glob import glob
 
 class VeRi(object):
     def __init__(self, root):
+        self.root = osp.join(root, 'VeRi')
         self.train_path = osp.join(root, 'VeRi/image_train/')
         self.gallery_path = osp.join(root, 'VeRi/image_query/')
         self.query_path = osp.join(root, 'VeRi/image_test/')
 
         self.train, self.query, self.gallery = [], [], []
         self.num_train_ids, self.num_query_ids, self.num_gallery_ids = 0, 0, 0
+        self.num_cams = 20
 
         self.load()
 

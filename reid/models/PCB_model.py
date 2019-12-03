@@ -3,11 +3,12 @@ from __future__ import absolute_import
 from torch import nn
 from torch.nn import functional as F
 from torch.nn import init
-from torchvision.models import resnet50
+from torchvision.models import resnet50, densenet121
 
 
 class PCB_model(nn.Module):
-    def __init__(self, num_stripes=6, feature_dim=256, num_classes=0, norm=False, dropout=0, last_stride=1, ):
+    def __init__(self, num_stripes=6, feature_dim=256, num_classes=0, norm=False, dropout=0, last_stride=1,
+                 arch='resnet50'):
         super(PCB_model, self).__init__()
         # Create PCB_only model
         self.num_stripes = num_stripes
@@ -15,15 +16,25 @@ class PCB_model(nn.Module):
         self.num_classes = num_classes
         self.norm = norm
 
-        self.base = nn.Sequential(*list(resnet50(pretrained=True).children())[:-2])
-        base_dim = 2048
-
-        if last_stride != 2:
-            # decrease the downsampling rate
-            # change the stride2 conv layer in self.layer4 to stride=1
-            self.base[7][0].conv2.stride = last_stride
-            # change the downsampling layer in self.layer4 to stride=1
-            self.base[7][0].downsample[0].stride = last_stride
+        if arch == 'resnet50':
+            self.base = nn.Sequential(*list(resnet50(pretrained=True).children())[:-2])
+            if last_stride != 2:
+                # decrease the downsampling rate
+                # change the stride2 conv layer in self.layer4 to stride=1
+                self.base[7][0].conv2.stride = last_stride
+                # change the downsampling layer in self.layer4 to stride=1
+                self.base[7][0].downsample[0].stride = last_stride
+            base_dim = 2048
+        elif arch == 'densenet121':
+            self.base = nn.Sequential(*list(densenet121(pretrained=True).children())[:-1])[0]
+            if last_stride != 2:
+                # remove the pooling layer in last transition block
+                self.base[-3][-1].stride = 1
+                self.base[-3][-1].kernel_size = 1
+                pass
+            base_dim = 1024
+        else:
+            raise Exception('Please select arch from [resnet50, densenet121]!')
 
         self.avg_pool = nn.AdaptiveAvgPool2d((6, 1))
 

@@ -18,25 +18,20 @@ from reid.utils.meters import AverageMeter
 from reid.utils.my_utils import *
 
 
-def save_file(lines, args, if_created):
+def save_file(lines, args, root, if_created):
     # write file
-    if args.type == 'detections':
-        folder_name = osp.expanduser(
-            '~/Data/{}/L0-features/'.format('DukeMTMC' if args.dataset == 'duke' else 'AIC19')) \
-                      + "det_features_{}".format(args.l0_name) + '_' + args.det_time
+    if args.data_type == 'tracking_det':
+        folder_name = root + f"/L0-features/det_{args.det_time}_features_{args.model}_{args.resume}"
         if args.dataset == 'aic':
-            folder_name += '_{}'.format(args.det_type)
-
-    elif args.type == 'gt_mini':
-        folder_name = osp.abspath(osp.join(working_dir, os.pardir)) + \
-                      '/DeepCC/experiments/' + args.l0_name + '_' + args.gt_type + '_' + args.det_time
-    elif args.type == 'gt_all':  # only extract ground truth data from 'train' set
-        folder_name = osp.expanduser(
-            '~/Data/{}/L0-features/'.format('DukeMTMC' if args.dataset == 'duke' else 'AIC19')) \
-                      + "gt_features_{}".format(args.l0_name)
-    else:  # reid_test: query/gallery
-        folder_name = osp.expanduser('~/Data/AIC19-reid/L0-features/') \
-                      + "aic_reid_{}_features_{}".format(args.reid_test, args.l0_name)
+            folder_name += f'_{args.det_type}'
+    elif args.data_type == 'reid':
+        folder_name = root + f"/L0-features/reid_trainval_features_{args.model}_{args.resume}"
+    elif args.data_type == 'tracking_gt':  # only extract ground truth data from 'train' set
+        folder_name = root + f"/L0-features/gt_{args.det_time}_features_{args.model}_{args.resume}"
+    elif args.data_type == 'reid_test':  # reid_test: query/gallery
+        folder_name = root + f"/L0-features/reid_{args.reid_test}_features_{args.model}_{args.resume}"
+    else:
+        raise Exception
 
     if args.re:
         folder_name += '_RE'
@@ -46,10 +41,9 @@ def save_file(lines, args, if_created):
     os.makedirs(folder_name, exist_ok=True)
     with open(osp.join(folder_name, 'args.json'), 'w') as fp:
         json.dump(vars(args), fp, indent=1)
-    for cam in range(8 if args.dataset == 'duke' else 40):
+    for cam in range(len(lines)):
         output_fname = folder_name + '/features%d.h5' % (cam + 1)
-        os.makedirs(os.path.dirname(output_fname), exist_ok=True)
-        if args.tracking_icams != 0 and cam + 1 != args.tracking_icams:
+        if args.tracking_icams != 0 and cam + 1 != args.tracking_icams and args.tracking_icams is not None:
             continue
         if not lines[cam]:
             continue
@@ -70,14 +64,14 @@ def save_file(lines, args, if_created):
     return if_created
 
 
-def extract_features(model, data_loader, args, is_detection=True, use_fname=True, gt_type='reid'):
+def extract_n_save(model, data_loader, args, root, num_cams, is_detection=True, use_fname=True, gt_type='reid'):
     model.eval()
     print_freq = 1000
     batch_time = AverageMeter()
     data_time = AverageMeter()
 
-    if_created = [0 for _ in range(8 if args.dataset == 'duke' else 40)]
-    lines = [[] for _ in range(8 if args.dataset == 'duke' else 40)]
+    if_created = [0 for _ in range(num_cams)]
+    lines = [[] for _ in range(num_cams)]
 
     end = time.time()
     for i, (imgs, fnames, pids, cams) in enumerate(data_loader):
@@ -111,114 +105,116 @@ def extract_features(model, data_loader, args, is_detection=True, use_fname=True
                           batch_time.val, batch_time.avg,
                           data_time.val, data_time.avg))
 
-            if_created = save_file(lines, args, if_created)
+            if_created = save_file(lines, args, root, if_created)
 
-            lines = [[] for _ in range(8 if args.dataset == 'duke' else 40)]
+            lines = [[] for _ in range(num_cams)]
 
-    save_file(lines, args, if_created)
+    save_file(lines, args, root, if_created)
     return
 
 
 def main(args):
-    tic = time.time()
-    np.random.seed(args.seed)
-    torch.manual_seed(args.seed)
-    cudnn.benchmark = True
-
-    # Redirect print to both console and log file
-
-    if args.tracking_icams != 0:
-        tracking_icams = [args.tracking_icams]
+    # seed
+    if args.seed is not None:
+        np.random.seed(args.seed)
+        torch.manual_seed(args.seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
     else:
-        tracking_icams = list(range(1, (8 if args.dataset == 'duke' else 40) + 1))
+        torch.backends.cudnn.benchmark = True
 
-    data_dir = osp.expanduser('~/Data/{}/ALL_det_bbox'.format('DukeMTMC' if args.dataset == 'duke' else 'AIC19'))
-    if args.type == 'detections':
-        type = 'tracking_det'
-        if args.dataset == 'duke':
-            dataset_dir = osp.join(data_dir, 'det_bbox_OpenPose_' + args.det_time)
-        else:
-            dataset_dir = osp.join(data_dir, args.det_time, args.det_type)
+    tic = time.time()
+    if args.tracking_icams:
+        tracking_icams = [args.tracking_icams]
+
+    if args.data_type == 'tracking_det':
+        if args.dataset == 'duke_tracking':
+            dataset_dir = osp.join(args.data_dir, 'DukeMTMC', 'ALL_det_bbox', f'det_bbox_OpenPose_{args.det_time}')
+        elif args.dataset == 'aic_tracking':
+            dataset_dir = osp.join(args.data_dir, 'AIC19', 'ALL_det_bbox',
+                                   f'det_bbox_{args.det_type}_{args.det_time}', )
         fps = None
         use_fname = True
-    elif args.type == 'gt_mini':
+    elif args.data_type == 'reid':
         # args.det_time = 'trainval'
-        type = 'reid'
         dataset_dir = None
         fps = 1
         use_fname = False
-    elif args.type == 'gt_all':
+    elif args.data_type == 'tracking_gt':
         if args.dataset == 'aic':
             args.det_time = 'trainval'
-        type = 'tracking_gt'
         dataset_dir = None
         fps = 60 if args.dataset == 'duke' else 10
         use_fname = True
-    else:  # reid_test
-        type = 'reid_test'
+    elif args.data_type == 'reid_test':  # reid_test
         dataset_dir = None
         fps = 1
         use_fname = False
+    else:
+        raise Exception
 
     print(dataset_dir)
-    if args.dataset == 'duke':
-        dataset = DukeMTMC(dataset_dir, type=type, iCams=tracking_icams, fps=fps, trainval=args.det_time == 'trainval')
-    else:  # aic
-        dataset = AI_City(dataset_dir, type=type, fps=fps, trainval=args.det_time == 'trainval', gt_type=args.gt_type)
+    if args.dataset == 'duke_tracking':
+        dataset = DukeMTMC(dataset_dir, data_type=args.data_type, iCams=tracking_icams, fps=fps,
+                           trainval=args.det_time == 'trainval')
+    elif args.dataset == 'aic_tracking':  # aic
+        dataset = AI_City(dataset_dir, data_type=args.data_type, fps=fps, trainval=args.det_time == 'trainval',
+                          gt_type=args.gt_type)
+    else:
+        dataset = datasets.create(args.dataset, args.data_dir)
 
     normalizer = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     test_transformer = T.Compose([
         T.Resize([args.height, args.width]),
-        T.RandomHorizontalFlip(),
         T.Pad(10 * args.crop),
         T.RandomCrop([args.height, args.width]),
         T.ToTensor(),
         normalizer,
         T.RandomErasing(probability=args.re), ])
     # Create model
-    if args.arch == 'zju':
-        model = models.create(args.arch, num_features=args.features, norm=args.norm,
-                              dropout=args.dropout, num_classes=0, last_stride=args.last_stride,
-                              output_feature=args.output_feature, backbone=args.backbone, BNneck=args.BNneck)
-    else:
-        model = models.create(args.arch, num_features=args.features, norm=args.norm,
-                              dropout=args.dropout, num_classes=0, last_stride=args.last_stride,
-                              output_feature=args.output_feature)
+    model = models.create(args.model, feature_dim=args.features, num_classes=0, norm=args.norm,
+                          dropout=args.dropout, last_stride=args.last_stride, arch=args.arch)
     # Load from checkpoint
-    model, start_epoch, best_top1 = checkpoint_loader(model, args.resume)
-    print("=> Start epoch {}".format(start_epoch))
+    assert args.resume, 'must provide resume directory'
+    resume_fname = osp.join(f'logs/{args.model}/{args.dataset}', args.resume, 'model_best.pth.tar')
+    model, start_epoch, best_top1 = checkpoint_loader(model, resume_fname)
+    print(f"=> Last epoch {start_epoch}")
     model = nn.DataParallel(model).cuda()
     model.eval()
     toc = time.time() - tic
     print('*************** initialization takes time: {:^10.2f} *********************\n'.format(toc))
 
     tic = time.time()
-    if args.type == 'reid_test':
+    if args.data_type == 'reid_test':
         args.reid_test = 'query'
         data_loader = DataLoader(Preprocessor(dataset.query, root=dataset.query_path, transform=test_transformer),
                                  batch_size=args.batch_size, num_workers=args.num_workers, shuffle=False)
-        extract_features(model, data_loader, args, is_detection=False, use_fname=use_fname)
+        extract_n_save(model, data_loader, args, dataset.root, dataset.num_cams,
+                       is_detection=False, use_fname=use_fname)
         args.reid_test = 'gallery'
         data_loader = DataLoader(Preprocessor(dataset.gallery, root=dataset.gallery_path, transform=test_transformer),
                                  batch_size=args.batch_size, num_workers=args.num_workers, shuffle=False)
-        extract_features(model, data_loader, args, is_detection=False, use_fname=use_fname)
+        extract_n_save(model, data_loader, args, dataset.root, dataset.num_cams,
+                       is_detection=False, use_fname=use_fname)
     else:
         data_loader = DataLoader(Preprocessor(dataset.train, root=dataset.train_path, transform=test_transformer),
                                  batch_size=args.batch_size, num_workers=args.num_workers, shuffle=False)
-        extract_features(model, data_loader, args, is_detection=type == 'tracking_det', use_fname=use_fname)
+        extract_n_save(model, data_loader, args, dataset.root, dataset.num_cams,
+                       is_detection=args.data_type == 'tracking_det', use_fname=use_fname)
     toc = time.time() - tic
     print('*************** compute features takes time: {:^10.2f} *********************\n'.format(toc))
     pass
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Softmax loss classification")
+    parser = argparse.ArgumentParser(description="Save re-ID features")
     # data
-    parser.add_argument('-a', '--arch', type=str, default='ide', choices=['ide', 'pcb', 'zju'])
-    parser.add_argument('--backbone', type=str, default='resnet50', choices=['resnet50', 'densenet121'],
+    parser.add_argument('--model', type=str, default='ide', choices=['ide', 'pcb', 'zju'])
+    parser.add_argument('-a', '--arch', type=str, default='resnet50', choices=['resnet50', 'densenet121'],
                         help='architecture for base network')
-    parser.add_argument('-d', '--dataset', type=str, default='duke', choices=['duke', 'aic'])
-    parser.add_argument('--type', type=str, default='gt_mini', choices=['detections', 'gt_mini', 'gt_all', 'reid_test'])
+    parser.add_argument('-d', '--dataset', type=str, default='duke', choices=datasets.names())
+    parser.add_argument('--data_type', type=str, default='reid',
+                        choices=['tracking_det', 'reid', 'tracking_gt', 'reid_test'])
     parser.add_argument('-b', '--batch-size', type=int, default=64, help="batch size")
     parser.add_argument('-j', '--num-workers', type=int, default=4)
     parser.add_argument('--height', type=int, default=256, help="input height, default: 256 for resnet*")
@@ -228,19 +224,16 @@ if __name__ == '__main__':
     parser.add_argument('--features', type=int, default=256)
     parser.add_argument('--dropout', type=float, default=0.5, help='0.5 for ide/pcb, 0 for triplet/zju')
     parser.add_argument('-s', '--last_stride', type=int, default=2, choices=[1, 2])
-    parser.add_argument('--output_feature', type=str, default='fc', choices=['pool5', 'fc'])
     parser.add_argument('--norm', action='store_true', help="normalize feat, default: False")
-    parser.add_argument('--BNneck', action='store_true', help="BN layer, default: False")
     # misc
-    parser.add_argument('--seed', type=int, default=1)
-    working_dir = osp.dirname(osp.abspath(__file__))
-    parser.add_argument('--logs-dir', type=str, metavar='PATH', default=osp.join(working_dir, 'logs'))
-    parser.add_argument('--l0_name', type=str, metavar='PATH')
+    parser.add_argument('--data-dir', type=str, metavar='PATH', default=osp.expanduser('~/Data'))
+    parser.add_argument('--logs-dir', type=str, metavar='PATH', default=None)
     parser.add_argument('--det_time', type=str, metavar='PATH', default='val',
                         choices=['trainval_nano', 'trainval', 'train', 'val', 'test_all', 'test'])
     parser.add_argument('--det_type', type=str, default='ssd', choices=['ssd', 'yolo'])
     parser.add_argument('--gt_type', type=str, default='gt', choices=['gt', 'labeled'])
-    parser.add_argument('--tracking_icams', type=int, default=0, help="specify if train on single iCam")
+    parser.add_argument('--tracking_icams', type=int, default=None, help="specify if train on single iCam")
+    parser.add_argument('--seed', type=int, default=None)
     # data jittering
     parser.add_argument('--re', type=float, default=0, help="random erasing")
     parser.add_argument('--crop', action='store_true', help="resize then crop, default: False")
