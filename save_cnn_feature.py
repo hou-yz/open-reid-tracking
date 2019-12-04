@@ -15,7 +15,7 @@ from reid import models
 from reid.datasets import *
 from reid.feature_extraction import extract_cnn_feature
 from reid.utils.meters import AverageMeter
-from reid.utils.my_utils import *
+from reid.utils.get_loaders import *
 
 
 def save_file(lines, args, root, if_created):
@@ -83,7 +83,7 @@ def extract_n_save(model, data_loader, args, root, num_cams, is_detection=True, 
                 cam, frame = map(int, pattern.search(fname).groups())
                 # f_names[cam - 1].append(fname)
                 # features[cam - 1].append(output.numpy())
-                line = np.concatenate([np.array([cam, frame]), output.numpy()])
+                line = np.concatenate([np.array([cam, 0, frame]), output.numpy()])
             else:
                 pattern = re.compile(r'(\d+)_c(\d+)_f(\d+)')
                 if use_fname:
@@ -209,7 +209,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Save re-ID features")
     # data
-    parser.add_argument('--model', type=str, default='ide', choices=['ide', 'pcb', 'zju'])
+    parser.add_argument('--model', type=str, default='ide', choices=models.names())
     parser.add_argument('-a', '--arch', type=str, default='resnet50', choices=['resnet50', 'densenet121'],
                         help='architecture for base network')
     parser.add_argument('-d', '--dataset', type=str, default='duke', choices=datasets.names())

@@ -30,7 +30,7 @@ def extract_features(model, data_loader, print_freq=100):
         batch_time.update(time.time() - end)
         end = time.time()
 
-        if (i + 1) % print_freq == 0:
+        if (i + 1) % print_freq == 0 or (i + 1) == len(data_loader):
             print('Extract Features: [{}/{}]\t'
                   'Time {:.3f} ({:.3f})\t'
                   'Data {:.3f} ({:.3f})\t'
@@ -42,8 +42,12 @@ def extract_features(model, data_loader, print_freq=100):
 
 
 def pairwise_distance(query_features, gallery_features, query=None, gallery=None):
-    x = torch.cat([query_features[f].unsqueeze(0) for f, _, _ in query], 0)
-    y = torch.cat([gallery_features[f].unsqueeze(0) for f, _, _ in gallery], 0)
+    if query is not None and gallery is not None:
+        x = torch.cat([query_features[f].unsqueeze(0) for f, _, _ in query], 0)
+        y = torch.cat([gallery_features[f].unsqueeze(0) for f, _, _ in gallery], 0)
+    else:
+        x = torch.stack(query_features, 0)
+        y = torch.cat(gallery_features, 0)
     m, n = x.size(0), y.size(0)
     x = x.view(m, -1)
     y = y.view(n, -1)

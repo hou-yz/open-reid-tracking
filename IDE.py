@@ -15,7 +15,8 @@ from reid.evaluators import Evaluator
 from reid.loss import *
 from reid.trainers import Trainer
 from reid.utils.logger import Logger
-from reid.utils.my_utils import *
+from reid.utils.draw_curve import *
+from reid.utils.get_loaders import *
 from reid.utils.serialization import save_checkpoint
 
 '''            
@@ -36,6 +37,8 @@ def main(args):
 
     if args.logs_dir is None:
         args.logs_dir = osp.join(f'logs/ide/{args.dataset}', datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S'))
+    else:
+        args.logs_dir = osp.join(f'logs/ide/{args.dataset}', args.logs_dir)
     if args.train:
         os.makedirs(args.logs_dir, exist_ok=True)
         copy_tree('./reid', args.logs_dir + '/scripts/reid')
@@ -132,7 +135,7 @@ def main(args):
             loss_s.append(train_loss)
             prec_s.append(train_prec)
             draw_curve(os.path.join(args.logs_dir, 'train_curve.jpg'), epoch_s, loss_s, prec_s,
-                       eval_epoch_s, eval_top1_s)
+                       eval_epoch_s, None, eval_top1_s)
 
             t1 = time.time()
             t_epoch = t1 - t0

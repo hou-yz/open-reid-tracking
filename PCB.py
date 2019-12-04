@@ -13,7 +13,8 @@ from reid import models
 from reid.evaluators import Evaluator
 from reid.trainers import Trainer
 from reid.utils.logger import Logger
-from reid.utils.my_utils import *
+from reid.utils.draw_curve import *
+from reid.utils.get_loaders import *
 from reid.utils.serialization import save_checkpoint
 
 '''
@@ -38,6 +39,8 @@ def main(args):
 
     if args.logs_dir is None:
         args.logs_dir = osp.join(f'logs/pcb/{args.dataset}', datetime.datetime.today().strftime('%Y-%m-%d_%H-%M-%S'))
+    else:
+        args.logs_dir = osp.join(f'logs/pcb/{args.dataset}', args.logs_dir)
     if args.train:
         os.makedirs(args.logs_dir, exist_ok=True)
         copy_tree('./reid', args.logs_dir + '/scripts/reid')
@@ -131,7 +134,7 @@ def main(args):
             loss_s.append(train_loss)
             prec_s.append(train_prec)
             draw_curve(os.path.join(args.logs_dir, 'train_curve.jpg'), epoch_s, loss_s, prec_s,
-                       eval_epoch_s, eval_top1_s)
+                       eval_epoch_s, None, eval_top1_s)
 
             t1 = time.time()
             t_epoch = t1 - t0
@@ -154,7 +157,6 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Softmax loss classification")
-    parser.add_argument('--log', type=bool, default=1)
     # data
     parser.add_argument('-d', '--dataset', type=str, default='market1501', choices=datasets.names())
     parser.add_argument('-b', '--batch-size', type=int, default=64, help="batch size")
@@ -172,6 +174,8 @@ if __name__ == '__main__':
     parser.add_argument('--dropout', type=float, default=0.5)
     parser.add_argument('-s', '--last_stride', type=int, default=1, choices=[1, 2])
     parser.add_argument('--norm', action='store_true', help="normalize feat, default: False")
+    parser.add_argument('--arch', type=str, default='resnet50', choices=['resnet50', 'densenet121'],
+                        help='architecture for base network')
     # optimizer
     parser.add_argument('--lr', type=float, default=0.1,
                         help="learning rate of new parameters, for pretrained "
@@ -190,7 +194,6 @@ if __name__ == '__main__':
     # camstyle batchsize
     parser.add_argument('--camstyle', type=int, default=0)
     # misc
-    working_dir = osp.dirname(osp.abspath(__file__))
     parser.add_argument('--data-dir', type=str, metavar='PATH', default=osp.expanduser('~/Data'))
     parser.add_argument('--logs-dir', type=str, metavar='PATH', default=None)
     main(parser.parse_args())
