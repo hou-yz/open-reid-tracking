@@ -142,6 +142,10 @@ Triplet loss:
 | Duke|Triplet|Default                               | 62.40 | 78.19 |
 | Duke|PCB|Default                                   | 68.72 | 83.12 |
 | Duke|ZJU|Default                                   | 75.20 | 86.71 |
+| Market|IDE|Default                                   | 69.34 | 86.58 |
+| Market|Triplet|Default                               | 72.42 | 86.55 |
+| Market|PCB|Default                                   | 77.53 | 92.52 |
+| Market|ZJU|Default                                   | 85.37 | 93.79 |
 
 <!---
 | Duke|IDE|Default                                | 51.65 | 71.10 |
