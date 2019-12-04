@@ -85,8 +85,8 @@ def extract_n_save(model, data_loader, args, root, num_cams, is_detection=True, 
                 # features[cam - 1].append(output.numpy())
                 line = np.concatenate([np.array([cam, 0, frame]), output.numpy()])
             else:
-                pattern = re.compile(r'(\d+)_c(\d+)_f(\d+)')
                 if use_fname:
+                    pattern = re.compile(r'(\d+)_c(\d+)_f(\d+)')
                     pid, cam, frame = map(int, pattern.search(fname).groups())
                 else:
                     cam, pid = cam.numpy(), pid.numpy()

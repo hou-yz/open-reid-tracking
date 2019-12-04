@@ -30,7 +30,7 @@ class VeRi(object):
             if pid not in all_pids:
                 all_pids[pid] = len(all_pids)
             pid = all_pids[pid]
-            ret.append((fname, pid, cam))
+            ret.append((fname, pid, cam - 1))
         return ret, int(len(all_pids))
 
     def load(self):

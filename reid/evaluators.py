@@ -1,10 +1,7 @@
-from __future__ import print_function, absolute_import
-
 import time
+import copy
 from collections import OrderedDict
-
 import torch
-
 from .evaluation_metrics import cmc, mean_ap
 from .feature_extraction import extract_cnn_feature
 from .utils.meters import AverageMeter
@@ -46,8 +43,8 @@ def pairwise_distance(query_features, gallery_features, query=None, gallery=None
         x = torch.cat([query_features[f].unsqueeze(0) for f, _, _ in query], 0)
         y = torch.cat([gallery_features[f].unsqueeze(0) for f, _, _ in gallery], 0)
     else:
-        x = torch.stack(query_features, 0)
-        y = torch.cat(gallery_features, 0)
+        x = copy.deepcopy(query_features)
+        y = copy.deepcopy(gallery_features)
     m, n = x.size(0), y.size(0)
     x = x.view(m, -1)
     y = y.view(n, -1)

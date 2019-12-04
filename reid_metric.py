@@ -61,7 +61,9 @@ def main(args):
     # model
     model = MLP_metric(feature_dim=siamese_trainset.feature_dim, num_class=2).cuda()
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, 20, 1)
+    # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, 20, 1)
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=args.lr,
+                                                    steps_per_epoch=len(train_loader), epochs=args.epochs)
 
     trainer = CNNTrainer(model, nn.CrossEntropyLoss(), )
 
@@ -103,7 +105,7 @@ if __name__ == '__main__':
                         help='input batch size for training (default: 64)')
     parser.add_argument('-j', '--num-workers', type=int, default=1)
     parser.add_argument('--epochs', type=int, default=40, metavar='N')
-    parser.add_argument('--lr', type=float, default=1e-2, metavar='LR')
+    parser.add_argument('--lr', type=float, default=1e-3, metavar='LR')
     parser.add_argument('--combine-trainval', action='store_true',
                         help="train and val sets together for training, val set alone for validation")
     parser.add_argument('--momentum', type=float, default=0.9, metavar='M', help='SGD momentum (default: 0.9)')
